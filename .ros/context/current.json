@@ -4,7 +4,7 @@
   "repository": "indy-init-rehearsal-001",
   "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-10-21T16:53:40.698Z",
+  "updatedAt": "2026-10-21T16:57:23.249Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -82,6 +82,39 @@
       "updatedAt": "2026-10-21T16:53:40.698Z",
       "telemetryExecutionIds": [
         "EXE-20261021T165341379Z-fd7098c2"
+      ]
+    },
+    {
+      "id": "SLICE-LOCAL-PERSISTENCE",
+      "type": "task",
+      "state": "active",
+      "semanticState": "active",
+      "evidence": [],
+      "updatedAt": "2026-10-21T16:57:21.453Z",
+      "telemetryExecutionIds": [
+        "EXE-20261021T165722114Z-a0e42263"
+      ]
+    },
+    {
+      "id": "SLICE-GITHUB-PROVIDER",
+      "type": "task",
+      "state": "active",
+      "semanticState": "active",
+      "evidence": [],
+      "updatedAt": "2026-10-21T16:57:22.360Z",
+      "telemetryExecutionIds": [
+        "EXE-20261021T165723003Z-93266828"
+      ]
+    },
+    {
+      "id": "SLICE-REPORTING",
+      "type": "task",
+      "state": "active",
+      "semanticState": "active",
+      "evidence": [],
+      "updatedAt": "2026-10-21T16:57:23.249Z",
+      "telemetryExecutionIds": [
+        "EXE-20261021T165723963Z-4eb86ecb"
       ]
     }
   ]
