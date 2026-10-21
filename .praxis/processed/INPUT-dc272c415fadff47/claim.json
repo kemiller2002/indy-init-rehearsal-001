@@ -1,7 +1,7 @@
 {
   "schema": "praxis.inbox-claim/1",
   "claimId": "INPUT-dc272c415fadff47",
-  "state": "claimed",
+  "state": "completed",
   "source": {
     "path": ".praxis/inbox/documents/2026-10-21-INDY-INIT-REQUIREMENTS-b4c0994.md",
     "fileName": "2026-10-21-INDY-INIT-REQUIREMENTS-b4c0994.md",
@@ -1332,7 +1332,7 @@
     }
   ],
   "noDerivationReason": null,
-  "closedAt": null,
+  "closedAt": "2026-10-21T16:33:36.135Z",
   "releaseReason": null,
   "rejectionReason": null
 }
