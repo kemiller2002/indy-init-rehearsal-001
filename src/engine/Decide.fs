@@ -245,7 +245,7 @@ module Policy =
                 causeSupportFindings inv c
                 |> List.map (fun f -> err "RESOLVE.CAUSE_NO_LONGER_HOLDS" f.Rule $"The confirmed cause no longer meets the gate: {f.Message} Reopen and reassess it."))
         // N5/N7: the current conclusion must still be true of the present state.
-        let latest = inv.Conclusions |> Map.toList |> List.map snd |> List.sortBy (fun c -> c.Provenance.RecordedAt, string c.Id) |> List.tryLast
+        let latest = inv.Conclusions |> Map.toList |> List.map snd |> List.sortBy (fun c -> c.Sequence) |> List.tryLast
         let residualsAccepted =
             (inv.Unknowns |> Map.exists (fun _ u -> u.State = AcceptedResidual))
             || (inv.Contradictions |> Map.exists (fun _ c -> c.State = ContradictionAcceptedResidual))
@@ -325,7 +325,7 @@ module Evolve =
             | CriterionRecorded(crid, caid, ex, m) -> { inv with Criteria = inv.Criteria |> Map.add crid { Id = crid; CorrectiveAction = caid; ExpectedOutcome = ex; Method = m; Provenance = p } }
             | VerificationRecorded(vid, crid, o, ev) -> { inv with Verifications = inv.Verifications |> Map.add vid { Id = vid; Criterion = crid; Outcome = o; Evidence = ev; Sequence = e.Sequence; Provenance = p } }
             | ConclusionRecorded(cid, s, st, causes, r) ->
-                { inv with Conclusions = inv.Conclusions |> Map.add cid { Id = cid; Statement = s; Strength = st; Causes = causes; ResidualUncertainty = r; Provenance = p } }
+                { inv with Conclusions = inv.Conclusions |> Map.add cid { Id = cid; Statement = s; Strength = st; Causes = causes; ResidualUncertainty = r; Sequence = e.Sequence; Provenance = p } }
             | ProposalRecorded(pid, k, t, r) ->
                 { inv with Proposals = inv.Proposals |> Map.add pid { Id = pid; Kind = k; Text = t; Rationale = r; State = ProposalActive; Decision = None; Provenance = p } }
             | ProposalWasAccepted(pid, _) -> { inv with Proposals = inv.Proposals |> upd pid (fun pr -> { pr with State = ProposalAccepted }) }
@@ -622,6 +622,8 @@ module Decide =
                 both (text "Title" titleText) (text "Initial observation" original)
                 |> Result.map (fun (t, o) -> [ InvestigationStarted(t, oid, o) ])
         | None, _ -> fail "INVESTIGATION.NOT_FOUND" "schema" "Start the investigation first."
+        | Some inv, _ when env.Investigation <> inv.Id ->
+            fail "ENVELOPE.MISMATCH" "schema" "The command names a different investigation than the one loaded."
         | Some inv, _ ->
             match env.ExpectedVersion with
             | Some v when v <> inv.Version ->

@@ -1207,6 +1207,36 @@ let ``[I-19][I-20][D-005] C-R3-1 every RC3-review forgery shape is rejected by r
     let accepted = shapes |> List.filter (fun (_, h) -> List.isEmpty (History.validate h)) |> List.map fst
     Assert.Empty(accepted)
 
+[<Fact>]
+let ``[R6.1][R6.4][I-19] F1 the current conclusion is the latest by event sequence, not by a forgeable timestamp`` () =
+    let withResidual =
+        resolvable
+        |> script
+            [ IdentifyUnknown(unk 1, "Was the pool config changed too?", NonMaterial)
+              TransitionUnknown(unk 1, AcceptUnknownAsResidual, "audit log unavailable")
+              RecordConclusion(concl 2, "Serializer change, pool config unknown.", ConfirmedCause, [ cause 1 ], Some "Pool config history is unknown") ]
+    let inv = stateOf withResidual
+    Assert.Empty(Policy.resolutionBlockers inv)
+    // A newer conclusion (higher sequence) without the residual statement, back-dated to look older.
+    let stated = inv.Conclusions[concl 2]
+    let backdated =
+        { stated with
+            Id = concl 3
+            ResidualUncertainty = None
+            Sequence = stated.Sequence + 1L
+            Provenance = { stated.Provenance with RecordedAt = t0.AddDays(-1.0) } }
+    let forged = { inv with Conclusions = inv.Conclusions |> Map.add (concl 3) backdated }
+    Assert.Contains("RESOLVE.RESIDUAL_NOT_STATED", codesOf (Policy.resolutionBlockers forged))
+    Assert.True(Result.isError (Decide.probe forged alice t0 ResolveInvestigation))
+
+[<Fact>]
+let ``[I-13] L1 a command naming a different investigation than the loaded state is refused`` () =
+    let other : InvestigationId = Id.create (gid 424242)
+    let env = { envelope alice None confirmed (RecordHypothesis(hyp 9, "elsewhere", None)) with Investigation = other }
+    match Decide.execute (Evolve.replay confirmed) env with
+    | Error errors -> Assert.Contains("ENVELOPE.MISMATCH", codesOf errors)
+    | Ok _ -> failwith "a foreign-investigation command was applied"
+
 module AgentAuthorityBoundary =
     open System
     open IndyInitRootCauseInvestigator.Engine
