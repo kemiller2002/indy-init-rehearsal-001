@@ -213,7 +213,7 @@ test("[R15.2][R15.5] AI-suggested hypothesis is recorded as the AI's and accepte
   await expect(page.getByTestId("history-item").filter({ hasText: "AI suggestion recorded" })).toContainText("AI suggestion");
 });
 
-test("[R9.6] a deep link pasted into a new tab of the same browser opens the same investigation", async ({ page, context }) => {
+test("a deep link pasted into a new tab of the same browser opens the same investigation (same-browser only)", async ({ page, context }) => {
   await supportedAndFalsified(page);
   const url = page.url();
   const other = await context.newPage();
@@ -222,4 +222,17 @@ test("[R9.6] a deep link pasted into a new tab of the same browser opens the sam
   await expect(other.getByRole("heading", { level: 1, name: "Checkout 502 errors" })).toBeVisible();
   await expect(stateOf(other, "DNS misconfiguration")).toHaveText("Ruled out");
   await other.close();
+});
+
+test("[R9.8] a deep link opened in a fresh browser context with empty storage says the investigation is not on this device", async ({ page, browser, baseURL }) => {
+  await supportedAndFalsified(page);
+  const hash = new URL(page.url()).hash;
+  const fresh = await browser.newContext({ baseURL });
+  const other = await fresh.newPage();
+  await other.goto("./" + hash);
+  await expect(other.locator("html")).toHaveAttribute("data-kernel", "running");
+  await expect(other.getByRole("heading", { level: 1, name: "Not found" })).toBeVisible();
+  await expect(other.getByText("This investigation is not on this device.")).toBeVisible();
+  await expect(other.getByRole("heading", { level: 1, name: "Checkout 502 errors" })).toHaveCount(0);
+  await fresh.close();
 });

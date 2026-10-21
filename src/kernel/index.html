@@ -175,6 +175,7 @@
         <template data-if="hasFactory">
           <div class="factory">
             <p>Experiment <strong data-text="factoryExperiment"></strong> · commit <code data-testid="factory-commit" data-text="factoryCommit"></code></p>
+            <p data-testid="factory-build-status" data-text="factoryBuildStatus"></p>
             <p data-testid="factory-tests" data-text="factoryTests"></p>
             <section class="ef-section" aria-labelledby="slices-title">
               <h2 id="slices-title">Work items</h2>
@@ -186,9 +187,9 @@
               <h2 id="reqs-title">Requirements in scope (<span data-text="factoryRequirementCount"></span>)</h2>
               <div class="table-scroll">
                 <table class="factory-table">
-                  <thead><tr><th scope="col">Requirement</th><th scope="col">Title</th><th scope="col">Kind</th><th scope="col">Slice</th><th scope="col">Slice state</th></tr></thead>
+                  <thead><tr><th scope="col">Requirement</th><th scope="col">Title</th><th scope="col">Kind</th><th scope="col">Slice</th><th scope="col">Slice state</th><th scope="col">Tests</th></tr></thead>
                   <tbody>
-                    <template data-each="factoryRequirements" data-key="id"><tr data-testid="factory-requirement"><td><code data-text="id"></code></td><td data-text="title"></td><td data-text="scope"></td><td data-text="slice"></td><td data-text="status"></td></tr></template>
+                    <template data-each="factoryRequirements" data-key="id"><tr data-testid="factory-requirement"><td><code data-text="id"></code></td><td data-text="title"></td><td data-text="scope"></td><td data-text="slice"></td><td data-text="status"></td><td data-text="coverage"></td></tr></template>
                   </tbody>
                 </table>
               </div>

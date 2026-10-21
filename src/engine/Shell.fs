@@ -683,16 +683,35 @@ type LocalSave =
     | SaveFailed of reason: string
 
 /// The factory/proof data published with the build (dist/factory.json).
+type FactoryRequirement =
+    { ReqId: string
+      ReqTitle: string
+      ReqScope: string
+      ReqSlice: string
+      /// "tested" | "untested" | "failing" | "" (no test run recorded)
+      Coverage: string }
+
+/// Totals of the recorded test run (test-results/traceability.json).
+type FactoryTests =
+    { RunCommit: string
+      Total: int
+      Passed: int
+      Failed: int
+      Tested: int
+      Untested: int
+      Failing: int }
+
 type FactoryInfo =
     { Label: string
       Commit: string
       BuiltAt: string
       Experiment: string
-      /// id, title, scope, slice
-      Requirements: (string * string * string * string) list
+      Requirements: FactoryRequirement list
       /// id, title, status
       WorkItems: (string * string * string) list
-      Tests: (string * int) list option }
+      Tests: FactoryTests option
+      /// "passed" | "failing" | "unknown", from the recorded test run.
+      BuildStatus: string }
 
 type FactoryState =
     | FactoryNotRequested
@@ -1391,10 +1410,16 @@ let decodeFactory (text: string) : Result<FactoryInfo, string> =
             let tests =
                 match JsonIn.child "tests" (Some root) with
                 | Some(:? JsonObject as o) ->
-                    Some [ for KeyValue(k, _) in o do
-                               match JsonIn.child k (Some(o :> JsonNode)) |> JsonIn.int with
-                               | Some v -> yield k, v
-                               | None -> () ]
+                    let t = Some(o :> JsonNode)
+                    let count name = JsonIn.child name t |> JsonIn.int |> Option.defaultValue 0
+                    Some
+                        { RunCommit = field "commit" t
+                          Total = count "tests"
+                          Passed = count "passed"
+                          Failed = count "failed"
+                          Tested = count "tested"
+                          Untested = count "untested"
+                          Failing = count "failing" }
                 | _ -> None
             Ok
                 { Label = field "label" (Some root)
@@ -1403,11 +1428,13 @@ let decodeFactory (text: string) : Result<FactoryInfo, string> =
                   Experiment = field "experiment" (Some root)
                   Requirements =
                     JsonIn.child "requirements" (Some root) |> JsonIn.list
-                    |> List.map (fun r -> field "id" r, field "title" r, field "scope" r, field "slice" r)
+                    |> List.map (fun r ->
+                        { ReqId = field "id" r; ReqTitle = field "title" r; ReqScope = field "scope" r; ReqSlice = field "slice" r; Coverage = field "coverage" r })
                   WorkItems =
                     JsonIn.child "workItems" (Some root) |> JsonIn.list
                     |> List.map (fun w -> field "id" w, field "title" w, field "status" w)
-                  Tests = tests }
+                  Tests = tests
+                  BuildStatus = (match field "buildStatus" (Some root) with "" -> "unknown" | v -> v) }
         | other -> Error("unsupported factory schema " + Option.defaultValue "(none)" other)
 
 /// Entering the factory view requests ./factory.json once (Limen Http effect).
@@ -1643,7 +1670,8 @@ let private localText (st: AppState) (iid: InvestigationId) =
     | Some SavedLocally -> "Saved on this device"
     | Some Saving -> "Saving on this device…"
     | Some(SaveFailed r) -> "Not saved on this device (" + r + ")"
-    | None -> "Saved on this device"
+    // N9: nothing claims a save that has not been recorded.
+    | None -> "Not saved yet"
 
 let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event list) (real: bool) : (string * J) list =
     let l = labelsOf events
@@ -2144,7 +2172,7 @@ let private factoryKeys (st: AppState) : (string * J) list =
     let statusOf slice = workItems |> List.tryFind (fun (id, _, _) -> id = slice) |> Option.map (fun (_, _, st) -> st) |> Option.defaultValue "not in the work queue"
     let slices =
         requirements
-        |> List.groupBy (fun (_, _, _, slice) -> slice)
+        |> List.groupBy (fun r -> r.ReqSlice)
         |> List.map (fun (slice, reqs) ->
             item [ "id", s (if slice = "" then "unassigned" else slice); "slice", s (if slice = "" then "No slice" else slice); "count", n reqs.Length; "status", s (statusOf slice) ])
     [ "isFactory", b (st.Screen = FactoryScreen)
@@ -2156,11 +2184,31 @@ let private factoryKeys (st: AppState) : (string * J) list =
       "factoryTests",
       s (
           match info |> Option.bind (fun f -> f.Tests) with
-          | Some counts when not counts.IsEmpty -> Words.join ", " (counts |> List.map (fun (k, v) -> k + ": " + string v))
-          | _ -> "Test results were not available when this site was built (CI runs the tests after the build)."
+          | Some t ->
+              string t.Total + " tests recorded, " + string t.Passed + " passed, " + string t.Failed + " failed"
+              + (if t.RunCommit <> "" then " (run on commit " + (if t.RunCommit.Length > 7 then t.RunCommit.Substring(0, 7) else t.RunCommit) + ")" else "")
+              + ". Requirements: " + string t.Tested + " tested, " + string t.Untested + " untested, " + string t.Failing + " failing."
+          | None -> "Test results were not available when this site was built."
+      )
+      "factoryBuildStatus",
+      s (
+          match info |> Option.map (fun f -> f.BuildStatus) with
+          | Some "passed" -> "Build status: every recorded test passed"
+          | Some "failing" -> "Build status: some recorded tests failed"
+          | _ -> "Build status: unknown (no test run was recorded for this build)"
       )
       "factoryRequirements",
-      JArr(requirements |> List.map (fun (id, title, scope, slice) -> item [ "id", s id; "title", s title; "scope", s (if scope = "scoped-factory" then "Factory" else "Product"); "slice", s (if slice = "" then "—" else slice); "status", s (statusOf slice) ]))
+      JArr(
+          requirements
+          |> List.map (fun r ->
+              item
+                  [ "id", s r.ReqId
+                    "title", s r.ReqTitle
+                    "scope", s (if r.ReqScope = "scoped-factory" then "Factory" else "Product")
+                    "slice", s (if r.ReqSlice = "" then "—" else r.ReqSlice)
+                    "status", s (statusOf r.ReqSlice)
+                    "coverage", s (if r.Coverage = "" then "no test run recorded" else r.Coverage) ])
+      )
       "factorySlices", JArr slices
       "factoryWorkItems", JArr(workItems |> List.map (fun (id, title, status) -> item [ "id", s id; "title", s title; "status", s status ])) ]
 
