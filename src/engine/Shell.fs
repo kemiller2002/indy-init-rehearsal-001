@@ -681,6 +681,24 @@ type LocalSave =
     | SavedLocally
     | SaveFailed of reason: string
 
+/// The factory/proof data published with the build (dist/factory.json).
+type FactoryInfo =
+    { Label: string
+      Commit: string
+      BuiltAt: string
+      Experiment: string
+      /// id, title, scope, slice
+      Requirements: (string * string * string * string) list
+      /// id, title, status
+      WorkItems: (string * string * string) list
+      Tests: (string * int) list option }
+
+type FactoryState =
+    | FactoryNotRequested
+    | FactoryLoading
+    | FactoryLoaded of FactoryInfo
+    | FactoryFailed of reason: string
+
 /// What an outstanding correlation id was for.
 type PendingOp =
     | LoadSettings
@@ -696,6 +714,7 @@ type PendingOp =
     | Subscribe
     | NavigationAck
     | CopyLink of url: string
+    | FactoryLoad
 
 type AppState =
     { Investigations: Map<InvestigationId, Event list>
@@ -716,6 +735,7 @@ type AppState =
       LifecycleNegotiated: bool
       /// origin + path of the page, for absolute share links (never carries a query).
       BaseUrl: string
+      Factory: FactoryState
       Sync: Map<InvestigationId, SyncStatus>
       RemoteSha: Map<InvestigationId, string>
       /// Event count included in the write in flight (to detect changes made meanwhile).
@@ -739,6 +759,7 @@ let initial: AppState =
       Now = DateTimeOffset.UnixEpoch
       LifecycleNegotiated = false
       BaseUrl = ""
+      Factory = FactoryNotRequested
       Sync = Map.empty
       RemoteSha = Map.empty
       SentLength = Map.empty
@@ -1233,6 +1254,44 @@ let private onEvent (name: string) (key: string option) (value: string option) (
 // ---------------------------------------------------------------------------
 // Effect results
 // ---------------------------------------------------------------------------
+
+/// Pure decoding of dist/factory.json; anything unreadable is an explained failure.
+let decodeFactory (text: string) : Result<FactoryInfo, string> =
+    match JsonIn.parse text with
+    | None -> Error "factory.json is not JSON"
+    | Some root ->
+        let field name (n: JsonNode option) = JsonIn.child name n |> JsonIn.str |> Option.defaultValue ""
+        match JsonIn.child "schema" (Some root) |> JsonIn.str with
+        | Some "rci.factory/v1" ->
+            let tests =
+                match JsonIn.child "tests" (Some root) with
+                | Some(:? JsonObject as o) ->
+                    Some [ for KeyValue(k, _) in o do
+                               match JsonIn.child k (Some(o :> JsonNode)) |> JsonIn.int with
+                               | Some v -> yield k, v
+                               | None -> () ]
+                | _ -> None
+            Ok
+                { Label = field "label" (Some root)
+                  Commit = field "commit" (Some root)
+                  BuiltAt = field "builtAt" (Some root)
+                  Experiment = field "experiment" (Some root)
+                  Requirements =
+                    JsonIn.child "requirements" (Some root) |> JsonIn.list
+                    |> List.map (fun r -> field "id" r, field "title" r, field "scope" r, field "slice" r)
+                  WorkItems =
+                    JsonIn.child "workItems" (Some root) |> JsonIn.list
+                    |> List.map (fun w -> field "id" w, field "title" w, field "status" w)
+                  Tests = tests }
+        | other -> Error("unsupported factory schema " + Option.defaultValue "(none)" other)
+
+/// Entering the factory view requests ./factory.json once (Limen Http effect).
+let private ensureFactory (st: AppState) : AppState * Effect list =
+    match st.Screen, st.Factory with
+    | FactoryScreen, (FactoryNotRequested | FactoryFailed _) ->
+        let c, st = Ids.correlation st FactoryLoad
+        { st with Factory = FactoryLoading }, [ HttpCall(c, "GET", "./factory.json", [], None) ]
+    | _ -> st, []
 
 let private finishLoading (st: AppState) =
     let loading =
@@ -1857,6 +1916,38 @@ let private homeKeys (st: AppState) : (string * J) list =
     [ "investigations", JArr rows; "hasInvestigations", b (not rows.IsEmpty); "noInvestigations", b rows.IsEmpty ]
 
 /// The complete ViewState: every key in every projection (Limen rule).
+let private factoryKeys (st: AppState) : (string * J) list =
+    let info = match st.Factory with FactoryLoaded f -> Some f | _ -> None
+    let status =
+        match st.Factory with
+        | FactoryNotRequested | FactoryLoading -> "Loading the factory record…"
+        | FactoryLoaded f -> f.Label + " — commit " + (if f.Commit.Length > 7 then f.Commit.Substring(0, 7) else f.Commit) + ", built " + f.BuiltAt
+        | FactoryFailed reason -> "The factory record could not be loaded: " + reason
+    let requirements = info |> Option.map (fun f -> f.Requirements) |> Option.defaultValue []
+    let workItems = info |> Option.map (fun f -> f.WorkItems) |> Option.defaultValue []
+    let statusOf slice = workItems |> List.tryFind (fun (id, _, _) -> id = slice) |> Option.map (fun (_, _, st) -> st) |> Option.defaultValue "not in the work queue"
+    let slices =
+        requirements
+        |> List.groupBy (fun (_, _, _, slice) -> slice)
+        |> List.map (fun (slice, reqs) ->
+            item [ "id", s (if slice = "" then "unassigned" else slice); "slice", s (if slice = "" then "No slice" else slice); "count", n reqs.Length; "status", s (statusOf slice) ])
+    [ "isFactory", b (st.Screen = FactoryScreen)
+      "factoryStatus", s status
+      "hasFactory", b info.IsSome
+      "factoryCommit", s (info |> Option.map (fun f -> f.Commit) |> Option.defaultValue "")
+      "factoryExperiment", s (info |> Option.map (fun f -> f.Experiment) |> Option.defaultValue "")
+      "factoryRequirementCount", n requirements.Length
+      "factoryTests",
+      s (
+          match info |> Option.bind (fun f -> f.Tests) with
+          | Some counts when not counts.IsEmpty -> Words.join ", " (counts |> List.map (fun (k, v) -> k + ": " + string v))
+          | _ -> "Test results were not available when this site was built (CI runs the tests after the build)."
+      )
+      "factoryRequirements",
+      JArr(requirements |> List.map (fun (id, title, scope, slice) -> item [ "id", s id; "title", s title; "scope", s (if scope = "scoped-factory" then "Factory" else "Product"); "slice", s (if slice = "" then "—" else slice); "status", s (statusOf slice) ]))
+      "factorySlices", JArr slices
+      "factoryWorkItems", JArr(workItems |> List.map (fun (id, title, status) -> item [ "id", s id; "title", s title; "status", s status ])) ]
+
 /// The addressed entity of an EntityScreen: (kind word, label, text, state).
 let private focusOf (inv: Investigation) (events: Event list) (kind: EntityKind) (g: Guid) : (string * string * string * string) option =
     let l = labelsOf events
@@ -1963,6 +2054,7 @@ let project (st: AppState) : (string * J) list =
     @ (draftFields |> List.map (fun f -> "draft_" + f, s (draftValue f)))
     @ ws
     @ focusKeys
+    @ factoryKeys st
 
 // ---------------------------------------------------------------------------
 // handle: the whole engine, one message at a time
@@ -1983,7 +2075,8 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
                 let c, st = Ids.correlation st Subscribe
                 st, [ SubscribeConnectivity c ]
             else st, []
-        st, loads @ subscribe, reply
+        let st, factory = ensureFactory st
+        st, loads @ subscribe @ factory, reply
     | UiEvent(name, key, value) ->
         let st, fx = onEvent name key value st
         st, fx, NoHandshake
@@ -2001,6 +2094,15 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
         | Some(RemoteWrite iid) ->
             let st, fx = onRemoteWrite iid outcome { st with Pending = st.Pending |> Map.remove c }
             st, fx, NoHandshake
+        | Some FactoryLoad ->
+            let factory =
+                match outcome with
+                | HttpSuccess(200, body) -> (match decodeFactory body with Ok f -> FactoryLoaded f | Error e -> FactoryFailed e)
+                | HttpSuccess(status, _) -> FactoryFailed("the server answered " + string status)
+                | HttpFailure(reason, _) -> FactoryFailed("the request failed (" + reason + ")")
+                | HttpCancelled -> FactoryFailed "the request was cancelled"
+                | HttpOutcomeUnknown reason -> FactoryFailed reason
+            { st with Pending = st.Pending |> Map.remove c; Factory = factory }, [], NoHandshake
         | _ -> { st with Pending = st.Pending |> Map.remove c }, [], NoHandshake
     | CapabilityDone(c, online) ->
         let st = { st with Pending = st.Pending |> Map.remove c; Online = Option.defaultValue st.Online online }
@@ -2015,7 +2117,9 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
             | Some(CopyLink url), Some _ -> "Copying is not available here. The link is: " + url
             | _ -> st.Notice
         { st with Pending = st.Pending |> Map.remove c; Notice = notice }, [], NoHandshake
-    | LocationChanged hash -> { st with Screen = ScreenRoute.parse hash; Refusals = []; Notice = "" }, [], NoHandshake
+    | LocationChanged hash ->
+        let st, fx = ensureFactory { st with Screen = ScreenRoute.parse hash; Refusals = []; Notice = "" }
+        st, fx, NoHandshake
     | ConnectivityChanged online ->
         let st = { st with Online = online }
         let st, fx = if online && st.Loaded then sendAllPending st else st, []

@@ -406,3 +406,29 @@ let ``[R8.4] outstanding work lists open unknowns, contradictions and the policy
     let _, doc = send st (event "unk.Resolve" (Some uid) None)
     Assert.DoesNotContain("UNKNOWN.OPEN", outstandingCodes doc)
     Assert.DoesNotContain("RESOLVE.BLOCKING_UNKNOWN", outstandingCodes doc)
+
+// ---------------------------------------------------------------------------
+// Round 2: factory proof view (S20/S21)
+// ---------------------------------------------------------------------------
+
+let private factoryJson =
+    """{"schema":"rci.factory/v1","label":"Factory state at build time","commit":"0123456789abcdef","builtAt":"2026-10-21T18:00:00Z","experiment":"EX-INDY-INIT-2026-R001","requirements":[{"id":"IIR-R8.1","sourceId":"R8.1","title":"Legal actions","scope":"scoped","slice":"SLICE-POLICY-CAPABILITIES"},{"id":"IIR-R14.3","sourceId":"R14.3","title":"Metrics","scope":"scoped-factory","slice":"SLICE-FACTORY-PROOF"}],"workItems":[{"id":"SLICE-POLICY-CAPABILITIES","title":"Slice 03","status":"complete"},{"id":"SLICE-FACTORY-PROOF","title":"Slice 13","status":"ready"}],"tests":null}"""
+
+[<Fact>]
+let ``[R14.2] [R14.3] [R16.5] the factory view loads factory.json by an Http effect and shows requirements, their slices and work-item states`` () =
+    let st, doc = send initial (initialize "#/factory")
+    let get = effects doc |> List.find (fun e -> kindOf e = "Http")
+    Assert.Equal("GET", get.GetProperty("method").GetString())
+    Assert.Equal("./factory.json", get.GetProperty("url").GetString())
+    let st, _ = answerLoads st doc
+    let _, doc = send st (httpSuccess (get.GetProperty("correlationId").GetString()) 200 factoryJson)
+    Assert.True((view doc).GetProperty("isFactory").GetBoolean())
+    Assert.StartsWith("Factory state at build time — commit 0123456", text doc "factoryStatus")
+    let reqs = [ for r in (view doc).GetProperty("factoryRequirements").EnumerateArray() -> r.GetProperty("id").GetString(), r.GetProperty("slice").GetString(), r.GetProperty("status").GetString() ]
+    Assert.Equal<(string * string * string) list>([ "IIR-R8.1", "SLICE-POLICY-CAPABILITIES", "complete"; "IIR-R14.3", "SLICE-FACTORY-PROOF", "ready" ], reqs)
+    Assert.Contains("not available", text doc "factoryTests")
+
+[<Fact>]
+let ``an unreadable factory record is explained, never shown as empty success`` () =
+    Assert.True(Result.isError (decodeFactory "{}"))
+    Assert.True(Result.isError (decodeFactory "nope"))

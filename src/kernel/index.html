@@ -26,6 +26,7 @@
         <ul class="app-nav">
           <li><a href="#/">Investigations</a></li>
           <li><a href="#/settings">GitHub settings</a></li>
+          <li><a href="#/factory">How this app was built</a></li>
         </ul>
       </nav>
       <p class="app-connection" data-text="connection" data-bind-data-offline="isOffline">Online</p>
@@ -143,6 +144,44 @@
           </div>
         </form>
         <p><a href="#/">Back to investigations</a></p>
+      </div>
+    </template>
+
+    <!-- S20/S21: factory proof — the state of the factory when this site was built -->
+    <template data-if="isFactory">
+      <div class="screen screen--factory">
+        <h1>How this app was built</h1>
+        <div class="ef-alert" data-tone="attention">
+          <div class="ef-alert__icon" aria-hidden="true">i</div>
+          <div>
+            <h2 class="ef-alert__title">Factory state at build time</h2>
+            <p>This is a snapshot taken when the site was built, not a live view. It lists the requirements in scope, the slice of work each belongs to, and the state of each work item.</p>
+          </div>
+        </div>
+        <p data-testid="factory-status" data-text="factoryStatus" role="status"></p>
+        <template data-if="hasFactory">
+          <div class="factory">
+            <p>Experiment <strong data-text="factoryExperiment"></strong> · commit <code data-testid="factory-commit" data-text="factoryCommit"></code></p>
+            <p data-testid="factory-tests" data-text="factoryTests"></p>
+            <section class="ef-section" aria-labelledby="slices-title">
+              <h2 id="slices-title">Work items</h2>
+              <ul class="plain-list">
+                <template data-each="factoryWorkItems" data-key="id"><li data-testid="factory-work-item"><code data-text="id"></code> <span data-text="title"></span> — <strong data-text="status"></strong></li></template>
+              </ul>
+            </section>
+            <section class="ef-section" aria-labelledby="reqs-title">
+              <h2 id="reqs-title">Requirements in scope (<span data-text="factoryRequirementCount"></span>)</h2>
+              <div class="table-scroll">
+                <table class="factory-table">
+                  <thead><tr><th scope="col">Requirement</th><th scope="col">Title</th><th scope="col">Kind</th><th scope="col">Slice</th><th scope="col">Slice state</th></tr></thead>
+                  <tbody>
+                    <template data-each="factoryRequirements" data-key="id"><tr data-testid="factory-requirement"><td><code data-text="id"></code></td><td data-text="title"></td><td data-text="scope"></td><td data-text="slice"></td><td data-text="status"></td></tr></template>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </template>
       </div>
     </template>
 

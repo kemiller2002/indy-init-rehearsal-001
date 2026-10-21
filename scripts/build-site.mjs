@@ -8,6 +8,7 @@
 //   dist/wasm/_framework/      the .NET WebAssembly engine (dotnet publish)
 //   dist/.nojekyll             Pages must not run Jekyll (it drops _framework)
 //   dist/build-info.json       { commit, builtAt }
+//   dist/factory.json          requirements, slices, work items at build time
 //
 // Every URL in the output is relative; nothing points into node_modules.
 import { execFileSync } from "node:child_process";
@@ -72,7 +73,40 @@ writeFileSync(join(dist, "index.html"), html);
 cpSync(join(kernel, "main.js"), join(dist, "main.js"));
 cpSync(join(kernel, "app.css"), join(dist, "app.css"));
 writeFileSync(join(dist, ".nojekyll"), "");
-writeFileSync(join(dist, "build-info.json"), JSON.stringify({ commit, builtAt: new Date().toISOString() }, null, 2) + "\n");
+const builtAt = new Date().toISOString();
+writeFileSync(join(dist, "build-info.json"), JSON.stringify({ commit, builtAt }, null, 2) + "\n");
+
+// 3b. Factory proof (S20/S21, R14.3, R16.5): the factory's state AT BUILD TIME.
+// Requirements in scope come from the frozen inventory, their slice from the
+// Conditor trace, work-item states from the Praxis queue, and test counts from
+// test-results/traceability.json only when it already exists (CI runs the
+// tests after the build, so a CI build usually has none).
+const readJson = (path) => (existsSync(join(root, path)) ? JSON.parse(readFileSync(join(root, path), "utf8")) : null);
+const inventory = readJson("evidence/requirements-inventory.json");
+const trace = readJson(".ros/work/attachments/COND-MISSION-001/1-requirements-trace.json");
+const queue = readJson(".ros/work/queue.json");
+const traceability = readJson("test-results/traceability.json");
+const sliceOf = new Map((trace?.requirements ?? []).map((r) => [r.id, r.workItem]));
+const countsOf = (t) => {
+  if (t === null || typeof t !== "object") return null;
+  const summary = t.summary ?? t.counts ?? null;
+  if (summary === null || typeof summary !== "object") return null;
+  const numbers = Object.fromEntries(Object.entries(summary).filter(([, v]) => typeof v === "number"));
+  return Object.keys(numbers).length > 0 ? numbers : null;
+};
+const factory = {
+  schema: "rci.factory/v1",
+  label: "Factory state at build time",
+  commit,
+  builtAt,
+  experiment: inventory?.experiment ?? "",
+  requirements: (inventory?.requirements ?? [])
+    .filter((r) => r.scope === "scoped" || r.scope === "scoped-factory")
+    .map((r) => ({ id: r.id, sourceId: r.sourceId, title: r.title, scope: r.scope, slice: sliceOf.get(r.sourceId) ?? "" })),
+  workItems: (queue?.items ?? []).map((i) => ({ id: i.id, title: i.title, status: i.status })),
+  tests: countsOf(traceability)
+};
+writeFileSync(join(dist, "factory.json"), JSON.stringify(factory, null, 2) + "\n");
 
 // 4. Guard: the site must not reach outside itself.
 const offenders = [];
