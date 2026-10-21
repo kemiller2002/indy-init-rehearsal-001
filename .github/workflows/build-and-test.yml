@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          output=$(dotnet test App.slnx -c Release --no-build 2>&1)
+          output=$(dotnet test App.slnx -c Release --no-build --logger "trx;LogFileName=engine.trx" --results-directory test-results 2>&1)
           status=$?
           echo "$output"
           if [ "$status" -ne 0 ]; then exit "$status"; fi
@@ -139,12 +139,25 @@ jobs:
         run: npm run build
 
       - name: Verify the pages in a real browser
-        run: npx playwright test
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/playwright.json
+        run: npx playwright test --reporter=list,json
 
-      - name: Upload browser traces on failure
-        if: failure()
+      # Requirement traceability on this exact commit (EX-INDY-INIT-2026-R001):
+      # a requirement counts as Verified only from these CI results.
+      - name: Requirement traceability
+        if: always()
+        run: |
+          set -euo pipefail
+          args=""
+          [ -f test-results/engine.trx ] && args="$args --trx test-results/engine.trx"
+          [ -f test-results/playwright.json ] && args="$args --pw test-results/playwright.json"
+          python3 scripts/trace-requirements.py evidence/requirements-inventory.json test-results/traceability.json $args --commit "${{ github.event.pull_request.head.sha || github.sha }}" --source ci
+      - name: Upload verification evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-traces
+          name: verification-evidence
           path: test-results/
-          retention-days: 7
+          retention-days: 30
+

@@ -114,7 +114,12 @@ jobs:
       - name: End-to-end acceptance against the deployed site
         env:
           E2E_BASE_URL: ${{ needs.deploy.outputs.page_url }}
-        run: npx playwright test
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/playwright-deployed.json
+        run: npx playwright test --reporter=list,json
+      - name: Acceptance traceability on the deployed commit
+        if: always()
+        run: |
+          [ -f test-results/playwright-deployed.json ] && python3 scripts/trace-requirements.py evidence/requirements-inventory.json test-results/traceability-deployed.json --pw test-results/playwright-deployed.json --commit "${GITHUB_SHA}" --source deployed || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
