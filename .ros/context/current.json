@@ -30,7 +30,27 @@
       "updatedAt": "2026-10-21T16:32:05.050Z",
       "telemetryExecutionIds": [
         "EXE-20261021T163205535Z-ca660a1d"
-      ]
+      ],
+      "latestCheckpoint": {
+        "id": "4e72d21caa379dd3bfd710b7",
+        "recordedAt": "2026-10-21T16:46:16.716Z",
+        "executionId": "EXE-20261021T163205535Z-ca660a1d",
+        "repository": "indy-init-rehearsal-001",
+        "branch": "claude/indy-init-rehearsal-001-anz7e3",
+        "commit": "4329ff8fce3825df60e0b5fb02654a0c2cc60110",
+        "remote": {
+          "name": "origin",
+          "url": "https://github.com/kemiller2002/indy-init-rehearsal-001"
+        },
+        "remoteBranch": "claude/indy-init-rehearsal-001-anz7e3",
+        "remoteCommit": "4329ff8fce3825df60e0b5fb02654a0c2cc60110",
+        "summary": "Conditor bootstrap, requirements import (23 slices) and Praxis intake (82 RQ records) complete; kernel committed",
+        "nextAction": "Complete SLICE-BOOTSTRAP; start SLICE-SEMANTIC-KERNEL verification",
+        "verification": {
+          "status": "verified",
+          "mechanism": "git-remote-observation"
+        }
+      }
     }
   ]
 }
