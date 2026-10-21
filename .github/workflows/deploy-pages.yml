@@ -115,11 +115,21 @@ jobs:
           npx playwright install chromium
           npx playwright install webkit || echo "::warning::WebKit unavailable"
           timeout 300 sudo env "PATH=$PATH" npx playwright install-deps chromium webkit || echo "::warning::browser OS dependencies incomplete"
+      # Pages may report an http:// page_url for a custom domain when HTTPS is
+      # not enforced. Acceptance runs on the https URL (a secure context, which
+      # the Clipboard API requires) and warns if plain http is still served.
       - name: End-to-end acceptance against the deployed site
+        shell: bash
         env:
-          E2E_BASE_URL: ${{ needs.deploy.outputs.page_url }}
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
           PLAYWRIGHT_JSON_OUTPUT_NAME: verification/playwright-deployed.json
-        run: npx playwright test --reporter=list,json
+        run: |
+          set -euo pipefail
+          secure="${PAGE_URL/#http:/https:}"
+          insecure="${secure/#https:/http:}"
+          code="$(curl -s -o /dev/null -w '%{http_code}' "$insecure" || true)"
+          if [ "$code" = "200" ]; then echo "::warning::$insecure is served without redirecting to HTTPS (Enforce HTTPS is off)"; fi
+          E2E_BASE_URL="$secure" npx playwright test --reporter=list,json
       - name: Acceptance traceability on the deployed commit
         if: always()
         run: |
