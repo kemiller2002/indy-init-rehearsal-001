@@ -2,9 +2,9 @@
   "schemaVersion": "1.0.0",
   "protocolVersion": "1.0.0",
   "repository": "indy-init-rehearsal-001",
-  "actor": "ros-bootstrap",
+  "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-10-21T16:26:38.488Z",
+  "updatedAt": "2026-10-21T16:32:05.050Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -20,6 +20,17 @@
       ],
       "updatedAt": "2026-10-21T16:26:38.488Z",
       "completedAt": "2026-10-21T16:26:38.488Z"
+    },
+    {
+      "id": "SLICE-BOOTSTRAP",
+      "type": "task",
+      "state": "active",
+      "semanticState": "active",
+      "evidence": [],
+      "updatedAt": "2026-10-21T16:32:05.050Z",
+      "telemetryExecutionIds": [
+        "EXE-20261021T163205535Z-ca660a1d"
+      ]
     }
   ]
 }
