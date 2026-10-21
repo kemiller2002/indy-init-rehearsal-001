@@ -356,10 +356,10 @@
         "cut:never-cut"
       ],
       "priority": "high",
-      "status": "ready",
+      "status": "complete",
       "attachments": [],
       "createdAt": "2026-10-21T16:27:22.682Z",
-      "updatedAt": "2026-10-21T16:27:23.329Z",
+      "updatedAt": "2026-10-21T19:57:39.132Z",
       "createdBy": "conditor",
       "createdByActor": {
         "kind": "agent",
