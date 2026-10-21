@@ -382,11 +382,12 @@ let ``[R1.2][A1] original observation text is preserved verbatim`` () =
 [<Fact>]
 let ``[R1.2] later observations keep their original text and provenance`` () =
     let text = "Retries succeed after ~30s\t(eu-west only)"
-    let inv = opened |> attemptAs bot (RecordObservation(obs 1, text, Some t0)) |> stateAfter
+    let observer = Actor.human "field-engineer"
+    let inv = opened |> attemptAs observer (RecordObservation(obs 1, text, Some t0)) |> stateAfter
     let o = inv.Observations[obs 1]
     Assert.Equal(text, o.Original.Value)
     Assert.Equal(Some t0, o.ObservedAt)
-    Assert.Equal(bot, o.Provenance.Actor)
+    Assert.Equal(observer, o.Provenance.Actor)
 
 [<Fact>]
 let ``[R1.1] start is refused for an empty observation, an existing id, or a mismatched envelope`` () =
@@ -918,7 +919,7 @@ let ``[R15.2][A18] an agent statement is recorded as a proposal, not as evidence
 
 [<Fact>]
 let ``[R15.5][A26] an agent cannot accept a proposal, and an agent ConfirmCause leaves state unchanged`` () =
-    proposed |> attemptAs bot (AcceptProposal(prop 1, gid 1050)) |> refused "PROPOSAL.AGENT_CANNOT_ACCEPT"
+    proposed |> attemptAs bot (AcceptProposal(prop 1, gid 1050)) |> refused "AGENT.PROPOSAL_ONLY"
     let blocked = opened |> script [ RecordHypothesis(hyp 1, "H1", None); RecordCausalAssertion(cause 1, "o", [ memberOf RootCause 1 ], None) ]
     match blocked |> attemptAs bot (ConfirmCause(cause 1)) with
     | Error errors -> Assert.All(Faults.ofDomainErrors "ConfirmCause" errors, fun f -> Assert.Equal(Aegis.FailureCategory.DomainFailure, f.Category))
@@ -1011,3 +1012,21 @@ let ``[A36][D-005] a resolved investigation refuses content changes and reopens 
     let closed = resolved |> script [ CloseInvestigation ]
     closed |> attempt (RecordHypothesis(hyp 9, "H9", None)) |> refused "INVESTIGATION.NOT_OPEN"
     Assert.Equal(Active, (closed |> attempt (ReopenInvestigation basis) |> stateAfter).Lifecycle)
+
+module AgentAuthorityBoundary =
+    open System
+    open IndyInitRootCauseInvestigator.Engine
+
+    let private agentActor = Actor.agent "ai-assistant" "none" "no-live-model"
+
+    [<Fact>]
+    let ``[D-004][R15.2][A18][A26] an agent cannot admit evidence, record a hypothesis or start an investigation directly`` () =
+        let iid : InvestigationId = Id.create (Guid.NewGuid())
+        let envelope command = { CommandId = Guid.NewGuid(); Investigation = iid; ExpectedVersion = None; Actor = agentActor; RequestedAt = DateTimeOffset.UnixEpoch; Command = command }
+        let started = Decide.execute None { envelope (StartInvestigation(iid, "t", Id.create (Guid.NewGuid()), "observed")) with Actor = Actor.human "u" }
+        let state = started |> Result.map Evolve.replay |> Result.toOption |> Option.flatten
+        let refusedCode result = match result with Error (e: DomainError list) -> e |> List.map (fun x -> x.Code) | Ok _ -> []
+        Assert.Contains("AGENT.PROPOSAL_ONLY", refusedCode (Decide.decide None (envelope (StartInvestigation(iid, "t", Id.create (Guid.NewGuid()), "x")))))
+        Assert.Contains("AGENT.PROPOSAL_ONLY", refusedCode (Decide.decide state (envelope (AdmitEvidence(Id.create (Guid.NewGuid()), TextInput "inferred", Log, "model", None)))))
+        Assert.Contains("AGENT.PROPOSAL_ONLY", refusedCode (Decide.decide state (envelope (RecordHypothesis(Id.create (Guid.NewGuid()), "h", None)))))
+        Assert.True(Result.isOk (Decide.decide state (envelope (RecordProposal(Id.create (Guid.NewGuid()), ProposedHypothesis, "h", None)))))

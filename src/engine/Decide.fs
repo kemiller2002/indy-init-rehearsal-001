@@ -545,6 +545,11 @@ module Decide =
     /// The single decision path (STATE-TRANSITION-TABLES §16 order: schema,
     /// version, invariants, structure, policy). Pure.
     let decide (state: Investigation option) (env: CommandEnvelope) : R<EventBody list> =
+        match env.Actor.Kind, env.Command with
+        // D-004 / R15.2: an AI agent proposes; it never writes authoritative state directly.
+        | Agent _, cmd when (match cmd with RecordProposal _ -> false | _ -> true) ->
+            fail "AGENT.PROPOSAL_ONLY" "D-004" "An AI agent may only record proposals; a human must accept them."
+        | _ ->
         match state, env.Command with
         | None, StartInvestigation(iid, title, oid, original) ->
             if iid <> env.Investigation then fail "ENVELOPE.MISMATCH" "schema" "Investigation id does not match the envelope."
