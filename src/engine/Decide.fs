@@ -331,92 +331,6 @@ module Evolve =
             | ProposalWasAccepted(pid, _) -> { inv with Proposals = inv.Proposals |> upd pid (fun pr -> { pr with State = ProposalAccepted }) }
             | ProposalWasRejected(pid, r) -> { inv with Proposals = inv.Proposals |> upd pid (fun pr -> { pr with State = ProposalRejected; Decision = Some r }) }
 
-    /// N1: every event must be one the decision path could have emitted from the prior state.
-    let private admissible (state: Investigation option) (e: Event) : DomainError list =
-        let bad rule message = [ DomainError.create "HISTORY.INADMISSIBLE_EVENT" rule $"Event {e.Sequence}: {message}" ]
-        let reachable (table: 'S -> 'C -> 'S option) (commands: 'C list) (from: 'S) (target: 'S) =
-            commands |> List.exists (fun c -> table from c = Some target)
-        let agentOk =
-            match e.Actor.Kind, e.Body with
-            | Agent _, ProposalRecorded _ -> []
-            | Agent _, _ -> bad "D-004" "an AI agent may only record proposals."
-            | _ -> []
-        let structural =
-            match state with
-            | None -> []
-            | Some inv ->
-                match e.Body with
-                | HypothesisTransitioned(hid, change) ->
-                    match Map.tryFind hid inv.Hypotheses with
-                    | None -> bad "schema" "unknown hypothesis."
-                    | Some h ->
-                        let cmd = [ MarkPlausible; MarkSupported; MarkWeakened; Falsify; Supersede; Reopen ] |> List.tryFind (fun c -> string c = change.Command)
-                        match cmd with
-                        | Some c when change.From = h.State && Transitions.hypothesis h.State c = Some change.To
-                                      && (not (Transitions.requiresEvidence c) || not change.Evidence.IsEmpty) -> []
-                        | _ -> bad "STATE-TRANSITION-TABLES §2" $"hypothesis {h.State} -> {change.To} via {change.Command} is not a legal recorded transition."
-                | UnknownTransitioned(uid, target, _) ->
-                    match Map.tryFind uid inv.Unknowns with
-                    | Some u when reachable Transitions.unknown [ StartInvestigatingUnknown; ResolveUnknown; AcceptUnknownAsResidual ] u.State target -> []
-                    | _ -> bad "STATE-TRANSITION-TABLES §6" "illegal unknown transition."
-                | ContradictionTransitioned(cid, target, _) ->
-                    match Map.tryFind cid inv.Contradictions with
-                    | Some c when reachable Transitions.contradiction [ TriageContradiction; ResolveContradiction; AcceptContradictionAsResidual ] c.State target -> []
-                    | _ -> bad "STATE-TRANSITION-TABLES §8" "illegal contradiction transition."
-                | AssumptionTransitioned(aid, target) ->
-                    match Map.tryFind aid inv.Assumptions with
-                    | Some a when reachable Transitions.assumption [ ProvisionallyAcceptAssumption; VerifyAssumption; RejectAssumption ] a.State target -> []
-                    | _ -> bad "STATE-TRANSITION-TABLES §3" "illegal assumption transition."
-                | ActionTransitioned(aid, target) ->
-                    match Map.tryFind aid inv.Actions with
-                    | Some a when reachable Transitions.action [ ApproveAction; RejectAction; StartAction; CancelAction ] a.State target -> []
-                    | Some a when a.State = ActionInProgress && target = ActionCompleted
-                                  && inv.Findings |> Map.exists (fun _ f -> f.Action = aid) -> []
-                    | _ -> bad "STATE-TRANSITION-TABLES §5" "illegal action transition."
-                | CorrectiveActionTransitioned(caid, target) ->
-                    match Map.tryFind caid inv.CorrectiveActions with
-                    | None -> bad "schema" "unknown corrective action."
-                    | Some ca ->
-                        match target with
-                        | VerifiedEffective when ca.State = AwaitingVerificationOfEffect && Policy.allCriteriaSatisfied inv caid -> []
-                        | VerificationFailed when ca.State = AwaitingVerificationOfEffect
-                                                  && inv.Verifications |> Map.exists (fun _ v -> v.Outcome = Failed && v.Sequence > ca.AwaitingSince && inv.Criteria |> Map.tryFind v.Criterion |> Option.exists (fun c -> c.CorrectiveAction = caid)) -> []
-                        | t when reachable Transitions.correction [ ApproveCorrection; StartCorrection; MarkImplemented; StartVerificationOfEffect; RequireRework; CancelCorrection ] ca.State t -> []
-                        | _ -> bad "STATE-TRANSITION-TABLES §11 / R7.4" $"corrective action {ca.State} -> {target} was not earned."
-                | VerificationRecorded(_, crid, outcome, evidence) ->
-                    match inv.Criteria |> Map.tryFind crid |> Option.bind (fun c -> Map.tryFind c.CorrectiveAction inv.CorrectiveActions) with
-                    | Some ca when ca.State = AwaitingVerificationOfEffect
-                                   && (outcome <> Satisfied || (not evidence.IsEmpty && evidence |> List.forall (Policy.freshEvidence inv ca.AwaitingSince))) -> []
-                    | _ -> bad "R7.4" "verification recorded outside a verification round or without current evidence."
-                | LifecycleChanged(from, target, command, _) ->
-                    let commands = [ ActivateInvestigation; MarkAwaitingEvidence "x"; MarkAwaitingVerification; ResolveInvestigation; CloseInvestigation; ReopenInvestigation "x" ]
-                    let viaFailure = from = AwaitingVerification && target = Active && command = "VerificationFailed"
-                    if from = inv.Lifecycle && (viaFailure || commands |> List.exists (fun c -> Transitions.lifecycle from c = Some target)) then []
-                    else bad "STATE-TRANSITION-TABLES §1" $"lifecycle {inv.Lifecycle} -> {target} is not legal."
-                | _ -> []
-        agentOk @ structural
-
-    /// m4: re-check a loaded history (local or remote) against the protected gates,
-    /// so a hand-edited file cannot carry a confirmed cause or resolution that never
-    /// passed them. Returns every violation; empty means the history is admissible.
-    let validateHistory (events: Event list) : DomainError list =
-        let step (state: Investigation option, problems: DomainError list) (e: Event) =
-            let expected = (state |> Option.map (fun i -> i.Version) |> Option.defaultValue 0L) + 1L
-            let sequence =
-                if e.Sequence <> expected then [ DomainError.create "HISTORY.SEQUENCE" "D-005" $"Event {e.Sequence} follows version {expected - 1L}." ] else []
-            let gate =
-                match state, e.Body with
-                | None, InvestigationStarted _ -> []
-                | None, _ -> [ DomainError.create "HISTORY.NO_START" "D-005" "The history does not begin with InvestigationStarted." ]
-                | Some inv, CausalAssertionConfirmed(cid, _) ->
-                    Policy.causeBlockers inv cid |> List.map (fun b -> { b with Code = "HISTORY.UNGATED_CONFIRMATION"; Message = $"Cause confirmed without passing the gate: {b.Message}" })
-                | Some inv, LifecycleChanged(_, Resolved, _, _) ->
-                    Policy.resolutionBlockers inv |> List.map (fun b -> { b with Code = "HISTORY.UNGATED_RESOLUTION"; Message = $"Resolved without passing the gate: {b.Message}" })
-                | _ -> []
-            let next = match state, e.Body with | None, InvestigationStarted _ | Some _, _ -> Some(apply state e) | None, _ -> None
-            next, problems @ sequence @ gate @ admissible state e
-        events |> List.fold step (None, []) |> snd
-
     /// Rebuild state from history (deterministic; A30).
     let replay (events: Event list) : Investigation option =
         events |> List.fold (fun s e -> Some(apply s e)) None
@@ -736,4 +650,155 @@ module Decide =
               Actor = env.Actor
               At = env.RequestedAt
               Body = body }))
+
+/// Admissibility of a loaded history (local or remote), by REPLAY through the single
+/// decision path (RC3 review C-R3-1; DEC-04). Events are grouped by CommandId; each group
+/// is mapped back to the command it records, re-decided against the prior state with the
+/// recorded actor and time, and must reproduce exactly the recorded events. Every rule the
+/// decision path enforces (open-only content D-005, id uniqueness, agent authority D-004,
+/// cause/resolution gates I-19/I-20, verification freshness R7.4, prediction timing A11,
+/// repetition refusal R5.4) therefore also binds stored and remote histories.
+[<RequireQualifiedAccess>]
+module History =
+    let private v (t: NonEmptyText) = t.Value
+    let private ov (t: NonEmptyText option) = t |> Option.map v
+
+    let private content c =
+        match c with
+        | TextEvidence t -> TextInput t.Value
+        | ArtifactEvidence u -> UrlInput u
+
+    /// The command a group of events records, or None when no single command could emit it.
+    let commandOf (investigation: InvestigationId) (bodies: EventBody list) : Command option =
+        let has f = bodies |> List.tryPick f
+        let finding = has (function FindingRecorded(f, a, r, i) -> Some(RecordFinding(f, a, v r, ov i)) | _ -> None)
+        let verification = has (function VerificationRecorded(vid, c, o, ev) -> Some(RecordVerification(vid, c, o, ev)) | _ -> None)
+        let accepted = has (function ProposalWasAccepted(p, t) -> Some(AcceptProposal(p, t)) | _ -> None)
+        match finding, verification, accepted, bodies with
+        | Some c, _, _, _ | _, Some c, _, _ | _, _, Some c, _ -> Some c
+        | _, _, _, [] -> None
+        | _, _, _, first :: _ ->
+            match first with
+            | InvestigationStarted(t, oid, o) -> Some(StartInvestigation(investigation, v t, oid, v o))
+            | LifecycleChanged(_, _, command, reason) ->
+                match command, reason with
+                | "ActivateInvestigation", _ -> Some ActivateInvestigation
+                | "MarkAwaitingEvidence", Some r -> Some(MarkAwaitingEvidence r)
+                | "MarkAwaitingVerification", _ -> Some MarkAwaitingVerification
+                | "ResolveInvestigation", _ -> Some ResolveInvestigation
+                | "CloseInvestigation", _ -> Some CloseInvestigation
+                | "ReopenInvestigation", Some r -> Some(ReopenInvestigation r)
+                | _ -> None
+            | ObservationRecorded(o, t, at) -> Some(RecordObservation(o, v t, at))
+            | HypothesisRecorded(h, s, m) -> Some(RecordHypothesis(h, v s, ov m))
+            | HypothesisTransitioned(h, change) ->
+                [ MarkPlausible; MarkSupported; MarkWeakened; Falsify; Supersede; Reopen ]
+                |> List.tryFind (fun c -> string c = change.Command)
+                |> Option.map (fun c -> TransitionHypothesis(h, c, v change.Reason, change.Evidence))
+            | EvidenceAdmitted(e, c, cat, src, at) -> Some(AdmitEvidence(e, content c, cat, v src, at))
+            | EvidenceSuperseded(o, r, reason) -> Some(SupersedeEvidence(o, r, v reason))
+            | EvidenceVerificationAssessed(e, st) -> Some(VerifyEvidence(e, st))
+            | EvidenceRelated(r, e, h, k, why) -> Some(RelateEvidence(r, e, h, k, ov why))
+            | UnknownIdentified(u, q, m) -> Some(IdentifyUnknown(u, v q, m))
+            | UnknownTransitioned(u, st, basis) ->
+                match st with
+                | Investigating -> Some StartInvestigatingUnknown
+                | UnknownResolved -> Some ResolveUnknown
+                | AcceptedResidual -> Some AcceptUnknownAsResidual
+                | _ -> None
+                |> Option.map (fun c -> TransitionUnknown(u, c, v basis))
+            | AssumptionRecorded(a, p, m) -> Some(RecordAssumption(a, v p, m))
+            | AssumptionTransitioned(a, st) ->
+                match st with
+                | ProvisionallyAccepted -> Some ProvisionallyAcceptAssumption
+                | AssumptionVerified -> Some VerifyAssumption
+                | Rejected -> Some RejectAssumption
+                | _ -> None
+                |> Option.map (fun c -> TransitionAssumption(a, c))
+            | ContradictionRecorded(c, s, ev, m) -> Some(RecordContradiction(c, v s, ev, m))
+            | ContradictionTransitioned(c, st, basis) ->
+                match st with
+                | Triaged -> Some TriageContradiction
+                | ContradictionResolved -> Some ResolveContradiction
+                | ContradictionAcceptedResidual -> Some AcceptContradictionAsResidual
+                | _ -> None
+                |> Option.map (fun cmd -> TransitionContradiction(c, cmd, v basis))
+            | PredictionRecorded(p, h, s, st, timing) -> Some(RecordPrediction(p, h, v s, st, timing))
+            | ActionRecorded(a, k, p, t) -> Some(RecordAction(a, k, v p, t))
+            | ActionTransitioned(a, st) ->
+                match st with
+                | ActionApproved -> Some ApproveAction
+                | ActionRejected -> Some RejectAction
+                | ActionInProgress -> Some StartAction
+                | ActionCancelled -> Some CancelAction
+                | _ -> None
+                |> Option.map (fun c -> TransitionAction(a, c))
+            | NegativeKnowledgeEstablished(n, s, sc, b) -> Some(EstablishNegativeKnowledge(n, v s, v sc, b))
+            | CausalAssertionRecorded(c, o, m, mech) -> Some(RecordCausalAssertion(c, v o, m, ov mech))
+            | CausalAssertionConfirmed(c, _) -> Some(ConfirmCause c)
+            | CausalAssertionReopened(c, r) -> Some(ReopenCause(c, v r))
+            | CorrectiveActionRecorded(c, k, d, t) -> Some(RecordCorrectiveAction(c, k, v d, t))
+            | CorrectiveActionTransitioned(c, st) ->
+                match st with
+                | CorrectionApproved -> Some ApproveCorrection
+                | CorrectionInProgress -> Some StartCorrection
+                | Implemented -> Some MarkImplemented
+                | AwaitingVerificationOfEffect -> Some StartVerificationOfEffect
+                | ReworkRequired -> Some RequireRework
+                | CorrectionCancelled -> Some CancelCorrection
+                | _ -> None
+                |> Option.map (fun cmd -> TransitionCorrection(c, cmd))
+            | CriterionRecorded(c, ca, e, m) -> Some(RecordCriterion(c, ca, v e, ov m))
+            | ConclusionRecorded(c, s, st, causes, r) -> Some(RecordConclusion(c, v s, st, causes, ov r))
+            | ProposalRecorded(p, k, t, r) -> Some(RecordProposal(p, k, v t, ov r))
+            | ProposalWasRejected(p, r) -> Some(RejectProposal(p, v r))
+            | FindingRecorded _ | VerificationRecorded _ | ProposalWasAccepted _ -> None
+
+    /// Consecutive events of one command.
+    let private groups (events: Event list) : Event list list =
+        events
+        |> List.fold (fun acc e ->
+            match acc with
+            | (head :: _ as g) :: rest when head.CommandId = e.CommandId -> (e :: g) :: rest
+            | _ -> [ e ] :: acc) []
+        |> List.map List.rev
+        |> List.rev
+
+    let private codeFor (bodies: EventBody list) =
+        match bodies with
+        | CausalAssertionConfirmed _ :: _ -> "HISTORY.UNGATED_CONFIRMATION"
+        | LifecycleChanged(_, Resolved, _, _) :: _ -> "HISTORY.UNGATED_RESOLUTION"
+        | _ -> "HISTORY.INADMISSIBLE_EVENT"
+
+    /// Every violation in the history; empty means it is exactly what the decision path emits.
+    let validate (events: Event list) : DomainError list =
+        let step (state: Investigation option, problems: DomainError list) (group: Event list) =
+            let first = List.head group
+            let expected = (state |> Option.map (fun i -> i.Version) |> Option.defaultValue 0L) + 1L
+            let sequence =
+                group |> List.mapi (fun i e -> e, expected + int64 i)
+                |> List.filter (fun (e, want) -> e.Sequence <> want)
+                |> List.map (fun (e, want) -> DomainError.create "HISTORY.SEQUENCE" "D-005" $"Event {e.Sequence} found where {want} was expected.")
+            let bodies = group |> List.map (fun e -> e.Body)
+            let consistent = group |> List.forall (fun e -> e.Actor = first.Actor && e.At = first.At && e.Investigation = first.Investigation)
+            let envelope command =
+                { CommandId = first.CommandId; Investigation = first.Investigation; ExpectedVersion = None
+                  Actor = first.Actor; RequestedAt = first.At; Command = command }
+            let verdict =
+                match state, commandOf first.Investigation bodies with
+                | None, _ when (match bodies with InvestigationStarted _ :: _ -> false | _ -> true) ->
+                    [ DomainError.create "HISTORY.NO_START" "D-005" "The history does not begin with InvestigationStarted." ]
+                | _, None -> [ DomainError.create "HISTORY.INADMISSIBLE_EVENT" "DEC-04" $"Events from {first.Sequence} are not what any single command emits." ]
+                | _, Some command when not consistent ->
+                    [ DomainError.create "HISTORY.INADMISSIBLE_EVENT" "DEC-04" $"Events of command {first.CommandId} disagree on actor, time or investigation ({command})." ]
+                | _, Some command ->
+                    match Decide.decide state (envelope command) with
+                    | Error refusals ->
+                        refusals |> List.map (fun r -> { r with Code = codeFor bodies; Message = $"Event {first.Sequence} would be refused now ({r.Code}): {r.Message}" })
+                    | Ok decided when decided <> bodies ->
+                        [ DomainError.create "HISTORY.INADMISSIBLE_EVENT" "DEC-04" $"Events from {first.Sequence} differ from what the command emits." ]
+                    | Ok _ -> []
+            let next = group |> List.fold (fun s e -> match s, e.Body with | None, InvestigationStarted _ | Some _, _ -> Some(Evolve.apply s e) | None, _ -> None) state
+            next, problems @ sequence @ verdict
+        events |> groups |> List.fold step (None, []) |> snd
 
