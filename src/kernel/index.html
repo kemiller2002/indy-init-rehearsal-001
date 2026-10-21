@@ -181,6 +181,19 @@
             <p class="muted" data-text="wsObservationBy"></p>
           </section>
 
+          <section class="ws-panel ws-panel--wide" aria-labelledby="todo-title" data-testid="outstanding">
+            <h2 id="todo-title">Outstanding work</h2>
+            <p class="outstanding-summary" data-text="outstandingSummary"></p>
+            <ul class="ef-obligation-list" aria-label="Open obligations">
+              <template data-each="outstanding" data-key="id">
+                <li class="ef-obligation" data-ef-severity="warning" data-testid="outstanding-item">
+                  <span class="ef-obligation__status" data-text="source"></span>
+                  <div><strong data-text="message"></strong><p class="muted">Code <code data-text="code"></code></p></div>
+                </li>
+              </template>
+            </ul>
+          </section>
+
           <section class="ws-panel ws-panel--wide" aria-labelledby="hyp-title">
             <h2 id="hyp-title">Possible explanations (hypotheses)</h2>
             <form data-event="hyp.add" class="form form--inline">
@@ -865,6 +878,15 @@
               <h2>Unresolved work</h2>
               <ul>
                 <template data-each="reportUnresolved" data-key="id"><li><strong data-text="heading"></strong> <small data-text="detail"></small> <code data-text="status"></code></li></template>
+              </ul>
+            </ef-print-section>
+          </template>
+          <template data-if="reportIsInterim">
+            <ef-print-section class="report-outstanding" data-testid="report-outstanding">
+              <h2>Outstanding work</h2>
+              <p data-text="outstandingSummary"></p>
+              <ul>
+                <template data-each="outstanding" data-key="id"><li><strong data-text="source"></strong>: <span data-text="message"></span> <code data-text="code"></code></li></template>
               </ul>
             </ef-print-section>
           </template>

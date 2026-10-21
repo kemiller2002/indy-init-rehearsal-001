@@ -377,3 +377,32 @@ let ``[R9.6] [R9.8] an entity link opens its detail, and a missing entity shows 
     Assert.True((view doc).GetProperty("isMissing").GetBoolean())
     Assert.False((view doc).GetProperty("isWorkspace").GetBoolean())
     Assert.Equal("#/i/" + Id.text iid, text doc "missingBackHref")
+
+// ---------------------------------------------------------------------------
+// Round 2: outstanding work (R8.4)
+// ---------------------------------------------------------------------------
+
+let private outstandingCodes (doc: JsonDocument) =
+    [ for o in (view doc).GetProperty("outstanding").EnumerateArray() -> o.GetProperty("code").GetString() ]
+
+[<Fact>]
+let ``[R8.4] outstanding work lists open unknowns, contradictions and the policy's resolution blockers, and clears when answered`` () =
+    let st, _ = boot "#/"
+    let st, _ = start st
+    let st, _ = send st (event "f.unkQuestion" None (Some "Did every node get the new certificate?"))
+    let st, _ = send st (event "f.unkMateriality" None (Some "Blocking"))
+    let st, doc = send st (event "unk.add" None None)
+    let st, _ = send st (event "f.conStatement" None (Some "Logs disagree on the first failure"))
+    let st, doc = send st (event "con.add" None None)
+    let codes = outstandingCodes doc
+    Assert.Contains("UNKNOWN.OPEN", codes)
+    Assert.Contains("CONTRADICTION.OPEN", codes)
+    let iid = (currentId st).Value
+    let inv = (investigationOf st iid).Value
+    for blocker in Policy.resolutionBlockers inv do
+        Assert.Contains(blocker.Code, codes)
+    let uid = (first ((view doc).GetProperty("unknowns"))).GetProperty("id").GetString()
+    let st, _ = send st (event "f.unkBasis" None (Some "Yes, all nodes"))
+    let _, doc = send st (event "unk.Resolve" (Some uid) None)
+    Assert.DoesNotContain("UNKNOWN.OPEN", outstandingCodes doc)
+    Assert.DoesNotContain("RESOLVE.BLOCKING_UNKNOWN", outstandingCodes doc)

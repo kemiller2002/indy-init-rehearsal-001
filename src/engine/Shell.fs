@@ -1614,7 +1614,9 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "statement", s x.Statement.Value
                   "scope", s x.Scope.Value
                   "basis", s (Words.join ", " (x.Basis |> List.map (fun e -> lbl l.Ev e.Value))) ])
-    let causeBlockers = causes |> List.map (fun c -> c, (if real then Policy.causeBlockers inv c.Id else []))
+    // Only a cause awaiting confirmation has confirmation blockers worth listing.
+    let awaitingConfirmation (c: CausalAssertion) = c.State = CauseProposed || c.State = CauseReopened
+    let causeBlockers = causes |> List.map (fun c -> c, (if real && awaitingConfirmation c then Policy.causeBlockers inv c.Id else []))
     let causeItems =
         causeBlockers
         |> List.map (fun (c, blockers) ->
@@ -1708,6 +1710,28 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "at", s (Words.date e.At)
                   "actor", s (Words.actor e.Actor)
                   "text", s (describe inv l e.Body) ])
+    // R8.4 outstanding work: only what Policy, the transition tables and the
+    // recorded verifications already say; no legality is decided here.
+    let outstanding =
+        let fromPolicy source (errors: DomainError list) = errors |> List.map (fun e -> source, e.Message, e.Code)
+        let unknownWork =
+            inv.Unknowns |> Map.toList |> List.map snd
+            |> List.filter (fun u -> Transitions.unknown u.State ResolveUnknown |> Option.isSome)
+            |> List.map (fun u -> "Open question", "Answer or accept: \"" + u.Question.Value + "\" (" + Words.materiality u.Materiality + ")", "UNKNOWN.OPEN")
+        let contradictionWork =
+            inv.Contradictions |> Map.toList |> List.map snd
+            |> List.filter (fun c -> Transitions.contradiction c.State ResolveContradiction |> Option.isSome)
+            |> List.map (fun c -> "Contradiction", "Explain or accept: \"" + c.Statement.Value + "\" (" + Words.materiality c.Materiality + ")", "CONTRADICTION.OPEN")
+        let criterionWork =
+            criteria
+            |> List.filter (fun c -> not (inv.Verifications |> Map.exists (fun _ v -> v.Criterion = c.Id && v.Outcome = Satisfied && not v.Evidence.IsEmpty)))
+            |> List.map (fun c -> "Verification", "Verify with evidence: " + lbl l.Crit c.Id.Value + " \"" + c.ExpectedOutcome.Value + "\"", "CRITERION.UNVERIFIED")
+        let causeWork =
+            causeBlockers |> List.collect (fun (c, blockers) -> fromPolicy ("Cause " + lbl l.Cause c.Id.Value) blockers)
+        let resolveWork = if isOpen then fromPolicy "Resolution" resolution else []
+        unknownWork @ contradictionWork @ criterionWork @ causeWork @ resolveWork
+        |> List.distinctBy (fun (_, message, _) -> message)
+        |> List.mapi (fun i (source, message, code) -> item [ "id", s (string i); "source", s source; "message", s message; "code", s code ])
     let resolutionItems = resolution |> List.mapi (fun i e -> item [ "id", s (string i); "code", s e.Code; "message", s e.Message; "rule", s e.Rule ])
     let lifecycleFlags =
         LifecycleCommands.all |> List.map (fun (name, c, _) -> "lifeHide_" + name, b (not (LifecycleCommands.legal inv.Lifecycle c)))
@@ -1759,6 +1783,10 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
       "hasProposals", b (not proposalItems.IsEmpty)
       "history", JArr historyItems
       "resolutionBlockers", JArr resolutionItems
+      "outstanding", JArr outstanding
+      "hasOutstanding", b (not outstanding.IsEmpty)
+      "noOutstanding", b outstanding.IsEmpty
+      "outstandingSummary", s (if outstanding.IsEmpty then "Nothing outstanding." else string outstanding.Length + " thing(s) still need doing.")
       "canResolve", b (resolution.IsEmpty && LifecycleCommands.legal inv.Lifecycle ResolveInvestigation)
       "resolveSummary",
       s (

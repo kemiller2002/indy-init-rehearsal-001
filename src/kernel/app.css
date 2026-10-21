@@ -152,3 +152,4 @@ button { min-width: 2.75rem; }
 .item-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
 .item-links a { display: inline-flex; align-items: center; min-height: 2.75rem; }
 .ws-panel a, .ws-header a, .ef-card a { color: var(--ef-color-text-heading); }
+.report-outstanding { display: block; margin-block: 1rem; }
