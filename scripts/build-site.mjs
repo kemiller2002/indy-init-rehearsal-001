@@ -79,27 +79,42 @@ writeFileSync(join(dist, "index.html"), html);
 cpSync(join(kernel, "main.js"), join(dist, "main.js"));
 cpSync(join(kernel, "app.css"), join(dist, "app.css"));
 writeFileSync(join(dist, ".nojekyll"), "");
+// The route inventory (echelon.routes/v1) is published with the site.
+mkdirSync(join(dist, ".echelon"), { recursive: true });
+cpSync(join(root, ".echelon", "routes.json"), join(dist, ".echelon", "routes.json"));
 const builtAt = new Date().toISOString();
 writeFileSync(join(dist, "build-info.json"), JSON.stringify({ commit, builtAt }, null, 2) + "\n");
 
 // 3b. Factory proof (S20/S21, R14.3, R16.5): the factory's state AT BUILD TIME.
 // Requirements in scope come from the frozen inventory, their slice from the
 // Conditor trace, work-item states from the Praxis queue, and test counts from
-// test-results/traceability.json only when it already exists (CI runs the
-// tests after the build, so a CI build usually has none).
+// test-results/traceability.json only when it already exists (the deploy
+// workflow writes it before the build; elsewhere it is usually absent).
 const readJson = (path) => (existsSync(join(root, path)) ? JSON.parse(readFileSync(join(root, path), "utf8")) : null);
 const inventory = readJson("evidence/requirements-inventory.json");
 const trace = readJson(".ros/work/attachments/COND-MISSION-001/1-requirements-trace.json");
 const queue = readJson(".ros/work/queue.json");
 const traceability = readJson("test-results/traceability.json");
 const sliceOf = new Map((trace?.requirements ?? []).map((r) => [r.id, r.workItem]));
-const countsOf = (t) => {
-  if (t === null || typeof t !== "object") return null;
-  const summary = t.summary ?? t.counts ?? null;
-  if (summary === null || typeof summary !== "object") return null;
-  const numbers = Object.fromEntries(Object.entries(summary).filter(([, v]) => typeof v === "number"));
-  return Object.keys(numbers).length > 0 ? numbers : null;
+// test-results/traceability.json (scripts/trace-requirements.py): totals and
+// per-requirement coverage, when the workflow wrote it before this build.
+const coverageOf = new Map((traceability?.requirements ?? []).map((r) => [r.sourceId, r.status]));
+const testsOf = (t) => {
+  if (t === null || typeof t !== "object" || t.totals === undefined) return null;
+  const total = Number(t.totals.tests ?? 0);
+  const passed = Number(t.totals.passed ?? 0);
+  const summary = t.summary ?? {};
+  return {
+    commit: typeof t.commit === "string" ? t.commit : "",
+    tests: total,
+    passed,
+    failed: total - passed,
+    tested: Number(summary.tested ?? 0),
+    untested: Number(summary.untested ?? 0),
+    failing: Number(summary.failing ?? 0)
+  };
 };
+const tests = testsOf(traceability);
 const factory = {
   schema: "rci.factory/v1",
   label: "Factory state at build time",
@@ -108,9 +123,11 @@ const factory = {
   experiment: inventory?.experiment ?? "",
   requirements: (inventory?.requirements ?? [])
     .filter((r) => r.scope === "scoped" || r.scope === "scoped-factory")
-    .map((r) => ({ id: r.id, sourceId: r.sourceId, title: r.title, scope: r.scope, slice: sliceOf.get(r.sourceId) ?? "" })),
+    .map((r) => ({ id: r.id, sourceId: r.sourceId, title: r.title, scope: r.scope, slice: sliceOf.get(r.sourceId) ?? "", coverage: coverageOf.get(r.sourceId) ?? "" })),
   workItems: (queue?.items ?? []).map((i) => ({ id: i.id, title: i.title, status: i.status })),
-  tests: countsOf(traceability)
+  tests,
+  // Build status as far as the build can know it: the recorded test run, if any.
+  buildStatus: tests === null ? "unknown" : tests.failed === 0 ? "passed" : "failing"
 };
 writeFileSync(join(dist, "factory.json"), JSON.stringify(factory, null, 2) + "\n");
 

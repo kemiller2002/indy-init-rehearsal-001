@@ -43,3 +43,11 @@ test("[AC-13] build-info.json names the commit", async ({ request, baseURL }) =>
   expect(typeof info.commit).toBe("string");
   expect(typeof info.builtAt).toBe("string");
 });
+
+test("[R9.10] the route inventory is published with the site at ./.echelon/routes.json", async ({ request, baseURL }) => {
+  const response = await request.get(new URL(".echelon/routes.json", baseURL).href);
+  expect(response.ok()).toBe(true);
+  const routes = await response.json();
+  expect(routes.schema).toBe("echelon.routes/v1");
+  expect(routes.routes.map((r) => r.pattern)).toContain("/i/{investigation}/{kind}/{entity}");
+});

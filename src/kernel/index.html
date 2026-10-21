@@ -175,6 +175,7 @@
         <template data-if="hasFactory">
           <div class="factory">
             <p>Experiment <strong data-text="factoryExperiment"></strong> · commit <code data-testid="factory-commit" data-text="factoryCommit"></code></p>
+            <p data-testid="factory-build-status" data-text="factoryBuildStatus"></p>
             <p data-testid="factory-tests" data-text="factoryTests"></p>
             <section class="ef-section" aria-labelledby="slices-title">
               <h2 id="slices-title">Work items</h2>
@@ -186,9 +187,9 @@
               <h2 id="reqs-title">Requirements in scope (<span data-text="factoryRequirementCount"></span>)</h2>
               <div class="table-scroll">
                 <table class="factory-table">
-                  <thead><tr><th scope="col">Requirement</th><th scope="col">Title</th><th scope="col">Kind</th><th scope="col">Slice</th><th scope="col">Slice state</th></tr></thead>
+                  <thead><tr><th scope="col">Requirement</th><th scope="col">Title</th><th scope="col">Kind</th><th scope="col">Slice</th><th scope="col">Slice state</th><th scope="col">Tests</th></tr></thead>
                   <tbody>
-                    <template data-each="factoryRequirements" data-key="id"><tr data-testid="factory-requirement"><td><code data-text="id"></code></td><td data-text="title"></td><td data-text="scope"></td><td data-text="slice"></td><td data-text="status"></td></tr></template>
+                    <template data-each="factoryRequirements" data-key="id"><tr data-testid="factory-requirement"><td><code data-text="id"></code></td><td data-text="title"></td><td data-text="scope"></td><td data-text="slice"></td><td data-text="status"></td><td data-text="coverage"></td></tr></template>
                   </tbody>
                 </table>
               </div>
@@ -393,6 +394,33 @@
                 <input id="ev-captured" type="date" data-event="f.evCaptured" data-bind-value="draft_evCaptured">
               </div>
               <div class="ef-actions"><button type="submit">Add evidence</button></div>
+            </form>
+            <form data-event="ev.supersede" class="form">
+              <div class="ef-select-field">
+                <label class="ef-field__label" for="sup-old">Evidence to replace</label>
+                <span class="ef-select">
+                  <select class="ef-select__input" id="sup-old" data-event="f.supOld" data-bind-value="draft_supOld">
+                    <option value="">Choose evidence</option>
+                    <template data-each="evidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
+                  </select>
+                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                </span>
+              </div>
+              <div class="ef-select-field">
+                <label class="ef-field__label" for="sup-new">Replaced by</label>
+                <span class="ef-select">
+                  <select class="ef-select__input" id="sup-new" data-event="f.supNew" data-bind-value="draft_supNew">
+                    <option value="">Choose evidence</option>
+                    <template data-each="evidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
+                  </select>
+                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                </span>
+              </div>
+              <div class="ef-field">
+                <label class="ef-field__label" for="sup-reason">Why it is replaced</label>
+                <input id="sup-reason" type="text" data-event="f.supReason" data-bind-value="draft_supReason">
+              </div>
+              <div class="ef-actions"><button type="submit">Replace evidence</button></div>
             </form>
             <ul class="card-list">
               <template data-each="evidence" data-key="id">
@@ -811,7 +839,7 @@
               <div class="ef-actions"><button type="submit">Add success criterion</button></div>
             </form>
             <ul class="plain-list">
-              <template data-each="criteria" data-key="id"><li data-testid="criterion"><strong data-text="label"></strong> (fix <span data-text="correction"></span>): <span data-text="expected"></span> — <span data-text="status"></span></li></template>
+              <template data-each="criteria" data-key="id"><li data-testid="criterion" data-bind-data-met="isMet"><strong data-text="label"></strong> (fix <span data-text="correction"></span>): <span data-text="expected"></span> — <span data-text="status"></span></li></template>
             </ul>
             <form data-event="ver.add" class="form form--inline">
               <div class="ef-select-field">
@@ -838,12 +866,13 @@
               <div class="ef-select-field">
                 <label class="ef-field__label" for="ver-evidence">Verification evidence</label>
                 <span class="ef-select">
-                  <select class="ef-select__input" id="ver-evidence" data-event="f.verEvidence" data-bind-value="draft_verEvidence">
+                  <select class="ef-select__input" id="ver-evidence" data-event="f.verEvidence" data-bind-value="draft_verEvidence" aria-describedby="ver-evidence-note">
                     <option value="">No evidence</option>
-                    <template data-each="evidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
+                    <template data-each="verEvidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
                   <span class="ef-select__indicator" aria-hidden="true"></span>
                 </span>
+                <span class="ef-field__description" id="ver-evidence-note" data-testid="ver-evidence-note" data-text="verEvidenceNote"></span>
               </div>
               <div class="ef-actions"><button type="submit">Record verification</button></div>
             </form>
