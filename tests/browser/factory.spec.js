@@ -7,8 +7,9 @@ test.afterEach(async ({ page }) => {
   expect(await bridgeErrors(page)).toEqual([]);
 });
 
-test("[R14.2] [R14.3] [R16.5] the factory view shows the build commit, requirements with their slice, and work-item states", async ({ page, request, baseURL }) => {
+test("[R14.2] [R14.3] the factory view shows the build commit, requirements with their slice, work-item states and the recorded test counts", async ({ page, request, baseURL }) => {
   const info = await (await request.get(new URL("build-info.json", baseURL).href)).json();
+  const factory = await (await request.get(new URL("factory.json", baseURL).href)).json();
   await open(page, "#/factory");
   await expect(page.getByRole("heading", { level: 2, name: "Factory state at build time" })).toBeVisible();
   await expect(page.getByTestId("factory-commit")).toHaveText(info.commit);
@@ -16,7 +17,14 @@ test("[R14.2] [R14.3] [R16.5] the factory view shows the build commit, requireme
   await expect(r81).toContainText("SLICE-");
   expect(await page.getByTestId("factory-requirement").count()).toBeGreaterThan(10);
   await expect(page.getByTestId("factory-work-item").filter({ hasText: "SLICE-BOOTSTRAP" })).toBeVisible();
-  await expect(page.getByTestId("factory-tests")).not.toBeEmpty();
+  if (factory.tests !== null) {
+    // test-results/traceability.json was present at build time: its real counts are shown.
+    await expect(page.getByTestId("factory-tests")).toContainText(`${factory.tests.tests} tests recorded, ${factory.tests.passed} passed, ${factory.tests.failed} failed`);
+    await expect(page.getByTestId("factory-build-status")).toContainText(factory.tests.failed === 0 ? "every recorded test passed" : "some recorded tests failed");
+  } else {
+    await expect(page.getByTestId("factory-tests")).toHaveText("Test results were not available when this site was built.");
+    await expect(page.getByTestId("factory-build-status")).toContainText("unknown");
+  }
 });
 
 test("[R9.3] the factory view has no serious or critical axe violations", async ({ page }) => {

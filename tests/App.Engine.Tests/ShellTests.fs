@@ -417,7 +417,7 @@ let private factoryJson =
     """{"schema":"rci.factory/v1","label":"Factory state at build time","commit":"0123456789abcdef","builtAt":"2026-10-21T18:00:00Z","experiment":"EX-INDY-INIT-2026-R001","requirements":[{"id":"IIR-R8.1","sourceId":"R8.1","title":"Legal actions","scope":"scoped","slice":"SLICE-POLICY-CAPABILITIES"},{"id":"IIR-R14.3","sourceId":"R14.3","title":"Metrics","scope":"scoped-factory","slice":"SLICE-FACTORY-PROOF"}],"workItems":[{"id":"SLICE-POLICY-CAPABILITIES","title":"Slice 03","status":"complete"},{"id":"SLICE-FACTORY-PROOF","title":"Slice 13","status":"ready"}],"tests":null}"""
 
 [<Fact>]
-let ``[R14.2] [R14.3] [R16.5] the factory view loads factory.json by an Http effect and shows requirements, their slices and work-item states`` () =
+let ``[R14.2] [R14.3] the factory view loads factory.json by an Http effect and shows requirements, their slices and work-item states`` () =
     let st, doc = send initial (initialize "#/factory")
     let get = effects doc |> List.find (fun e -> kindOf e = "Http")
     Assert.Equal("GET", get.GetProperty("method").GetString())
@@ -757,3 +757,112 @@ let ``[R10.7] a stored history that fails Evolve.validateHistory is not adopted,
     match IndexCodec.decode (indexWrite.GetProperty("value").GetString()) with
     | Ok entries -> Assert.Contains(forged, entries |> List.map (fun e -> e.Id))
     | Error e -> failwith e
+
+[<Fact>]
+let ``[R14.3] the factory view shows the recorded test counts and build status when a test run was recorded`` () =
+    let withTests =
+        factoryJson.Replace(
+            "\"tests\":null}",
+            "\"tests\":{\"commit\":\"fedcba9876543210\",\"tests\":120,\"passed\":118,\"failed\":2,\"tested\":60,\"untested\":15,\"failing\":3},\"buildStatus\":\"failing\"}"
+        )
+    let st, doc = send initial (initialize "#/factory")
+    let get = effects doc |> List.find (fun e -> kindOf e = "Http")
+    let st, _ = answerLoads st doc
+    let _, doc = send st (httpSuccess (get.GetProperty("correlationId").GetString()) 200 withTests)
+    Assert.Equal("120 tests recorded, 118 passed, 2 failed (run on commit fedcba9). Requirements: 60 tested, 15 untested, 3 failing.", text doc "factoryTests")
+    Assert.Equal("Build status: some recorded tests failed", text doc "factoryBuildStatus")
+
+[<Fact>]
+let ``[R10.6] the local status never claims a save that has not been recorded`` () =
+    let st, _ = boot "#/"
+    let st, doc = start st
+    Assert.Equal("Saving on this device…", text doc "localStatus")
+    Assert.Equal(JStr "Not saved yet", (project { st with Local = Map.empty } |> Map.ofList)["localStatus"])
+    let save =
+        effects doc
+        |> List.find (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString().StartsWith("rci:inv:"))
+    let _, doc = send st (storageResult (save.GetProperty("correlationId").GetString()) None)
+    Assert.Equal("Saved on this device", text doc "localStatus")
+
+/// A confirmed cause with a root-cause correction taken to Implemented.
+let private implementedCorrection () =
+    let st, _, hyps, _ = supportedWithAlternative ()
+    let st, _ = send st (event "f.hypReason" None (Some "DNS fine"))
+    let st, _ = send st (event "hyp.Supersede" (Some hyps["DNS misconfiguration"]) None)
+    let st, _ = send st (event "f.causeOutcome" None (Some "502s"))
+    let st, _ = send st (event "f.causeRoot" None (Some hyps["Expired certificate"]))
+    let st, _ = send st (event "f.causeMechanism" None (Some "expired cert breaks TLS"))
+    let st, doc = send st (event "cause.add" None None)
+    let cid = (first ((view doc).GetProperty("causes"))).GetProperty("id").GetString()
+    let st, _ = send st (event "cause.confirm" (Some cid) None)
+    let st, _ = send st (event "f.corrKind" None (Some "Correction"))
+    let st, _ = send st (event "f.corrDescription" None (Some "Renew the certificate"))
+    let st, _ = send st (event "f.corrCause" None (Some cid))
+    let st, doc = send st (event "corr.add" None None)
+    let caid = (first ((view doc).GetProperty("corrections"))).GetProperty("id").GetString()
+    let st, _ = send st (event "corr.Approve" (Some caid) None)
+    let st, _ = send st (event "corr.Start" (Some caid) None)
+    let st, doc = send st (event "corr.Implemented" (Some caid) None)
+    st, doc, caid
+
+[<Fact>]
+let ``[R8.1] [R7.3] input-free buttons appear only when the kernel would accept the exact command`` () =
+    let st, doc, caid = implementedCorrection ()
+    let fix = first ((view doc).GetProperty("corrections"))
+    Assert.Equal("Implemented (not yet verified)", fix.GetProperty("state").GetString())
+    // Structurally legal, but the kernel refuses verification without success criteria.
+    Assert.True(Transitions.correction Implemented StartVerificationOfEffect |> Option.isSome)
+    Assert.True(fix.GetProperty("hideVerify").GetBoolean())
+    // Resolution is refused by Policy: the Resolve button is not offered.
+    Assert.True((view doc).GetProperty("lifeHide_resolve").GetBoolean())
+    let st, _ = send st (event "f.critCorrection" None (Some caid))
+    let st, _ = send st (event "f.critExpected" None (Some "No 502s for a day"))
+    let _, doc = send st (event "crit.add" None None)
+    Assert.False((first ((view doc).GetProperty("corrections"))).GetProperty("hideVerify").GetBoolean())
+
+let private evidenceIdOf (doc: JsonDocument) (content: string) =
+    [ for e in (view doc).GetProperty("evidence").EnumerateArray() -> e.GetProperty("content").GetString(), e.GetProperty("id").GetString() ]
+    |> List.find (fun (c, _) -> c = content)
+    |> snd
+
+[<Fact>]
+let ``[R7.4] a criterion verified with evidence that is later superseded is shown as not met and listed as outstanding`` () =
+    let st, _, caid = implementedCorrection ()
+    let st, _ = send st (event "f.critCorrection" None (Some caid))
+    let st, _ = send st (event "f.critExpected" None (Some "No 502s for a day"))
+    let st, doc = send st (event "crit.add" None None)
+    let crid = (first ((view doc).GetProperty("criteria"))).GetProperty("id").GetString()
+    let st, doc = send st (event "corr.Verify" (Some caid) None)
+    // Evidence from before the round is not offered for verification, and the reason is given.
+    Assert.Equal(0, (view doc).GetProperty("verEvidenceOptions").GetArrayLength())
+    Assert.Contains("added after verification of the fix started", text doc "verEvidenceNote")
+    let st, _ = send st (event "f.evContent" None (Some "No 502s in 24 hours"))
+    let st, _ = send st (event "f.evSource" None (Some "access logs"))
+    let st, doc = send st (event "ev.add" None None)
+    let proof = evidenceIdOf doc "No 502s in 24 hours"
+    Assert.Equal(1, (view doc).GetProperty("verEvidenceOptions").GetArrayLength())
+    let st, _ = send st (event "f.verCriterion" None (Some crid))
+    let st, _ = send st (event "f.verOutcome" None (Some "Satisfied"))
+    let st, _ = send st (event "f.verEvidence" None (Some proof))
+    let st, doc = send st (event "ver.add" None None)
+    let criterion = first ((view doc).GetProperty("criteria"))
+    Assert.True(criterion.GetProperty("isMet").GetBoolean())
+    Assert.Equal("Verified effective", (first ((view doc).GetProperty("corrections"))).GetProperty("state").GetString())
+    // The cited evidence is superseded: the kernel no longer counts the criterion as met.
+    let st, _ = send st (event "f.evContent" None (Some "Log sample was from the wrong region"))
+    let st, _ = send st (event "f.evSource" None (Some "review"))
+    let st, doc = send st (event "ev.add" None None)
+    let replacement = evidenceIdOf doc "Log sample was from the wrong region"
+    let st, _ = send st (event "f.supOld" None (Some proof))
+    let st, _ = send st (event "f.supNew" None (Some replacement))
+    let st, _ = send st (event "f.supReason" None (Some "wrong region"))
+    let st, doc = send st (event "ev.supersede" None None)
+    Assert.Equal(0, (view doc).GetProperty("refusals").GetArrayLength())
+    let iid = (currentId st).Value
+    let inv = (investigationOf st iid).Value
+    let crit = inv.Criteria |> Map.toList |> List.exactlyOne |> snd
+    Assert.False(Policy.criterionSatisfied inv crit)
+    let criterion = first ((view doc).GetProperty("criteria"))
+    Assert.False(criterion.GetProperty("isMet").GetBoolean())
+    Assert.NotEqual<string>("Met, with evidence", criterion.GetProperty("status").GetString())
+    Assert.Contains("CRITERION.UNVERIFIED", outstandingCodes doc)

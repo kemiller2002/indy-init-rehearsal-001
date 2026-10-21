@@ -1,0 +1,1910 @@
+{
+  "schema": "echelon.experiment.traceability/v1",
+  "commit": "6556d39f249f88b703ce4718558078b1fd522219",
+  "source": "local",
+  "totals": {
+    "tests": 190,
+    "passed": 190
+  },
+  "summary": {
+    "untested": 21,
+    "tested": 61
+  },
+  "requirements": [
+    {
+      "id": "IIR-R0.1",
+      "sourceId": "R0.1",
+      "title": "Blank application implementation",
+      "scope": "process",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R0.2",
+      "sourceId": "R0.2",
+      "title": "Pre-event preparation",
+      "scope": "process",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R0.3",
+      "sourceId": "R0.3",
+      "title": "No hidden prebuilt application",
+      "scope": "process",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R0.4",
+      "sourceId": "R0.4",
+      "title": "Provenance",
+      "scope": "process",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R1.1",
+      "sourceId": "R1.1",
+      "title": "Initial observation",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R1.1] start is refused for an empty observation, an existing id, or a mismatched envelope",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R1.1][R1.3] starting an investigation yields a Draft with a stable id and creation timestamp",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-01 create an investigation from free text; the original observation is preserved verbatim @ipad (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-01 create an investigation from free text; the original observation is preserved verbatim @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-01 create an investigation from free text; the original observation is preserved verbatim @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R1.2",
+      "sourceId": "R1.2",
+      "title": "Structured projection",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R1.2][A1] original observation text is preserved verbatim",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R1.2] later observations keep their original text and provenance",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-01 create an investigation from free text; the original observation is preserved verbatim @ipad (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-01 create an investigation from free text; the original observation is preserved verbatim @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-01 create an investigation from free text; the original observation is preserved verbatim @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R1.3",
+      "sourceId": "R1.3",
+      "title": "Investigation identity",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R1.1][R1.3] starting an investigation yields a Draft with a stable id and creation timestamp",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-01 create an investigation from free text; the original observation is preserved verbatim @ipad (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-01 create an investigation from free text; the original observation is preserved verbatim @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-01 create an investigation from free text; the original observation is preserved verbatim @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R2.1",
+      "sourceId": "R2.1",
+      "title": "Multiple hypotheses",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R2.1][R2.2][A2] multiple hypotheses coexist with explicit states",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R2.2",
+      "sourceId": "R2.2",
+      "title": "Explicit lifecycle",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[\u00a72][R2.2] hypothesis table: every state x command",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R2.1][R2.2][A2] multiple hypotheses coexist with explicit states",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R2.3",
+      "sourceId": "R2.3",
+      "title": "Transition evidence",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R2.3] Supported, Weakened, Falsified and Reopen require cited evidence; every transition requires a reason",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[\u00a72][R2.3] hypothesis evidence requirement table",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R2.3] a hypothesis transition records from, to, reason and evidence",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R2.4",
+      "sourceId": "R2.4",
+      "title": "No silent deletion",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R2.4][A24] a falsified hypothesis stays in the projection with its linked basis",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R2.5",
+      "sourceId": "R2.5",
+      "title": "Reopening",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R2.5][A5] reopening a falsified hypothesis needs evidence admitted after the falsification",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R2.5][A5] a second reopening needs evidence newer than the latest falsification",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R3.1",
+      "sourceId": "R3.1",
+      "title": "Evidence records",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R3.1][A38] superseding evidence preserves the original and re-evaluates the cause gate",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R3.1][R3.2] evidence is admitted with source, capture time and verification status",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-02 add evidence with its source and capture date; provenance is shown (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R3.2",
+      "sourceId": "R3.2",
+      "title": "Provenance",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R3.1][R3.2] evidence is admitted with source, capture time and verification status",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-02 add evidence with its source and capture date; provenance is shown (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R3.3",
+      "sourceId": "R3.3",
+      "title": "Relationships",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R3.3] evidence links to hypotheses as Supports, Contradicts, Discriminates or Insufficient",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-04 contradicting evidence is surfaced as a contradiction (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R3.4",
+      "sourceId": "R3.4",
+      "title": "Conflicting evidence",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R3.4][A7][A22] contradictory evidence is recorded, stays visible and blocks confirmation",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[\u00a78][R3.4] contradiction table: every state x command",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R3.4][R6.1] N3 contradicting evidence on a cause member blocks confirmation until addressed",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-04 contradicting evidence is surfaced as a contradiction (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R3.5",
+      "sourceId": "R3.5",
+      "title": "Attachments",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R3.5] an http(s) artifact URL is accepted and anything else is refused",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R4.1",
+      "sourceId": "R4.1",
+      "title": "Proposed experiment",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[\u00a75][R4.1] action table: every state x command",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R4.1] each kind of check can be proposed against hypotheses",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R4.2",
+      "sourceId": "R4.2",
+      "title": "Prediction before result",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R4.2][A11] M1 a prediction recorded after a relevant finding is stored as retrospective",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R4.2][R4.4] the prediction precedes the finding, which preserves the result and completes the action",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R4.2][A11] M1 a finding on an untargeted action makes later predictions retrospective",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R4.2] M1 a prediction before any finding keeps its prospective timing",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R4.3",
+      "sourceId": "R4.3",
+      "title": "Discriminating evidence",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R4.3] discriminating predictions are marked as preferred",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R15.3] [R4.3] the rule-based challenge records an agent proposal for a falsifying check, once",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R4.4",
+      "sourceId": "R4.4",
+      "title": "Result preservation",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R4.4] m1 a finding on an approved action passes through InProgress",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R4.4] a finding cannot be recorded for an action that is not runnable",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R4.2][R4.4] the prediction precedes the finding, which preserves the result and completes the action",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R5.1",
+      "sourceId": "R5.1",
+      "title": "Unknown is first-class",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[\u00a76][R5.1] unknown table: every state x command",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R5.1][R5.2][A8] an open blocking unknown blocks cause confirmation until resolved or accepted",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R5.2",
+      "sourceId": "R5.2",
+      "title": "Unknown obligations",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R5.2] an open blocking unknown blocks resolution",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R5.1][R5.2][A8] an open blocking unknown blocks cause confirmation until resolved or accepted",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R5.3",
+      "sourceId": "R5.3",
+      "title": "Negative knowledge",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R5.3][A17] negative knowledge requires an evidence basis and keeps its scope",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R5.4",
+      "sourceId": "R5.4",
+      "title": "Repetition prevention",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R5.4] an agent proposal repeating a falsified or eliminated explanation is refused; a human may still record it",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R6.1",
+      "sourceId": "R6.1",
+      "title": "No unsupported completion",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R6.1][\u00a715] the cause gate returns every blocker at once",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R6.1][A40] a conclusion cannot claim ConfirmedCause before the cause is confirmed",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R6.1][\u00a710] a confirmed cause can be reopened with a reason and confirmed again",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R6.1][A7] C1 a material contradiction opened after confirmation blocks resolution",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R6.1] N7 a conclusion naming a reopened cause blocks resolution",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R6.1] a cause cannot be confirmed while the investigation is still Draft",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R6.1][I-19][I-20] C1 resolution re-checks a confirmed cause: falsifying its root cause blocks resolution",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R3.4][R6.1] N3 contradicting evidence on a cause member blocks confirmation until addressed",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-07 confirming a cause is blocked with reasons while a blocking unknown is open, then allowed once it is answered (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-07 an illegal action is refused with its reason and Aegis fault code (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R6.2",
+      "sourceId": "R6.2",
+      "title": "Confidence is evidence-linked",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R6.2] hypothesis posture is explained by linked evidence, never a number or percentage",
+          "passed": true
+        },
+        {
+          "test": "challenge.spec.js [R15.3] [R6.2] the labelled rule-based helper challenges a supported explanation; posture is explained by evidence (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R6.3",
+      "sourceId": "R6.3",
+      "title": "Contributing factors",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ReportTests.R6.3 R12.2 causes distinguish root cause from contributing factor",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R6.3][A15][A16] a contributing factor alone is refused; root and contributing roles stay distinct",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-05 causal assertion with a root cause and a contributing factor (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R6.4",
+      "sourceId": "R6.4",
+      "title": "Residual uncertainty",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R6.4][A23] residual uncertainty is required while unknowns remain open or were accepted",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R6.4] N5 residual uncertainty accepted after the conclusion blocks resolution until stated",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R7.1",
+      "sourceId": "R7.1",
+      "title": "Corrective actions",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[\u00a711][R7.1] corrective action table: every state x command",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R7.1][R7.2][A32] a verified mitigation does not resolve the root cause",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R7.2",
+      "sourceId": "R7.2",
+      "title": "Mitigation distinction",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ReportTests.R7.2 R12.2 mitigation and correction are labelled distinctly with verification",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R7.1][R7.2][A32] a verified mitigation does not resolve the root cause",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R7.3",
+      "sourceId": "R7.3",
+      "title": "Verification criteria",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R7.3] verification cannot start before success criteria exist",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R8.1] [R7.3] input-free buttons appear only when the kernel would accept the exact command",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-11 resolve is blocked until the correction has verification evidence; AC-10 interim then final report (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R7.4",
+      "sourceId": "R7.4",
+      "title": "Verified outcome",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R7.4] a criterion verified with evidence that is later superseded is shown as not met and listed as outstanding",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R7.4][I-13] N2 evidence admitted before verification started cannot verify the fix",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R7.4][A20] an implemented correction is not verified and does not resolve",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R7.4] M2 a verification citing superseded evidence is refused",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R7.4][A21] M2 satisfied verifications from before rework do not count in the next round",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R7.4][A21] a failed verification marks VerificationFailed and returns the investigation to Active",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[I-13][R7.4] N1 validateHistory rejects VerifiedEffective planted without any satisfied verification",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R7.4] a satisfied verification must cite evidence, and every criterion must be satisfied",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R7.4][A35] the resolution gate passes only with a verified correction",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-11 resolve is blocked until the correction has verification evidence; AC-10 interim then final report (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R8.1",
+      "sourceId": "R8.1",
+      "title": "Legal actions",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R8.1] probe reports a command's legality without emitting events",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[\u00a71][R8.1] investigation lifecycle table: every state x command",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R8.1] the Confirm action follows the policy gate: a confirmed cause offers no Confirm and lists no blockers",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R8.1] [R7.3] input-free buttons appear only when the kernel would accept the exact command",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R8.1][R8.2] every refusal carries a non-empty code, rule and message",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-06 the legal actions for each hypothesis are listed, and unavailable ones explained @ipad (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-06 the legal actions for each hypothesis are listed, and unavailable ones explained @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-06 the legal actions for each hypothesis are listed, and unavailable ones explained @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R8.2",
+      "sourceId": "R8.2",
+      "title": "Illegal actions",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R8.1][R8.2] every refusal carries a non-empty code, rule and message",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-07 confirming a cause is blocked with reasons while a blocking unknown is open, then allowed once it is answered (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-07 an illegal action is refused with its reason and Aegis fault code (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R8.3",
+      "sourceId": "R8.3",
+      "title": "Aegis integration",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R8.3][A26] refusals map to Aegis domain faults carrying the same code",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-07 confirming a cause is blocked with reasons while a blocking unknown is open, then allowed once it is answered (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-07 an illegal action is refused with its reason and Aegis fault code (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R8.4",
+      "sourceId": "R8.4",
+      "title": "Obligations",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R8.4] outstanding work lists open unknowns, contradictions and the policy's resolution blockers, and clears when answered",
+          "passed": true
+        },
+        {
+          "test": "outstanding.spec.js [R8.4] [R12.3] outstanding work is listed on the workspace and in the interim report (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R9.1",
+      "sourceId": "R9.1",
+      "title": "iPad first",
+      "scope": "scoped",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R9.2",
+      "sourceId": "R9.2",
+      "title": "Mobile compatibility",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "smoke.spec.js [R9.2] the workspace fits a 375px phone screen without sideways scrolling (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R9.3",
+      "sourceId": "R9.3",
+      "title": "Accessibility",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "accessibility.spec.js AC-14 home, workspace and report have no serious or critical axe violations @ipad (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "accessibility.spec.js AC-14 an investigation can be created with the keyboard alone (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "accessibility.spec.js AC-14 home, workspace and report have no serious or critical axe violations @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+          "passed": true
+        },
+        {
+          "test": "accessibility.spec.js AC-14 home, workspace and report have no serious or critical axe violations @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+          "passed": true
+        },
+        {
+          "test": "factory.spec.js [R9.3] the factory view has no serious or critical axe violations (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R9.4",
+      "sourceId": "R9.4",
+      "title": "Investigation visualization",
+      "scope": "scoped",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R9.5",
+      "sourceId": "R9.5",
+      "title": "Conversation plus state",
+      "scope": "scoped",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R9.6",
+      "sourceId": "R9.6",
+      "title": "URL-addressable views",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R9.6] every addressable entity kind has a route that round-trips",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R9.6] [R9.8] an entity link opens its detail, and a missing entity shows not found with a way back",
+          "passed": true
+        },
+        {
+          "test": "links.spec.js [R9.6] [R9.10] Copy link on a hypothesis gives its canonical URL, and that URL reopens it after reload (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R9.7",
+      "sourceId": "R9.7",
+      "title": "Deep links survive reload, sign-in and offline",
+      "scope": "scoped",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R9.8",
+      "sourceId": "R9.8",
+      "title": "Missing, superseded or forbidden targets",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R9.6] [R9.8] an entity link opens its detail, and a missing entity shows not found with a way back",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js [R9.8] deep link to an unknown investigation id shows not found with a way home (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js [R9.8] a deep link opened in a fresh browser context with empty storage says the investigation is not on this device (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "links.spec.js [R9.8] [R9.9] a link with a reserved parameter is refused, and a missing hypothesis offers a way back (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R9.9",
+      "sourceId": "R9.9",
+      "title": "No secrets or evidence content in URLs",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R9.10] [R9.9] Copy link writes the canonical absolute URL to the clipboard and never evidence text",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R11.3] [R9.9] the token is never stored on the device and never appears in any URL or view text",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R9.9] links carrying reserved parameter names are refused",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R9.9 R11.3 the token appears only in the Authorization header",
+          "passed": true
+        },
+        {
+          "test": "links.spec.js [R9.8] [R9.9] a link with a reserved parameter is refused, and a missing hypothesis offers a way back (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R9.10",
+      "sourceId": "R9.10",
+      "title": "Route inventory, codec and sharing",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R9.10] .echelon/routes.json lists exactly the routes the shell parses",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R9.10] [R9.9] Copy link writes the canonical absolute URL to the clipboard and never evidence text",
+          "passed": true
+        },
+        {
+          "test": "links.spec.js [R9.6] [R9.10] Copy link on a hypothesis gives its canonical URL, and that URL reopens it after reload (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "smoke.spec.js [R9.10] the route inventory is published with the site at ./.echelon/routes.json (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R10.1",
+      "sourceId": "R10.1",
+      "title": "Repository-backed persistence",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.CodecTests.R10.1 the investigation index round-trips",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.CodecTests.R10.1 R14.1 encode then decode round-trips every event exactly",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R10.1 interpretRead decodes 200 and treats 404 as nothing stored",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R10.1 the read request is a GET of the contents API on the branch",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R10.2",
+      "sourceId": "R10.2",
+      "title": "Human-readable artifacts",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.CodecTests.R10.2 the scenario history exercises every EventBody case",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.CodecTests.R10.2 a wrong schema, malformed JSON or empty text is an error",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R10.2 events are stored as a human-readable JSON file per investigation",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.CodecTests.R10.2 encoding is canonical: encode (decode doc) is the same document",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.CodecTests.R10.2 the document has the declared envelope and event shape",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.CodecTests.R10.2 the empty history round-trips",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R10.3",
+      "sourceId": "R10.3",
+      "title": "Commit provenance",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.SyncTests.R10.3 the write request is a PUT with message, base64 UTF-8 content, branch and sha",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R10.4",
+      "sourceId": "R10.4",
+      "title": "Conflict detection",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.SyncTests.R10.4 reconcile: remote ahead adopts remote",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R10.4 a first write omits the sha",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R10.4 reconcile: local ahead pushes local",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R10.4 R10.6 interpretWrite distinguishes written, conflict, auth and failure",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R10.4 reconcile: divergent histories are never overwritten",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.CodecTests.R10.4 a sequence gap or duplicate is detected",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[\u00a716.3][R10.4] a stale ExpectedVersion is refused with VERSION.STALE",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R10.4 reconcile survives a codec round trip",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R10.4 reconcile: equal histories are up to date",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R10.5",
+      "sourceId": "R10.5",
+      "title": "Offline tolerance",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "journey.spec.js AC-08 [R10.7] reload preserves the full investigation state at the same deep link (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "sync.spec.js AC-09 (GitHub API mocked) offline changes stay pending, never synced, and sync when back online (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "sync.spec.js AC-09 (GitHub API mocked) a 409 from GitHub is shown as a conflict, not as saved (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R10.6",
+      "sourceId": "R10.6",
+      "title": "Pending remote state",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R10.6] the local status never claims a save that has not been recorded",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R10.4 R10.6 interpretWrite distinguishes written, conflict, auth and failure",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R10.6 only Synced counts as remote confirmation",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R10.6] statuses confirmed for another repository are reset when loaded",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R10.6] changing the repository resets every status to pending; nothing is shown as saved without a request",
+          "passed": true
+        },
+        {
+          "test": "sync.spec.js AC-09 (GitHub API mocked) offline changes stay pending, never synced, and sync when back online (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "sync.spec.js AC-09 (GitHub API mocked) a 409 from GitHub is shown as a conflict, not as saved (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "sync.spec.js [R10.6] without GitHub settings the workspace says it is local only (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R10.7",
+      "sourceId": "R10.7",
+      "title": "Recovery",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R10.7] a stored history that fails Evolve.validateHistory is not adopted, stays listed and is left untouched",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R10.7] nothing is created before saved investigations load, and the index is never written from a partial load",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R10.7] an unreadable index is never overwritten",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-08 [R10.7] reload preserves the full investigation state at the same deep link (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R11.1",
+      "sourceId": "R11.1",
+      "title": "GitHub authentication",
+      "scope": "scoped",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R11.2",
+      "sourceId": "R11.2",
+      "title": "Least privilege",
+      "scope": "scoped",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R11.3",
+      "sourceId": "R11.3",
+      "title": "Token handling",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R11.3] [R9.9] the token is never stored on the device and never appears in any URL or view text",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R9.9 R11.3 the token appears only in the Authorization header",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R11.3] the token is kept in memory only; after a reload it must be entered again and a stored legacy token is erased",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.SyncTests.R11.3 a token accidentally present in content or message is redacted before commit",
+          "passed": true
+        },
+        {
+          "test": "sync.spec.js [R11.3] (GitHub API mocked) the token is not saved on the device; after a reload it must be entered again (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R11.4",
+      "sourceId": "R11.4",
+      "title": "Prompt/data boundaries",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R11.4] evidence containing instructions is stored and shown verbatim and changes no state or legality",
+          "passed": true
+        },
+        {
+          "test": "trust.spec.js [R11.4] evidence that contains instructions is shown verbatim as data and changes no state (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R12.1",
+      "sourceId": "R12.1",
+      "title": "Folio output",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "journey.spec.js AC-11 resolve is blocked until the correction has verification evidence; AC-10 interim then final report (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R12.2",
+      "sourceId": "R12.2",
+      "title": "Report contents",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ReportTests.R7.2 R12.2 mitigation and correction are labelled distinctly with verification",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ReportTests.R12.2 a final report covers every required section",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ReportTests.R12.2 a resolved or closed investigation produces a Final report with no unresolved work",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ReportTests.R12.2 falsified hypotheses are reported with their transition reasons",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ReportTests.R12.2 evidence, experiments, unknowns, negative knowledge and conclusion are reported",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ReportTests.R6.3 R12.2 causes distinguish root cause from contributing factor",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ReportTests.R12.2 the timeline has one human-readable item per event in order",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-11 resolve is blocked until the correction has verification evidence; AC-10 interim then final report (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R12.3",
+      "sourceId": "R12.3",
+      "title": "Incomplete report",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ReportTests.R12.3 a reopened investigation is Interim again",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ReportTests.R12.3 an open investigation produces an Interim report listing unresolved work",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-11 resolve is blocked until the correction has verification evidence; AC-10 interim then final report (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "outstanding.spec.js [R8.4] [R12.3] outstanding work is listed on the workspace and in the interim report (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R13.1",
+      "sourceId": "R13.1",
+      "title": "Ordo",
+      "scope": "scoped-factory",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R13.2",
+      "sourceId": "R13.2",
+      "title": "ROS",
+      "scope": "scoped-factory",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R13.3",
+      "sourceId": "R13.3",
+      "title": "Limen",
+      "scope": "scoped-factory",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R13.4",
+      "sourceId": "R13.4",
+      "title": "Forma",
+      "scope": "scoped-factory",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R13.5",
+      "sourceId": "R13.5",
+      "title": "Folio",
+      "scope": "scoped-factory",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R13.6",
+      "sourceId": "R13.6",
+      "title": "Aegis",
+      "scope": "scoped-factory",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R13.7",
+      "sourceId": "R13.7",
+      "title": "Praxis",
+      "scope": "scoped-factory",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R13.8",
+      "sourceId": "R13.8",
+      "title": "Evidence of completion",
+      "scope": "scoped-factory",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R14.1",
+      "sourceId": "R14.1",
+      "title": "State history",
+      "scope": "scoped-factory",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.CodecTests.R10.1 R14.1 encode then decode round-trips every event exactly",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R14.2",
+      "sourceId": "R14.2",
+      "title": "Engineering history",
+      "scope": "scoped-factory",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R14.2] [R14.3] the factory view loads factory.json by an Http effect and shows requirements, their slices and work-item states",
+          "passed": true
+        },
+        {
+          "test": "factory.spec.js [R14.2] [R14.3] the factory view shows the build commit, requirements with their slice, work-item states and the recorded test counts (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R14.3",
+      "sourceId": "R14.3",
+      "title": "Metrics",
+      "scope": "scoped-factory",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R14.2] [R14.3] the factory view loads factory.json by an Http effect and shows requirements, their slices and work-item states",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.ShellTests.[R14.3] the factory view shows the recorded test counts and build status when a test run was recorded",
+          "passed": true
+        },
+        {
+          "test": "factory.spec.js [R14.2] [R14.3] the factory view shows the build commit, requirements with their slice, work-item states and the recorded test counts (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R15.1",
+      "sourceId": "R15.1",
+      "title": "Questions before conclusions",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R15.1] blocked cause confirmation asks one question per policy blocker",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R15.2",
+      "sourceId": "R15.2",
+      "title": "Separate observation from inference",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R15.2][A18] an agent statement is recorded as a proposal, not as evidence or a hypothesis",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests+AgentAuthorityBoundary.[D-004][R15.2][A18][A26] an agent cannot admit evidence, record a hypothesis or start an investigation directly",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js [R15.2][R15.5] AI-suggested hypothesis is recorded as the AI's and accepted only by the person (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R15.3",
+      "sourceId": "R15.3",
+      "title": "Challenge preferred explanation",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R15.3] [R4.3] the rule-based challenge records an agent proposal for a falsifying check, once",
+          "passed": true
+        },
+        {
+          "test": "challenge.spec.js [R15.3] [R6.2] the labelled rule-based helper challenges a supported explanation; posture is explained by evidence (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R15.4",
+      "sourceId": "R15.4",
+      "title": "No history rewriting",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.ShellTests.[R15.4] history is append-only: every earlier stored document is a byte-identical prefix of the next",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R15.5",
+      "sourceId": "R15.5",
+      "title": "Human control",
+      "scope": "scoped",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "App.Engine.Tests.DomainTests.[R15.5][A26] an agent cannot accept a proposal, and an agent ConfirmCause leaves state unchanged",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R15.5][A26] a blocked target command does not produce ProposalWasAccepted",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R15.5][A18] a human accepting a proposal runs the target command",
+          "passed": true
+        },
+        {
+          "test": "App.Engine.Tests.DomainTests.[R15.5][A19] a rejected proposal is kept and creates no hypothesis",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js [R15.2][R15.5] AI-suggested hypothesis is recorded as the AI's and accepted only by the person (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R16.1",
+      "sourceId": "R16.1",
+      "title": "Understandable in seconds",
+      "scope": "scoped-factory",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R16.2",
+      "sourceId": "R16.2",
+      "title": "Visible state change",
+      "scope": "scoped-factory",
+      "status": "untested",
+      "tests": []
+    },
+    {
+      "id": "IIR-R16.3",
+      "sourceId": "R16.3",
+      "title": "Visible constraint",
+      "scope": "scoped-factory",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "journey.spec.js AC-07 confirming a cause is blocked with reasons while a blocking unknown is open, then allowed once it is answered (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-07 an illegal action is refused with its reason and Aegis fault code (chromium-desktop)",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R16.4",
+      "sourceId": "R16.4",
+      "title": "Visible falsification",
+      "scope": "scoped-factory",
+      "status": "tested",
+      "tests": [
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-desktop)",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+          "passed": true
+        },
+        {
+          "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+          "passed": true
+        }
+      ]
+    },
+    {
+      "id": "IIR-R16.5",
+      "sourceId": "R16.5",
+      "title": "Factory reveal",
+      "scope": "scoped-factory",
+      "status": "untested",
+      "tests": []
+    }
+  ],
+  "otherTags": {
+    "A1": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R1.2][A1] original observation text is preserved verbatim",
+        "passed": true
+      }
+    ],
+    "A11": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R4.2][A11] M1 a prediction recorded after a relevant finding is stored as retrospective",
+        "passed": true
+      },
+      {
+        "test": "App.Engine.Tests.DomainTests.[R4.2][A11] M1 a finding on an untargeted action makes later predictions retrospective",
+        "passed": true
+      }
+    ],
+    "A15": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R6.3][A15][A16] a contributing factor alone is refused; root and contributing roles stay distinct",
+        "passed": true
+      }
+    ],
+    "A16": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R6.3][A15][A16] a contributing factor alone is refused; root and contributing roles stay distinct",
+        "passed": true
+      }
+    ],
+    "A17": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R5.3][A17] negative knowledge requires an evidence basis and keeps its scope",
+        "passed": true
+      }
+    ],
+    "A18": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R15.2][A18] an agent statement is recorded as a proposal, not as evidence or a hypothesis",
+        "passed": true
+      },
+      {
+        "test": "App.Engine.Tests.DomainTests.[R15.5][A18] a human accepting a proposal runs the target command",
+        "passed": true
+      },
+      {
+        "test": "App.Engine.Tests.DomainTests+AgentAuthorityBoundary.[D-004][R15.2][A18][A26] an agent cannot admit evidence, record a hypothesis or start an investigation directly",
+        "passed": true
+      }
+    ],
+    "A19": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R15.5][A19] a rejected proposal is kept and creates no hypothesis",
+        "passed": true
+      }
+    ],
+    "A2": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R2.1][R2.2][A2] multiple hypotheses coexist with explicit states",
+        "passed": true
+      }
+    ],
+    "A20": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R7.4][A20] an implemented correction is not verified and does not resolve",
+        "passed": true
+      }
+    ],
+    "A21": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R7.4][A21] M2 satisfied verifications from before rework do not count in the next round",
+        "passed": true
+      },
+      {
+        "test": "App.Engine.Tests.DomainTests.[R7.4][A21] a failed verification marks VerificationFailed and returns the investigation to Active",
+        "passed": true
+      }
+    ],
+    "A22": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R3.4][A7][A22] contradictory evidence is recorded, stays visible and blocks confirmation",
+        "passed": true
+      }
+    ],
+    "A23": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R6.4][A23] residual uncertainty is required while unknowns remain open or were accepted",
+        "passed": true
+      }
+    ],
+    "A24": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R2.4][A24] a falsified hypothesis stays in the projection with its linked basis",
+        "passed": true
+      }
+    ],
+    "A26": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R15.5][A26] an agent cannot accept a proposal, and an agent ConfirmCause leaves state unchanged",
+        "passed": true
+      },
+      {
+        "test": "App.Engine.Tests.DomainTests.[R15.5][A26] a blocked target command does not produce ProposalWasAccepted",
+        "passed": true
+      },
+      {
+        "test": "App.Engine.Tests.DomainTests.[R8.3][A26] refusals map to Aegis domain faults carrying the same code",
+        "passed": true
+      },
+      {
+        "test": "App.Engine.Tests.DomainTests+AgentAuthorityBoundary.[D-004][R15.2][A18][A26] an agent cannot admit evidence, record a hypothesis or start an investigation directly",
+        "passed": true
+      }
+    ],
+    "A30": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[A30] replaying the same events twice yields equal projections",
+        "passed": true
+      },
+      {
+        "test": "App.Engine.Tests.DomainTests.[A30] execute stamps contiguous sequences, including multi-event commands",
+        "passed": true
+      }
+    ],
+    "A32": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R7.1][R7.2][A32] a verified mitigation does not resolve the root cause",
+        "passed": true
+      }
+    ],
+    "A35": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R7.4][A35] the resolution gate passes only with a verified correction",
+        "passed": true
+      }
+    ],
+    "A36": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[A36][D-005] a resolved investigation refuses content changes and reopens only with a basis",
+        "passed": true
+      }
+    ],
+    "A38": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R3.1][A38] superseding evidence preserves the original and re-evaluates the cause gate",
+        "passed": true
+      }
+    ],
+    "A40": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R6.1][A40] a conclusion cannot claim ConfirmedCause before the cause is confirmed",
+        "passed": true
+      }
+    ],
+    "A5": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R2.5][A5] reopening a falsified hypothesis needs evidence admitted after the falsification",
+        "passed": true
+      },
+      {
+        "test": "App.Engine.Tests.DomainTests.[R2.5][A5] a second reopening needs evidence newer than the latest falsification",
+        "passed": true
+      }
+    ],
+    "A7": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R6.1][A7] C1 a material contradiction opened after confirmation blocks resolution",
+        "passed": true
+      },
+      {
+        "test": "App.Engine.Tests.DomainTests.[R3.4][A7][A22] contradictory evidence is recorded, stays visible and blocks confirmation",
+        "passed": true
+      }
+    ],
+    "A8": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[R5.1][R5.2][A8] an open blocking unknown blocks cause confirmation until resolved or accepted",
+        "passed": true
+      }
+    ],
+    "AC-01": [
+      {
+        "test": "journey.spec.js AC-01 create an investigation from free text; the original observation is preserved verbatim @ipad (chromium-desktop)",
+        "passed": true
+      },
+      {
+        "test": "journey.spec.js AC-01 create an investigation from free text; the original observation is preserved verbatim @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+        "passed": true
+      },
+      {
+        "test": "journey.spec.js AC-01 create an investigation from free text; the original observation is preserved verbatim @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+        "passed": true
+      }
+    ],
+    "AC-02": [
+      {
+        "test": "journey.spec.js AC-02 add evidence with its source and capture date; provenance is shown (chromium-desktop)",
+        "passed": true
+      }
+    ],
+    "AC-03": [
+      {
+        "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-desktop)",
+        "passed": true
+      },
+      {
+        "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+        "passed": true
+      },
+      {
+        "test": "journey.spec.js AC-03 two hypotheses: one supported, the other falsified with reason and evidence; the falsified one stays visible @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+        "passed": true
+      }
+    ],
+    "AC-04": [
+      {
+        "test": "journey.spec.js AC-04 contradicting evidence is surfaced as a contradiction (chromium-desktop)",
+        "passed": true
+      }
+    ],
+    "AC-05": [
+      {
+        "test": "journey.spec.js AC-05 causal assertion with a root cause and a contributing factor (chromium-desktop)",
+        "passed": true
+      }
+    ],
+    "AC-06": [
+      {
+        "test": "journey.spec.js AC-06 the legal actions for each hypothesis are listed, and unavailable ones explained @ipad (chromium-desktop)",
+        "passed": true
+      },
+      {
+        "test": "journey.spec.js AC-06 the legal actions for each hypothesis are listed, and unavailable ones explained @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+        "passed": true
+      },
+      {
+        "test": "journey.spec.js AC-06 the legal actions for each hypothesis are listed, and unavailable ones explained @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+        "passed": true
+      }
+    ],
+    "AC-07": [
+      {
+        "test": "journey.spec.js AC-07 confirming a cause is blocked with reasons while a blocking unknown is open, then allowed once it is answered (chromium-desktop)",
+        "passed": true
+      },
+      {
+        "test": "journey.spec.js AC-07 an illegal action is refused with its reason and Aegis fault code (chromium-desktop)",
+        "passed": true
+      }
+    ],
+    "AC-08": [
+      {
+        "test": "journey.spec.js AC-08 [R10.7] reload preserves the full investigation state at the same deep link (chromium-desktop)",
+        "passed": true
+      }
+    ],
+    "AC-09": [
+      {
+        "test": "sync.spec.js AC-09 (GitHub API mocked) offline changes stay pending, never synced, and sync when back online (chromium-desktop)",
+        "passed": true
+      },
+      {
+        "test": "sync.spec.js AC-09 (GitHub API mocked) a 409 from GitHub is shown as a conflict, not as saved (chromium-desktop)",
+        "passed": true
+      }
+    ],
+    "AC-10": [
+      {
+        "test": "journey.spec.js AC-11 resolve is blocked until the correction has verification evidence; AC-10 interim then final report (chromium-desktop)",
+        "passed": true
+      }
+    ],
+    "AC-11": [
+      {
+        "test": "journey.spec.js AC-11 resolve is blocked until the correction has verification evidence; AC-10 interim then final report (chromium-desktop)",
+        "passed": true
+      }
+    ],
+    "AC-13": [
+      {
+        "test": "smoke.spec.js [AC-13] build-info.json names the commit (chromium-desktop)",
+        "passed": true
+      }
+    ],
+    "AC-14": [
+      {
+        "test": "accessibility.spec.js AC-14 home, workspace and report have no serious or critical axe violations @ipad (chromium-desktop)",
+        "passed": true
+      },
+      {
+        "test": "accessibility.spec.js AC-14 an investigation can be created with the keyboard alone (chromium-desktop)",
+        "passed": true
+      },
+      {
+        "test": "accessibility.spec.js AC-14 home, workspace and report have no serious or critical axe violations @ipad (chromium-ipad-portrait (Chromium emulation, not Safari))",
+        "passed": true
+      },
+      {
+        "test": "accessibility.spec.js AC-14 home, workspace and report have no serious or critical axe violations @ipad (chromium-ipad-landscape (Chromium emulation, not Safari))",
+        "passed": true
+      }
+    ],
+    "D-004": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[I-13][D-004] N1 validateHistory rejects planted verification, unearned VerifiedEffective and agent writes",
+        "passed": true
+      },
+      {
+        "test": "App.Engine.Tests.DomainTests+AgentAuthorityBoundary.[D-004][R15.2][A18][A26] an agent cannot admit evidence, record a hypothesis or start an investigation directly",
+        "passed": true
+      }
+    ],
+    "D-005": [
+      {
+        "test": "App.Engine.Tests.DomainTests.[D-005] content is open only while Draft, Active or awaiting",
+        "passed": true
+      },
+      {
+        "test": "App.Engine.Tests.DomainTests.[A36][D-005] a resolved investigation refuses content changes and reopens only with a basis",
+        "passed": true
+      }
+    ]
+  }
+}
