@@ -41,7 +41,9 @@ body {
 .app-brand a { color: var(--ef-color-text-heading); text-decoration: none; }
 .app-nav { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; list-style: none; margin: 0; padding: 0; }
 .app-nav a, .app-brand a { display: inline-flex; align-items: center; min-height: 2.75rem; }
-.app-connection { margin: 0 0 0 auto; font-size: 0.875rem; }
+.app-connection { margin: 0 0 0 auto; font-size: 0.875rem; color: var(--ef-color-text-primary); }
+.app-header a { color: var(--ef-color-text-heading); }
+.muted, .unavailable { color: var(--ef-color-text-primary); }
 .app-connection[data-offline="true"] { font-weight: 700; color: var(--ef-color-text-heading); }
 
 .app-main { flex: 1; padding-block: 1rem 3rem; }
@@ -93,10 +95,10 @@ button { min-width: 2.75rem; }
 .plain-list li { overflow-wrap: anywhere; }
 .ef-card { overflow-wrap: anywhere; }
 .ef-card p { margin-block: 0.25rem; }
-.muted { color: var(--ef-color-text-secondary); font-size: 0.9375rem; }
+.muted { font-size: 0.9375rem; }
 .empty { font-style: italic; }
 .actions { margin-top: 0.5rem; }
-.unavailable { font-size: 0.875rem; color: var(--ef-color-text-secondary); }
+.unavailable { font-size: 0.875rem; }
 .hypothesis[data-tone="blocked"] .ef-card__title { text-decoration: line-through; text-decoration-thickness: 0.06em; }
 
 .ws-header { margin-bottom: 1rem; }
@@ -144,3 +146,4 @@ button { min-width: 2.75rem; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+.ws-panel p, .ws-panel li, .ef-card p, .screen p { color: var(--ef-color-text-primary); }

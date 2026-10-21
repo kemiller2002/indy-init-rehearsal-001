@@ -16,7 +16,7 @@ import { join, resolve } from "node:path";
 import { chromium, defineConfig, devices, webkit } from "@playwright/test";
 
 const subPath = "indy-init-rehearsal-001";
-const port = 4321;
+const port = Number(process.env.E2E_PORT ?? 4387);
 const remote = process.env.E2E_BASE_URL;
 const baseURL = remote ? (remote.endsWith("/") ? remote : remote + "/") : `http://127.0.0.1:${port}/${subPath}/`;
 
