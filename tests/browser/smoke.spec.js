@@ -19,6 +19,17 @@ test("the site loads every resource and the engine renders the home view @ipad",
   await expect(page.getByText(/^Build [0-9a-f]{7}|Build unknown/)).toBeVisible();
 });
 
+test("the workspace fits a 375px phone screen without sideways scrolling", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("./#/");
+  await expect(page.locator("html")).toHaveAttribute("data-kernel", "running");
+  await page.getByLabel("What did you observe?", { exact: true }).fill("A very long observation without spaces: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+  await page.getByRole("button", { name: "Start investigation" }).click();
+  await expect(page.getByTestId("observation")).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
+});
+
 test("build-info.json names the commit", async ({ request, baseURL }) => {
   const response = await request.get(new URL("build-info.json", baseURL).href);
   expect(response.ok()).toBe(true);

@@ -941,6 +941,10 @@ let private run (operation: string) (actor: Actor) (notice: string) (fields: str
         let st = { st with Investigations = st.Investigations |> Map.add iid history; Refusals = []; Notice = notice } |> clear fields
         persistAfterChange iid st
 
+/// A form that cannot yet form a command: explained like any refusal, with its Aegis code.
+let private incomplete (st: AppState) (operation: string) (code: string) (rule: string) (message: string) : AppState * Effect list =
+    { st with Refusals = refusalsOf operation [ DomainError.create code rule message ] }, []
+
 let private inWorkspace (st: AppState) (f: InvestigationId -> AppState -> AppState * Effect list) =
     match currentId st with
     | Some iid -> f iid st
@@ -1035,7 +1039,7 @@ let private onEvent (name: string) (key: string option) (value: string option) (
             let rid, st = newId<RelationshipTag> st
             let kind = choice Words.relationships Supports (draft st "relKind")
             inWorkspace st (run "RelateEvidence" human "Evidence linked to the hypothesis." [ "relEvidence"; "relHypothesis"; "relKind"; "relRationale" ] (RelateEvidence(rid, Id.create e, Id.create h, kind, optDraft st "relRationale")))
-        | _ -> { st with Refusals = [ { Code = "FORM.INCOMPLETE"; Message = "Choose both the evidence and the hypothesis to link."; Rule = "form"; FaultCode = "FORM.INCOMPLETE"; Operation = "RelateEvidence" } ] }, []
+        | _ -> incomplete st "RelateEvidence" "FORM.INCOMPLETE" "form" "Choose both the evidence and the hypothesis to link."
     | "unk.add" ->
         let uid, st = newId<UnknownTag> st
         inWorkspace st (run "IdentifyUnknown" human "Open question added." [ "unkQuestion"; "unkMateriality" ] (IdentifyUnknown(uid, draft st "unkQuestion", choice Words.materialities Material (draft st "unkMateriality"))))
@@ -1048,7 +1052,7 @@ let private onEvent (name: string) (key: string option) (value: string option) (
         | Some h ->
             let pid, st = newId<PredictionTag> st
             inWorkspace st (run "RecordPrediction" human "Prediction recorded." [ "predHypothesis"; "predStatement"; "predStrength" ] (RecordPrediction(pid, Id.create h, draft st "predStatement", choice Words.strengths Expected (draft st "predStrength"), Prospective)))
-        | None -> { st with Refusals = [ { Code = "FORM.INCOMPLETE"; Message = "Choose the hypothesis the prediction follows from."; Rule = "form"; FaultCode = "FORM.INCOMPLETE"; Operation = "RecordPrediction" } ] }, []
+        | None -> incomplete st "RecordPrediction" "FORM.INCOMPLETE" "form" "Choose the hypothesis the prediction follows from."
     | "act.add" ->
         let aid, st = newId<ActionTag> st
         let targets = guidDraft st "actHypothesis" |> Option.map Id.create<HypothesisTag> |> Option.toList
@@ -1058,7 +1062,7 @@ let private onEvent (name: string) (key: string option) (value: string option) (
         | Some a ->
             let fid, st = newId<FindingTag> st
             inWorkspace st (run "RecordFinding" human "Finding recorded." [ "findAction"; "findResult"; "findInterpretation" ] (RecordFinding(fid, Id.create a, draft st "findResult", optDraft st "findInterpretation")))
-        | None -> { st with Refusals = [ { Code = "FORM.INCOMPLETE"; Message = "Choose the test or experiment this finding came from."; Rule = "form"; FaultCode = "FORM.INCOMPLETE"; Operation = "RecordFinding" } ] }, []
+        | None -> incomplete st "RecordFinding" "FORM.INCOMPLETE" "form" "Choose the test or experiment this finding came from."
     | "neg.add" ->
         let nid, st = newId<NegativeKnowledgeTag> st
         let basis = guidDraft st "negEvidence" |> Option.map Id.create<EvidenceTag> |> Option.toList
@@ -1082,14 +1086,14 @@ let private onEvent (name: string) (key: string option) (value: string option) (
         | Some ca ->
             let crid, st = newId<CriterionTag> st
             inWorkspace st (run "RecordCriterion" human "Success criterion added." [ "critCorrection"; "critExpected"; "critMethod" ] (RecordCriterion(crid, Id.create ca, draft st "critExpected", optDraft st "critMethod")))
-        | None -> { st with Refusals = [ { Code = "FORM.INCOMPLETE"; Message = "Choose the corrective action this criterion checks."; Rule = "form"; FaultCode = "FORM.INCOMPLETE"; Operation = "RecordCriterion" } ] }, []
+        | None -> incomplete st "RecordCriterion" "FORM.INCOMPLETE" "form" "Choose the corrective action this criterion checks."
     | "ver.add" ->
         match guidDraft st "verCriterion" with
         | Some cr ->
             let vid, st = newId<VerificationTag> st
             let evidence = guidDraft st "verEvidence" |> Option.map Id.create<EvidenceTag> |> Option.toList
             inWorkspace st (run "RecordVerification" human "Verification recorded." [ "verCriterion"; "verOutcome"; "verEvidence" ] (RecordVerification(vid, Id.create cr, choice Words.outcomes Satisfied (draft st "verOutcome"), evidence)))
-        | None -> { st with Refusals = [ { Code = "FORM.INCOMPLETE"; Message = "Choose the success criterion being verified."; Rule = "form"; FaultCode = "FORM.INCOMPLETE"; Operation = "RecordVerification" } ] }, []
+        | None -> incomplete st "RecordVerification" "FORM.INCOMPLETE" "form" "Choose the success criterion being verified."
     | "concl.add" ->
         let cid, st = newId<ConclusionTag> st
         let causes = guidDraft st "conclCause" |> Option.map Id.create<CausalAssertionTag> |> Option.toList
@@ -1097,7 +1101,7 @@ let private onEvent (name: string) (key: string option) (value: string option) (
     | "settings.save" ->
         match settingsFromDrafts st with
         | Some config -> saveSettings (Some config) ({ st with Remote = Some config; Notice = "GitHub settings saved on this device." } |> clear [ "setToken" ])
-        | None -> { st with Refusals = [ { Code = "SETTINGS.INCOMPLETE"; Message = "Enter the owner, repository and an access token."; Rule = "settings"; FaultCode = "SETTINGS.INCOMPLETE"; Operation = "SaveSettings" } ] }, []
+        | None -> incomplete st "SaveSettings" "SETTINGS.INCOMPLETE" "settings" "Enter the owner, repository and an access token."
     | "settings.clear" -> saveSettings None ({ st with Remote = None; Notice = "GitHub settings removed. Investigations stay on this device." } |> clear [ "setOwner"; "setRepo"; "setBranch"; "setToken" ])
     | "sync.retry" -> retrySync st
     | _ ->
@@ -1770,7 +1774,7 @@ let project (st: AppState) : (string * J) list =
       "isReport", b isReport
       "isSettings", b (st.Screen = SettingsScreen)
       "isMissing", b (missing && not loading)
-      "isLoading", b (loading && not (st.Screen = HomeScreen || st.Screen = SettingsScreen) || (loading && st.Screen = HomeScreen))
+      "isLoading", b (loading && st.Screen <> SettingsScreen)
       "missingText", s missingText
       "notice", s st.Notice
       "refusals", JArr refusals
