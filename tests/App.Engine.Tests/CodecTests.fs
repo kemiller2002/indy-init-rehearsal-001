@@ -102,6 +102,8 @@ module Scenario =
           human, RecordConclusion(con1, "Bearing wear caused the trip", ConfirmedCause, [ k1 ], Some "Why lubrication was skipped is not established")
           agent, RecordProposal(pr1, ProposedHypothesis, "Motor winding insulation degraded", Some "Common in older pumps")
           human, AcceptProposal(pr1, hAccepted)
+          // C1: an alternative raised after confirmation must be addressed before resolution.
+          human, TransitionHypothesis(Id.create hAccepted, Supersede, "Insulation resistance test passed; not involved", [])
           agent, RecordProposal(pr2, ProposedUnknown, "Was ambient temperature high?", None)
           human, RejectProposal(pr2, "Not relevant to the trip")
           human, ResolveInvestigation

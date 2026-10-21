@@ -117,6 +117,51 @@ module Policy =
         inv.Unknowns |> Map.toList |> List.map snd
         |> List.filter (fun u -> isOpenUnknown u && isMaterial u.Materiality)
 
+    /// The evidential conditions of the cause gate (§15 items 1,3–8), independent of the
+    /// assertion's own state, so resolution can re-check a confirmed cause (C1, I-19/I-20).
+    let causeSupportFindings (inv: Investigation) (ca: CausalAssertion) : DomainError list =
+        let rootBlock =
+            if ca.Members |> List.exists (fun m -> m.Role = RootCause) then []
+            else [ err "CAUSE.NO_ROOT" "R6.3" "Name at least one member as the root cause (contributing factors alone are not a root cause)." ]
+        let memberBlocks =
+            ca.Members |> List.collect (fun m ->
+                match inv.Hypotheses |> Map.tryFind m.Hypothesis with
+                | None -> [ err "CAUSE.MEMBER_MISSING" "I-19" "A cause member names a hypothesis that does not exist." ]
+                | Some h ->
+                    let supported =
+                        if h.State = Supported then []
+                        else [ err "CAUSE.MEMBER_NOT_SUPPORTED" "§15.3" $"Hypothesis \"{label h.Statement}\" is {h.State}, not Supported." ]
+                    let evidence =
+                        let supporting =
+                            inv.Relationships |> Map.exists (fun _ r ->
+                                r.Hypothesis = h.Id && r.Kind = Supports && activeEvidence inv r.Evidence)
+                        if supporting then []
+                        else [ err "CAUSE.NO_SUPPORTING_EVIDENCE" "§15.3" $"No active evidence supports \"{label h.Statement}\"." ]
+                    supported @ evidence)
+        let contradictionBlocks =
+            inv.Contradictions |> Map.toList |> List.map snd
+            |> List.filter (fun c -> isOpenContradiction c && isMaterial c.Materiality)
+            |> List.map (fun c -> err "CAUSE.OPEN_CONTRADICTION" "§15.4" $"Contradiction \"{label c.Statement}\" is unresolved.")
+        let unknownBlocks =
+            inv.Unknowns |> Map.toList |> List.map snd
+            |> List.filter (fun u -> isOpenUnknown u && isMaterial u.Materiality)
+            |> List.map (fun u -> err "CAUSE.OPEN_UNKNOWN" "§15.5" $"Unknown \"{label u.Question}\" is unresolved ({u.Materiality}).")
+        let assumptionBlocks =
+            inv.Assumptions |> Map.toList |> List.map snd
+            |> List.filter (fun a -> a.State = ExplicitUnverified && isMaterial a.Materiality)
+            |> List.map (fun a -> err "CAUSE.UNVERIFIED_ASSUMPTION" "§15.6" $"Assumption \"{label a.Proposition}\" is unverified.")
+        let members = ca.Members |> List.map (fun m -> m.Hypothesis) |> Set.ofList
+        let alternativeBlocks =
+            inv.Hypotheses |> Map.toList |> List.map snd
+            |> List.filter (fun h -> not (members.Contains h.Id))
+            |> List.filter (fun h -> match h.State with Proposed | Plausible | Supported -> true | _ -> false)
+            |> List.map (fun h -> err "CAUSE.ALTERNATIVE_NOT_ADDRESSED" "§15.7" $"Alternative hypothesis \"{label h.Statement}\" is still {h.State}; weaken, falsify, supersede or include it.")
+        let mechanismBlock =
+            match ca.Mechanism with
+            | Some _ -> []
+            | None -> [ err "CAUSE.NO_MECHANISM" "§15.8" "The causal mechanism is not stated." ]
+        rootBlock @ memberBlocks @ contradictionBlocks @ unknownBlocks @ assumptionBlocks @ alternativeBlocks @ mechanismBlock
+
     /// Cause Confirmation Gate (INVESTIGATION-SEMANTICS §15, POLICY-ENGINE §24).
     /// Returns every material blocker, not only the first.
     let causeBlockers (inv: Investigation) (cid: CausalAssertionId) : DomainError list =
@@ -131,53 +176,20 @@ module Policy =
                 match inv.Lifecycle with
                 | Active | AwaitingEvidence | AwaitingVerification -> []
                 | s -> [ err "INVESTIGATION.NOT_OPEN" "D-005" $"The investigation is {s}." ]
-            let rootBlock =
-                if ca.Members |> List.exists (fun m -> m.Role = RootCause) then []
-                else [ err "CAUSE.NO_ROOT" "R6.3" "Name at least one member as the root cause (contributing factors alone are not a root cause)." ]
-            let memberBlocks =
-                ca.Members |> List.collect (fun m ->
-                    match inv.Hypotheses |> Map.tryFind m.Hypothesis with
-                    | None -> [ err "CAUSE.MEMBER_MISSING" "I-19" "A cause member names a hypothesis that does not exist." ]
-                    | Some h ->
-                        let supported =
-                            if h.State = Supported then []
-                            else [ err "CAUSE.MEMBER_NOT_SUPPORTED" "§15.3" $"Hypothesis \"{label h.Statement}\" is {h.State}, not Supported." ]
-                        let evidence =
-                            let supporting =
-                                inv.Relationships |> Map.exists (fun _ r ->
-                                    r.Hypothesis = h.Id && r.Kind = Supports && activeEvidence inv r.Evidence)
-                            if supporting then []
-                            else [ err "CAUSE.NO_SUPPORTING_EVIDENCE" "§15.3" $"No active evidence supports \"{label h.Statement}\"." ]
-                        supported @ evidence)
-            let contradictionBlocks =
-                inv.Contradictions |> Map.toList |> List.map snd
-                |> List.filter (fun c -> isOpenContradiction c && isMaterial c.Materiality)
-                |> List.map (fun c -> err "CAUSE.OPEN_CONTRADICTION" "§15.4" $"Contradiction \"{label c.Statement}\" is unresolved.")
-            let unknownBlocks =
-                inv.Unknowns |> Map.toList |> List.map snd
-                |> List.filter (fun u -> isOpenUnknown u && isMaterial u.Materiality)
-                |> List.map (fun u -> err "CAUSE.OPEN_UNKNOWN" "§15.5" $"Unknown \"{label u.Question}\" is unresolved ({u.Materiality}).")
-            let assumptionBlocks =
-                inv.Assumptions |> Map.toList |> List.map snd
-                |> List.filter (fun a -> a.State = ExplicitUnverified && isMaterial a.Materiality)
-                |> List.map (fun a -> err "CAUSE.UNVERIFIED_ASSUMPTION" "§15.6" $"Assumption \"{label a.Proposition}\" is unverified.")
-            let members = ca.Members |> List.map (fun m -> m.Hypothesis) |> Set.ofList
-            let alternativeBlocks =
-                inv.Hypotheses |> Map.toList |> List.map snd
-                |> List.filter (fun h -> not (members.Contains h.Id))
-                |> List.filter (fun h -> match h.State with Proposed | Plausible | Supported -> true | _ -> false)
-                |> List.map (fun h -> err "CAUSE.ALTERNATIVE_NOT_ADDRESSED" "§15.7" $"Alternative hypothesis \"{label h.Statement}\" is still {h.State}; weaken, falsify, supersede or include it.")
-            let mechanismBlock =
-                match ca.Mechanism with
-                | Some _ -> []
-                | None -> [ err "CAUSE.NO_MECHANISM" "§15.8" "The causal mechanism is not stated." ]
-            stateBlock @ lifecycleBlock @ rootBlock @ memberBlocks @ contradictionBlocks @ unknownBlocks @ assumptionBlocks @ alternativeBlocks @ mechanismBlock
+            stateBlock @ lifecycleBlock @ causeSupportFindings inv ca
+
+    /// True when ConfirmCause would pass the gate now (for UI visibility; never a second rule).
+    let canConfirm (inv: Investigation) (cid: CausalAssertionId) = List.isEmpty (causeBlockers inv cid)
 
     let private criteriaOf (inv: Investigation) (caId: CorrectiveActionId) =
         inv.Criteria |> Map.toList |> List.map snd |> List.filter (fun c -> c.CorrectiveAction = caId)
 
+    /// Satisfied in the CURRENT verification round, citing only active (non-superseded) evidence (M2).
     let private satisfiedWithEvidence (inv: Investigation) (crit: Criterion) =
-        inv.Verifications |> Map.exists (fun _ v -> v.Criterion = crit.Id && v.Outcome = Satisfied && not v.Evidence.IsEmpty)
+        let round = inv.CorrectiveActions |> Map.tryFind crit.CorrectiveAction |> Option.map (fun ca -> ca.AwaitingSince) |> Option.defaultValue 0L
+        inv.Verifications |> Map.exists (fun _ v ->
+            v.Criterion = crit.Id && v.Outcome = Satisfied && v.Sequence > round && not v.Evidence.IsEmpty
+            && v.Evidence |> List.forall (activeEvidence inv))
 
     /// True when every criterion of the corrective action has a Satisfied verification citing evidence.
     let allCriteriaSatisfied (inv: Investigation) (caId: CorrectiveActionId) =
@@ -209,7 +221,11 @@ module Policy =
             |> List.map (fun u -> err "RESOLVE.BLOCKING_UNKNOWN" "R5.2" $"Blocking unknown \"{label u.Question}\" is open.")
         let conclusionBlock =
             if inv.Conclusions.IsEmpty then [ err "RESOLVE.NO_CONCLUSION" "R6.4" "Record a conclusion (with residual uncertainty) before resolving." ] else []
-        causeBlock @ correctionBlock @ pendingCriteria @ unknownBlocks @ conclusionBlock
+        let stillHolds =
+            confirmed |> List.collect (fun c ->
+                causeSupportFindings inv c
+                |> List.map (fun f -> err "RESOLVE.CAUSE_NO_LONGER_HOLDS" f.Rule $"The confirmed cause no longer meets the gate: {f.Message} Reopen and reassess it."))
+        causeBlock @ stillHolds @ correctionBlock @ pendingCriteria @ unknownBlocks @ conclusionBlock
 
 [<RequireQualifiedAccess>]
 module Evolve =
@@ -266,16 +282,38 @@ module Evolve =
             | CausalAssertionConfirmed(cid, _) -> { inv with Causes = inv.Causes |> upd cid (fun c -> { c with State = CauseConfirmed }) }
             | CausalAssertionReopened(cid, _) -> { inv with Causes = inv.Causes |> upd cid (fun c -> { c with State = CauseReopened }) }
             | CorrectiveActionRecorded(caid, k, d, t) ->
-                { inv with CorrectiveActions = inv.CorrectiveActions |> Map.add caid { Id = caid; Kind = k; Description = d; Targets = t; State = CorrectionProposed; Provenance = p } }
-            | CorrectiveActionTransitioned(caid, s) -> { inv with CorrectiveActions = inv.CorrectiveActions |> upd caid (fun ca -> { ca with State = s }) }
+                { inv with CorrectiveActions = inv.CorrectiveActions |> Map.add caid { Id = caid; Kind = k; Description = d; Targets = t; State = CorrectionProposed; AwaitingSince = 0L; Provenance = p } }
+            | CorrectiveActionTransitioned(caid, s) ->
+                { inv with CorrectiveActions = inv.CorrectiveActions |> upd caid (fun ca -> { ca with State = s; AwaitingSince = (if s = AwaitingVerificationOfEffect then e.Sequence else ca.AwaitingSince) }) }
             | CriterionRecorded(crid, caid, ex, m) -> { inv with Criteria = inv.Criteria |> Map.add crid { Id = crid; CorrectiveAction = caid; ExpectedOutcome = ex; Method = m; Provenance = p } }
-            | VerificationRecorded(vid, crid, o, ev) -> { inv with Verifications = inv.Verifications |> Map.add vid { Id = vid; Criterion = crid; Outcome = o; Evidence = ev; Provenance = p } }
+            | VerificationRecorded(vid, crid, o, ev) -> { inv with Verifications = inv.Verifications |> Map.add vid { Id = vid; Criterion = crid; Outcome = o; Evidence = ev; Sequence = e.Sequence; Provenance = p } }
             | ConclusionRecorded(cid, s, st, causes, r) ->
                 { inv with Conclusions = inv.Conclusions |> Map.add cid { Id = cid; Statement = s; Strength = st; Causes = causes; ResidualUncertainty = r; Provenance = p } }
             | ProposalRecorded(pid, k, t, r) ->
                 { inv with Proposals = inv.Proposals |> Map.add pid { Id = pid; Kind = k; Text = t; Rationale = r; State = ProposalActive; Decision = None; Provenance = p } }
             | ProposalWasAccepted(pid, _) -> { inv with Proposals = inv.Proposals |> upd pid (fun pr -> { pr with State = ProposalAccepted }) }
             | ProposalWasRejected(pid, r) -> { inv with Proposals = inv.Proposals |> upd pid (fun pr -> { pr with State = ProposalRejected; Decision = Some r }) }
+
+    /// m4: re-check a loaded history (local or remote) against the protected gates,
+    /// so a hand-edited file cannot carry a confirmed cause or resolution that never
+    /// passed them. Returns every violation; empty means the history is admissible.
+    let validateHistory (events: Event list) : DomainError list =
+        let step (state: Investigation option, problems: DomainError list) (e: Event) =
+            let expected = (state |> Option.map (fun i -> i.Version) |> Option.defaultValue 0L) + 1L
+            let sequence =
+                if e.Sequence <> expected then [ DomainError.create "HISTORY.SEQUENCE" "D-005" $"Event {e.Sequence} follows version {expected - 1L}." ] else []
+            let gate =
+                match state, e.Body with
+                | None, InvestigationStarted _ -> []
+                | None, _ -> [ DomainError.create "HISTORY.NO_START" "D-005" "The history does not begin with InvestigationStarted." ]
+                | Some inv, CausalAssertionConfirmed(cid, _) ->
+                    Policy.causeBlockers inv cid |> List.map (fun b -> { b with Code = "HISTORY.UNGATED_CONFIRMATION"; Message = $"Cause confirmed without passing the gate: {b.Message}" })
+                | Some inv, LifecycleChanged(_, Resolved, _, _) ->
+                    Policy.resolutionBlockers inv |> List.map (fun b -> { b with Code = "HISTORY.UNGATED_RESOLUTION"; Message = $"Resolved without passing the gate: {b.Message}" })
+                | _ -> []
+            let next = match state, e.Body with | None, InvestigationStarted _ | Some _, _ -> Some(apply state e) | None, _ -> None
+            next, problems @ sequence @ gate
+        events |> List.fold step (None, []) |> snd
 
     /// Rebuild state from history (deterministic; A30).
     let replay (events: Event list) : Investigation option =
@@ -404,7 +442,12 @@ module Decide =
             |> Result.map (fun (s, b) -> [ ContradictionTransitioned(cid, s, b) ])
         | RecordPrediction(pid, hid, statement, strength, timing) ->
             both (absent "Prediction" inv.Predictions pid) (both (found "Hypothesis" inv.Hypotheses hid) (text "Prediction" statement))
-            |> Result.map (fun (_, (_, s)) -> [ PredictionRecorded(pid, hid, s, strength, timing) ])
+            |> Result.map (fun (_, (_, s)) ->
+                // A11: a prediction made after a relevant finding exists is retrospective, whatever was requested.
+                let findingExists =
+                    inv.Findings |> Map.exists (fun _ f -> inv.Actions |> Map.tryFind f.Action |> Option.exists (fun a -> a.Targets |> List.contains hid))
+                let actual = if findingExists then Retrospective else timing
+                [ PredictionRecorded(pid, hid, s, strength, actual) ])
         | RecordAction(aid, kind, purpose, targets) ->
             both (absent "Action" inv.Actions aid) (both (text "Purpose" purpose) (allExist "hypothesis" inv.Hypotheses targets))
             |> Result.map (fun (_, (p, _)) -> [ ActionRecorded(aid, kind, p, targets) ])
@@ -416,8 +459,11 @@ module Decide =
             both (absent "Finding" inv.Findings fid) (both (found "Action" inv.Actions aid) (text "Result" result))
             |> Result.bind (fun (_, (a, r)) ->
                 match a.State with
-                | ActionInProgress | ActionApproved ->
+                | ActionInProgress ->
                     ok [ FindingRecorded(fid, aid, r, optText interpretation); ActionTransitioned(aid, ActionCompleted) ]
+                | ActionApproved ->
+                    // STATE-TRANSITION-TABLES §5: Approved -> InProgress -> Completed, explicitly.
+                    ok [ ActionTransitioned(aid, ActionInProgress); FindingRecorded(fid, aid, r, optText interpretation); ActionTransitioned(aid, ActionCompleted) ]
                 | ActionCompleted -> ok [ FindingRecorded(fid, aid, r, optText interpretation) ]
                 | s -> fail "ACTION.NOT_EXECUTABLE" "STATE-TRANSITION-TABLES §5" $"A finding cannot be recorded for an action that is {s}.")
         | EstablishNegativeKnowledge(nid, statement, scope, basis) ->
