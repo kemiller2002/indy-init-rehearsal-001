@@ -116,34 +116,82 @@ module JsonIn =
 type Screen =
     | HomeScreen
     | WorkspaceScreen of InvestigationId
+    /// One addressable thing inside an investigation (R9.6): #/i/{id}/{kind}/{entity}.
+    | EntityScreen of InvestigationId * EntityKind * Guid
     | ReportScreen of InvestigationId
     | SettingsScreen
+    | FactoryScreen
     | MissingScreen of path: string
+    /// A link carrying a reserved parameter (token, code, key, session, ...) is never opened (R9.9).
+    | RefusedLinkScreen of parameter: string
 
 [<RequireQualifiedAccess>]
 module ScreenRoute =
+    /// Path segment for each addressable entity kind.
+    let entitySegments =
+        [ "h", HypothesisEntity
+          "e", EvidenceEntity
+          "u", UnknownEntity
+          "x", ContradictionEntity
+          "t", ActionEntity
+          "c", CausalAssertionEntity
+          "a", CorrectiveActionEntity
+          "k", CriterionEntity
+          "p", ProposalEntity ]
+
+    /// Limen's reserved parameter names: never accepted in a link (R9.9).
+    let reservedParameters =
+        [ "token"; "code"; "key"; "session"; "access_token"; "id_token"; "refresh_token"; "password"; "secret"; "state"; "auth" ]
+
+    let private fragmentOf (location: string) =
+        if location.StartsWith("#", StringComparison.Ordinal) then location.Substring 1 else location
+
     let private pathOf (location: string) =
-        let fragment = if location.StartsWith("#", StringComparison.Ordinal) then location.Substring 1 else location
+        let fragment = fragmentOf location
         match fragment.IndexOf '?' with
         | -1 -> fragment
         | index -> fragment.Substring(0, index)
 
+    /// Parameter names in the hash query (values are never read).
+    let parameterNames (location: string) : string list =
+        let fragment = fragmentOf location
+        match fragment.IndexOf '?' with
+        | -1 -> []
+        | index ->
+            fragment.Substring(index + 1).Split('&', StringSplitOptions.RemoveEmptyEntries)
+            |> Array.map (fun pair -> (match pair.IndexOf '=' with -1 -> pair | i -> pair.Substring(0, i)).Trim().ToLowerInvariant())
+            |> List.ofArray
+
+    let private canonicalId<'Tag> (text: string) : Id<'Tag> option =
+        match Id.tryParse<'Tag> text with
+        | Some id when Id.text id = text -> Some id
+        | _ -> None
+
     /// Pure and total: a location hash to its screen. Unknown paths and
     /// malformed ids are a value (MissingScreen), never an exception.
     let parse (location: string) : Screen =
+        match parameterNames location |> List.tryFind (fun n -> List.contains n reservedParameters) with
+        | Some reserved -> RefusedLinkScreen reserved
+        | None ->
         let path = pathOf location
         let segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries) |> List.ofArray
         let missing () = MissingScreen(if path.StartsWith("/", StringComparison.Ordinal) then path else "/" + path)
+        let exact (parts: string list) = path = "/" + String.Join("/", parts)
         match segments with
         | [] -> HomeScreen
-        | [ "settings" ] when path = "/settings" -> SettingsScreen
-        | [ "i"; id ] when path = "/i/" + id ->
-            match Id.tryParse<InvestigationTag> id with
-            | Some iid when Id.text iid = id -> WorkspaceScreen iid
-            | _ -> missing ()
-        | [ "i"; id; "report" ] when path = "/i/" + id + "/report" ->
-            match Id.tryParse<InvestigationTag> id with
-            | Some iid when Id.text iid = id -> ReportScreen iid
+        | [ "settings" ] when exact segments -> SettingsScreen
+        | [ "factory" ] when exact segments -> FactoryScreen
+        | [ "i"; id ] when exact segments ->
+            match canonicalId<InvestigationTag> id with
+            | Some iid -> WorkspaceScreen iid
+            | None -> missing ()
+        | [ "i"; id; "report" ] when exact segments ->
+            match canonicalId<InvestigationTag> id with
+            | Some iid -> ReportScreen iid
+            | None -> missing ()
+        | [ "i"; id; segment; entity ] when exact segments ->
+            match canonicalId<InvestigationTag> id, List.tryFind (fun (s, _) -> s = segment) entitySegments, canonicalId<InvestigationTag> entity with
+            | Some iid, Some(_, kind), Some eid -> EntityScreen(iid, kind, eid.Value)
             | _ -> missing ()
         | _ -> missing ()
 
@@ -152,9 +200,24 @@ module ScreenRoute =
         match screen with
         | HomeScreen -> "#/"
         | WorkspaceScreen iid -> "#/i/" + Id.text iid
+        | EntityScreen(iid, kind, eid) ->
+            let segment = entitySegments |> List.tryFind (fun (_, k) -> k = kind) |> Option.map fst |> Option.defaultValue "h"
+            "#/i/" + Id.text iid + "/" + segment + "/" + eid.ToString("D")
         | ReportScreen iid -> "#/i/" + Id.text iid + "/report"
         | SettingsScreen -> "#/settings"
+        | FactoryScreen -> "#/factory"
         | MissingScreen path -> "#" + path
+        | RefusedLinkScreen _ -> "#/"
+
+    /// The route table published as .echelon/routes.json (name, pattern, path params).
+    let table =
+        [ "home", "/", []
+          "workspace", "/i/{investigation}", [ "investigation" ]
+          "report", "/i/{investigation}/report", [ "investigation" ]
+          "entity", "/i/{investigation}/{kind}/{entity}", [ "investigation"; "kind"; "entity" ]
+          "settings", "/settings", []
+          "factory", "/factory", []
+          "notFound", "/{*rest}", [ "rest" ] ]
 
 // ---------------------------------------------------------------------------
 // Limen wire: inbound messages and outbound effects
@@ -188,12 +251,13 @@ type HttpOutcome =
     | HttpOutcomeUnknown of reason: string
 
 type Inbound =
-    | Initialize of hash: string * handshake: HandshakeOffer option
+    | Initialize of hash: string * baseUrl: string * handshake: HandshakeOffer option
     | UiEvent of name: string * key: string option * value: string option
     | StorageDone of correlation: string * Result<string option, string>
     | HttpDone of correlation: string * HttpOutcome
     | CapabilityDone of correlation: string * online: bool option
     | NavigationDone of correlation: string
+    | ClipboardDone of correlation: string * failure: string option
     | LocationChanged of hash: string
     | ConnectivityChanged of online: bool
     | Unrecognized of reason: string
@@ -205,6 +269,7 @@ type Effect =
     | HttpCall of correlation: string * httpMethod: string * url: string * headers: (string * string) list * body: string option
     | Navigate of correlation: string * url: string
     | SubscribeConnectivity of correlation: string
+    | ClipboardWrite of correlation: string * text: string
 
 type HandshakeReply =
     | NoHandshake
@@ -261,14 +326,21 @@ module Wire =
                 | Some "Completed" -> JsonIn.child "result" outcome |> JsonIn.child "state" |> JsonIn.child "online" |> JsonIn.bool
                 | _ -> None
             CapabilityDone(correlation, online)
-        | Some "ClipboardResult" -> Unrecognized "clipboard result"
+        | Some "ClipboardResult" ->
+            match JsonIn.child "kind" outcome |> JsonIn.str with
+            | Some "Success" -> ClipboardDone(correlation, None)
+            | _ -> ClipboardDone(correlation, Some(JsonIn.child "reason" outcome |> JsonIn.str |> Option.defaultValue "unknown"))
         | other -> Unrecognized("effect result " + Option.defaultValue "?" other)
 
     /// Tolerant decoding: anything outside what the shell understands is a value.
     let decode (json: string) : Inbound =
         let root = JsonIn.parse json
         match JsonIn.child "kind" root |> JsonIn.str with
-        | Some "Initialize" -> Initialize(hashOf (JsonIn.child "location" root), offerOf (JsonIn.child "handshake" root))
+        | Some "Initialize" ->
+            let location = JsonIn.child "location" root
+            let origin = JsonIn.child "origin" location |> JsonIn.str |> Option.defaultValue ""
+            let path = JsonIn.child "path" location |> JsonIn.str |> Option.defaultValue "/"
+            Initialize(hashOf location, origin + path, offerOf (JsonIn.child "handshake" root))
         | Some "Event" ->
             let e = JsonIn.child "event" root
             UiEvent(JsonIn.child "name" e |> JsonIn.str |> Option.defaultValue "", JsonIn.child "key" e |> JsonIn.str, JsonIn.child "value" e |> JsonIn.str)
@@ -320,6 +392,7 @@ module Wire =
                 @ (match body with Some b -> [ "body", JStr b ] | None -> [])
                 @ [ "timeoutMs", JNum 20000L; "response", JStr "text" ]
             )
+        | ClipboardWrite(c, text) -> JObj [ "kind", JStr "Clipboard"; "correlationId", JStr c; "operation", JStr "writeText"; "text", JStr text ]
         | Navigate(c, url) -> JObj [ "kind", JStr "Navigation"; "operation", JStr "push"; "correlationId", JStr c; "url", JStr url ]
         | SubscribeConnectivity c ->
             JObj
@@ -622,6 +695,7 @@ type PendingOp =
     | RemoteRead of InvestigationId
     | Subscribe
     | NavigationAck
+    | CopyLink of url: string
 
 type AppState =
     { Investigations: Map<InvestigationId, Event list>
@@ -640,6 +714,8 @@ type AppState =
       IdCounter: int
       Now: DateTimeOffset
       LifecycleNegotiated: bool
+      /// origin + path of the page, for absolute share links (never carries a query).
+      BaseUrl: string
       Sync: Map<InvestigationId, SyncStatus>
       RemoteSha: Map<InvestigationId, string>
       /// Event count included in the write in flight (to detect changes made meanwhile).
@@ -662,6 +738,7 @@ let initial: AppState =
       IdCounter = 0
       Now = DateTimeOffset.UnixEpoch
       LifecycleNegotiated = false
+      BaseUrl = ""
       Sync = Map.empty
       RemoteSha = Map.empty
       SentLength = Map.empty
@@ -707,7 +784,7 @@ let investigationOf (st: AppState) (iid: InvestigationId) : Investigation option
 
 let currentId (st: AppState) : InvestigationId option =
     match st.Screen with
-    | WorkspaceScreen iid | ReportScreen iid when st.Investigations.ContainsKey iid -> Some iid
+    | WorkspaceScreen iid | ReportScreen iid | EntityScreen(iid, _, _) when st.Investigations.ContainsKey iid -> Some iid
     | _ -> None
 
 let private draft (st: AppState) (name: string) = st.Drafts |> Map.tryFind name |> Option.defaultValue ""
@@ -963,6 +1040,26 @@ let private navigate (screen: Screen) (st: AppState) : AppState * Effect list =
     let c, st = Ids.correlation st NavigationAck
     { st with Screen = screen }, [ Navigate(c, ScreenRoute.format screen) ]
 
+/// The shareable link of a screen: page origin + path + canonical hash (R9.10).
+/// It is built from ids only, so it never carries evidence text or secrets (R9.9).
+let shareLink (st: AppState) (screen: Screen) = st.BaseUrl + ScreenRoute.format screen
+
+let private copyLink (screen: Screen) (st: AppState) : AppState * Effect list =
+    let url = shareLink st screen
+    let c, st = Ids.correlation st (CopyLink url)
+    st, [ ClipboardWrite(c, url) ]
+
+let private copyEvent (name: string) (key: string option) (st: AppState) : (AppState * Effect list) option =
+    match currentId st, name with
+    | Some iid, "copy.workspace" -> Some(copyLink (WorkspaceScreen iid) st)
+    | Some iid, "copy.report" -> Some(copyLink (ReportScreen iid) st)
+    | Some iid, _ when name.StartsWith("copy.", StringComparison.Ordinal) ->
+        let segment = name.Substring 5
+        match ScreenRoute.entitySegments |> List.tryFind (fun (s, _) -> s = segment), key |> Option.bind Id.tryParse<InvestigationTag> with
+        | Some(_, kind), Some eid -> Some(copyLink (EntityScreen(iid, kind, eid.Value)) st)
+        | _ -> Some(st, [])
+    | _ -> None
+
 let private startInvestigation (st: AppState) : AppState * Effect list =
     let iid, st = newId<InvestigationTag> st
     let oid, st = newId<ObservationTag> st
@@ -1009,6 +1106,9 @@ let private onEvent (name: string) (key: string option) (value: string option) (
     | Some field -> { st with Drafts = st.Drafts |> Map.add field (Option.defaultValue "" value) }, []
     | None ->
     let st = { st with Notice = "" }
+    match copyEvent name key st with
+    | Some result -> result
+    | None ->
     match name with
     | "start" -> startInvestigation st
     | "dismissRefusals" -> { st with Refusals = [] }, []
@@ -1371,6 +1471,8 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
             let last = h.History |> List.tryLast
             item (
                 [ "id", s (Id.text h.Id)
+                  "href", s (ScreenRoute.format (EntityScreen(iid, HypothesisEntity, h.Id.Value)))
+                  "isFocused", b (st.Screen = EntityScreen(iid, HypothesisEntity, h.Id.Value))
                   "label", s (lbl l.Hyp h.Id.Value)
                   "statement", s h.Statement.Value
                   "mechanism", s (h.Mechanism |> Option.map (fun m -> m.Value) |> Option.defaultValue "")
@@ -1414,6 +1516,8 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
             let isUrl = match e.Content with ArtifactEvidence _ -> true | _ -> false
             item
                 [ "id", s (Id.text e.Id)
+                  "href", s (ScreenRoute.format (EntityScreen(iid, EvidenceEntity, e.Id.Value)))
+                  "isFocused", b (st.Screen = EntityScreen(iid, EvidenceEntity, e.Id.Value))
                   "label", s (lbl l.Ev e.Id.Value)
                   "content", s (evidenceText e)
                   "isUrl", b isUrl
@@ -1725,19 +1829,39 @@ let private homeKeys (st: AppState) : (string * J) list =
     [ "investigations", JArr rows; "hasInvestigations", b (not rows.IsEmpty); "noInvestigations", b rows.IsEmpty ]
 
 /// The complete ViewState: every key in every projection (Limen rule).
+/// The addressed entity of an EntityScreen: (kind word, label, text, state).
+let private focusOf (inv: Investigation) (events: Event list) (kind: EntityKind) (g: Guid) : (string * string * string * string) option =
+    let l = labelsOf events
+    match kind with
+    | HypothesisEntity -> inv.Hypotheses |> Map.tryFind (Id.create g) |> Option.map (fun h -> "Hypothesis", lbl l.Hyp g, h.Statement.Value, Words.hypothesis h.State)
+    | EvidenceEntity -> inv.Evidence |> Map.tryFind (Id.create g) |> Option.map (fun e -> "Evidence", lbl l.Ev g, evidenceText e, "Source: " + e.Source.Value)
+    | UnknownEntity -> inv.Unknowns |> Map.tryFind (Id.create g) |> Option.map (fun u -> "Open question", "", u.Question.Value, Words.unknown u.State)
+    | ContradictionEntity -> inv.Contradictions |> Map.tryFind (Id.create g) |> Option.map (fun c -> "Contradiction", "", c.Statement.Value, Words.contradiction c.State)
+    | ActionEntity -> inv.Actions |> Map.tryFind (Id.create g) |> Option.map (fun a -> "Test or experiment", lbl l.Act g, a.Purpose.Value, Words.action a.State)
+    | CausalAssertionEntity -> inv.Causes |> Map.tryFind (Id.create g) |> Option.map (fun c -> "Cause", lbl l.Cause g, c.Outcome.Value, Words.cause c.State)
+    | CorrectiveActionEntity -> inv.CorrectiveActions |> Map.tryFind (Id.create g) |> Option.map (fun c -> "Fix", lbl l.Corr g, c.Description.Value, Words.correction c.State)
+    | CriterionEntity -> inv.Criteria |> Map.tryFind (Id.create g) |> Option.map (fun c -> "Success criterion", lbl l.Crit g, c.ExpectedOutcome.Value, "")
+    | ProposalEntity -> inv.Proposals |> Map.tryFind (Id.create g) |> Option.map (fun p -> "AI suggestion", "", p.Text.Value, Words.proposal p.State)
+    | _ -> None
+
 let project (st: AppState) : (string * J) list =
     let screenOk iid = st.Investigations.ContainsKey iid
     let loading =
         match st.Screen with
-        | WorkspaceScreen iid | ReportScreen iid -> not st.Loaded && not (screenOk iid)
+        | WorkspaceScreen iid | ReportScreen iid | EntityScreen(iid, _, _) -> not st.Loaded && not (screenOk iid)
         | _ -> not st.Loaded
+    let current = currentId st |> Option.bind (fun iid -> investigationOf st iid |> Option.map (fun inv -> inv, st.Investigations[iid]))
+    let focus =
+        match st.Screen, current with
+        | EntityScreen(_, kind, g), Some(inv, events) -> focusOf inv events kind g
+        | _ -> None
     let isWorkspace, isReport, missing =
         match st.Screen with
         | WorkspaceScreen iid -> screenOk iid, false, st.Loaded && not (screenOk iid)
+        | EntityScreen(iid, _, _) -> screenOk iid && focus.IsSome, false, (st.Loaded && not (screenOk iid)) || (screenOk iid && focus.IsNone)
         | ReportScreen iid -> false, screenOk iid, st.Loaded && not (screenOk iid)
-        | MissingScreen _ -> false, false, true
-        | _ -> false, false, false
-    let current = currentId st |> Option.bind (fun iid -> investigationOf st iid |> Option.map (fun inv -> inv, st.Investigations[iid]))
+        | MissingScreen _ | RefusedLinkScreen _ -> false, false, true
+        | HomeScreen | SettingsScreen | FactoryScreen -> false, false, false
     let ws =
         match current, placeholder with
         | Some(inv, events), _ -> workspaceKeys st inv events true @ reportKeys inv events true
@@ -1748,14 +1872,33 @@ let project (st: AppState) : (string * J) list =
         | HomeScreen, _ -> "Root-Cause Investigator"
         | SettingsScreen, _ -> "GitHub settings · Root-Cause Investigator"
         | WorkspaceScreen _, Some(inv, _) -> inv.Title.Value + " · Root-Cause Investigator"
+        | EntityScreen _, Some(inv, _) when isWorkspace -> inv.Title.Value + " · Root-Cause Investigator"
+        | FactoryScreen, _ -> "How this app was built · Root-Cause Investigator"
         | ReportScreen _, Some(inv, _) -> "Report: " + inv.Title.Value + " · Root-Cause Investigator"
         | _, _ when loading -> "Loading · Root-Cause Investigator"
         | _ -> "Not found · Root-Cause Investigator"
     let missingText =
         match st.Screen with
         | MissingScreen path -> "There is no page at \"" + Words.clip 80 path + "\"."
-        | WorkspaceScreen _ | ReportScreen _ -> "This investigation is not on this device. It may have been created in another browser, or the link is wrong."
+        | RefusedLinkScreen parameter ->
+            "This link was not opened: it carries the parameter \"" + parameter + "\", which is never allowed in links because it could expose a secret."
+        | EntityScreen(iid, _, _) when screenOk iid ->
+            "This investigation has no such item. It may have been mistyped; history is never deleted, so nothing was removed."
+        | WorkspaceScreen _ | ReportScreen _ | EntityScreen _ -> "This investigation is not on this device. It may have been created in another browser, or the link is wrong."
         | _ -> ""
+    let backToInvestigation =
+        match st.Screen with
+        | EntityScreen(iid, _, _) when screenOk iid -> Some(ScreenRoute.format (WorkspaceScreen iid))
+        | _ -> None
+    let focusKeys =
+        let kind, label, text, state = focus |> Option.defaultValue ("", "", "", "")
+        [ "hasFocus", b focus.IsSome
+          "focusKind", s kind
+          "focusLabel", s label
+          "focusText", s text
+          "focusState", s state
+          "hasMissingBack", b backToInvestigation.IsSome
+          "missingBackHref", s (backToInvestigation |> Option.defaultValue "#/") ]
     let refusals =
         st.Refusals
         |> List.mapi (fun i r -> item [ "id", s (string i); "code", s r.Code; "message", s r.Message; "rule", s r.Rule; "fault", s ("Aegis fault " + r.FaultCode + " (domain refusal, " + r.Operation + ")") ])
@@ -1791,6 +1934,7 @@ let project (st: AppState) : (string * J) list =
     @ homeKeys st
     @ (draftFields |> List.map (fun f -> "draft_" + f, s (draftValue f)))
     @ ws
+    @ focusKeys
 
 // ---------------------------------------------------------------------------
 // handle: the whole engine, one message at a time
@@ -1798,10 +1942,10 @@ let project (st: AppState) : (string * J) list =
 
 let private step (message: Inbound) (st: AppState) : AppState * Effect list * HandshakeReply =
     match message with
-    | Initialize(hash, offer) ->
+    | Initialize(hash, baseUrl, offer) ->
         let reply = Wire.negotiate offer
         let lifecycle = match reply with Accepted(_, _, selected) -> not selected.IsEmpty | _ -> false
-        let st = { st with Screen = ScreenRoute.parse hash; LifecycleNegotiated = lifecycle }
+        let st = { st with Screen = ScreenRoute.parse hash; LifecycleNegotiated = lifecycle; BaseUrl = baseUrl }
         let c1, st = Ids.correlation st LoadSettings
         let c2, st = Ids.correlation st LoadSync
         let c3, st = Ids.correlation st LoadIndex
@@ -1835,6 +1979,14 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
         let st, fx = if st.Loaded then sendAllPending st else st, []
         st, fx, NoHandshake
     | NavigationDone c -> { st with Pending = st.Pending |> Map.remove c }, [], NoHandshake
+    | ClipboardDone(c, failure) ->
+        let notice =
+            match Map.tryFind c st.Pending, failure with
+            | Some(CopyLink url), None -> "Link copied: " + url
+            | Some(CopyLink url), Some "denied" -> "The browser did not allow copying. The link is: " + url
+            | Some(CopyLink url), Some _ -> "Copying is not available here. The link is: " + url
+            | _ -> st.Notice
+        { st with Pending = st.Pending |> Map.remove c; Notice = notice }, [], NoHandshake
     | LocationChanged hash -> { st with Screen = ScreenRoute.parse hash; Refusals = []; Notice = "" }, [], NoHandshake
     | ConnectivityChanged online ->
         let st = { st with Online = online }

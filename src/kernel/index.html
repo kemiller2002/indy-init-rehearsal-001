@@ -109,6 +109,7 @@
       <div class="screen screen--missing">
         <h1>Not found</h1>
         <p data-text="missingText"></p>
+        <template data-if="hasMissingBack"><p><a class="ef-button" data-bind-href="missingBackHref">Back to the investigation</a></p></template>
         <p><a class="ef-button" href="#/">Go to your investigations</a></p>
       </div>
     </template>
@@ -155,6 +156,7 @@
             <span class="ef-status-lozenge" data-state="unknown" data-text="wsLifecycle"></span>
             <span>Version <span data-text="wsVersion"></span></span>
             <a data-bind-href="reportHref">Open report</a>
+            <button type="button" data-event="copy.workspace">Copy link to this investigation</button>
           </p>
           <div class="persistence" aria-label="Where this investigation is saved">
             <p class="persistence__local" data-testid="local-status" data-text="localStatus"></p>
@@ -164,6 +166,14 @@
           </div>
         </header>
 
+        <template data-if="hasFocus">
+          <section class="focus-panel ef-surface" aria-labelledby="focus-title" data-testid="focus">
+            <p class="ef-eyebrow" data-text="focusKind"></p>
+            <h2 id="focus-title"><span data-text="focusLabel"></span> <span data-text="focusText"></span></h2>
+            <p data-text="focusState"></p>
+            <p><a data-bind-href="workspaceHref">Show the whole investigation</a></p>
+          </section>
+        </template>
         <div class="ws-grid">
           <section class="ws-panel ws-panel--wide" aria-labelledby="obs-title">
             <h2 id="obs-title">What was observed</h2>
@@ -206,7 +216,7 @@
             <template data-if="hasHypotheses"><p class="muted">The actions shown on each hypothesis are the ones allowed right now.</p></template>
             <ul class="card-list">
               <template data-each="hypotheses" data-key="id">
-                <li class="ef-card hypothesis" data-testid="hypothesis" data-bind-data-tone="tone">
+                <li class="ef-card hypothesis" data-testid="hypothesis" data-bind-data-tone="tone" data-bind-data-focused="isFocused">
                   <h3 class="ef-card__title"><span data-text="label"></span>: <span data-text="statement"></span></h3>
                   <p><span class="ef-status-lozenge" data-bind-data-state="tone" data-text="state" data-testid="hypothesis-state"></span></p>
                   <template data-if="hasMechanism"><p>Mechanism: <span data-text="mechanism"></span></p></template>
@@ -221,6 +231,7 @@
                     <button type="button" data-event="hyp.Reopen" data-bind-hidden="hideReopen">Reopen</button>
                   </div>
                   <p class="unavailable" data-text="unavailable"></p>
+                  <p class="item-links"><a data-bind-href="href">Link to this hypothesis</a> <button type="button" data-event="copy.h">Copy link</button></p>
                 </li>
               </template>
             </ul>
@@ -309,13 +320,14 @@
             </form>
             <ul class="card-list">
               <template data-each="evidence" data-key="id">
-                <li class="ef-card" data-testid="evidence">
+                <li class="ef-card" data-testid="evidence" data-bind-data-focused="isFocused">
                   <p><strong data-text="label"></strong> · <span data-text="category"></span> · <span data-text="checked"></span></p>
                   <template data-if="isText"><p class="evidence-text" data-text="content"></p></template>
                   <template data-if="isUrl"><p><a data-bind-href="url" data-text="content" rel="noopener noreferrer" target="_blank"></a></p></template>
                   <p class="muted">Source: <span data-text="source"></span> · captured <span data-text="captured"></span></p>
                   <p class="muted" data-text="provenance"></p>
                   <p class="muted" data-text="superseded"></p>
+                  <p class="item-links"><a data-bind-href="href">Link to this evidence</a> <button type="button" data-event="copy.e">Copy link</button></p>
                 </li>
               </template>
             </ul>
@@ -838,7 +850,7 @@
     <!-- S22: report preview (Folio) -->
     <template data-if="isReport">
       <div class="screen screen--report">
-        <p class="no-print"><a data-bind-href="workspaceHref">Back to the investigation</a> · Use your browser's Print or Share → Print to save a PDF.</p>
+        <p class="no-print"><a data-bind-href="workspaceHref">Back to the investigation</a> · <button type="button" data-event="copy.report">Copy link to this report</button> · Use your browser's Print or Share → Print to save a PDF.</p>
         <ef-print-document class="report">
           <ef-print-title-page>
             <p class="ef-eyebrow" data-testid="report-kind" data-text="reportKind"></p>

@@ -14,6 +14,99 @@
     },
     {
       "guards": [],
+      "name": "workspace",
+      "params": [
+        {
+          "default": null,
+          "in": "path",
+          "name": "investigation",
+          "required": true,
+          "type": "string",
+          "values": null
+        }
+      ],
+      "pattern": "/i/{investigation}",
+      "requires": [],
+      "returnTarget": true
+    },
+    {
+      "guards": [],
+      "name": "report",
+      "params": [
+        {
+          "default": null,
+          "in": "path",
+          "name": "investigation",
+          "required": true,
+          "type": "string",
+          "values": null
+        }
+      ],
+      "pattern": "/i/{investigation}/report",
+      "requires": [],
+      "returnTarget": true
+    },
+    {
+      "guards": [],
+      "name": "entity",
+      "params": [
+        {
+          "default": null,
+          "in": "path",
+          "name": "investigation",
+          "required": true,
+          "type": "string",
+          "values": null
+        },
+        {
+          "default": null,
+          "in": "path",
+          "name": "kind",
+          "required": true,
+          "type": "string",
+          "values": [
+            "h",
+            "e",
+            "u",
+            "x",
+            "t",
+            "c",
+            "a",
+            "k",
+            "p"
+          ]
+        },
+        {
+          "default": null,
+          "in": "path",
+          "name": "entity",
+          "required": true,
+          "type": "string",
+          "values": null
+        }
+      ],
+      "pattern": "/i/{investigation}/{kind}/{entity}",
+      "requires": [],
+      "returnTarget": true
+    },
+    {
+      "guards": [],
+      "name": "settings",
+      "params": [],
+      "pattern": "/settings",
+      "requires": [],
+      "returnTarget": true
+    },
+    {
+      "guards": [],
+      "name": "factory",
+      "params": [],
+      "pattern": "/factory",
+      "requires": [],
+      "returnTarget": true
+    },
+    {
+      "guards": [],
       "name": "notFound",
       "params": [
         {

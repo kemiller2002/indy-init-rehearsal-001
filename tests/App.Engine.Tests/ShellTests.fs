@@ -293,3 +293,87 @@ let ``the token never appears in any URL, view text or stored investigation`` ()
     // The token travels only in the Authorization header.
     let put = (httpEffect putDoc).Value
     Assert.Equal("Bearer " + token, put.GetProperty("headers").GetProperty("Authorization").GetString())
+
+// ---------------------------------------------------------------------------
+// Round 2: addressable entities, share links, reserved parameters
+// ---------------------------------------------------------------------------
+
+let private repoRoot () =
+    let rec up (dir: IO.DirectoryInfo) =
+        if IO.File.Exists(IO.Path.Combine(dir.FullName, "App.slnx")) then dir.FullName
+        else
+            match dir.Parent with
+            | null -> failwith "repository root not found"
+            | parent -> up parent
+    up (IO.DirectoryInfo AppContext.BaseDirectory)
+
+[<Fact>]
+let ``[R9.6] every addressable entity kind has a route that round-trips`` () =
+    let iid = Id.create<InvestigationTag> (Guid("0b0e8d7c-1111-4222-8333-944455556666"))
+    let g = Guid("1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d")
+    for (segment, kind) in ScreenRoute.entitySegments do
+        let screen = EntityScreen(iid, kind, g)
+        let hash = ScreenRoute.format screen
+        Assert.Equal("#/i/" + Id.text iid + "/" + segment + "/" + g.ToString("D"), hash)
+        Assert.Equal(screen, ScreenRoute.parse hash)
+    Assert.Equal(MissingScreen("/i/" + Id.text iid + "/zz/" + g.ToString("D")), ScreenRoute.parse ("#/i/" + Id.text iid + "/zz/" + g.ToString("D")))
+    Assert.Equal(FactoryScreen, ScreenRoute.parse (ScreenRoute.format FactoryScreen))
+
+[<Fact>]
+let ``[R9.9] links carrying reserved parameter names are refused`` () =
+    for name in [ "token"; "code"; "key"; "session"; "TOKEN" ] do
+        Assert.Equal(RefusedLinkScreen(name.ToLowerInvariant()), ScreenRoute.parse ("#/i/0b0e8d7c-1111-4222-8333-944455556666?" + name + "=abc"))
+    Assert.Equal(HomeScreen, ScreenRoute.parse "#/?tab=evidence")
+    let st, _ = boot "#/settings?token=ghp_x"
+    let v = project st |> Map.ofList
+    Assert.Equal(JBool true, v["isMissing"])
+    Assert.Equal(JBool false, v["isSettings"])
+
+[<Fact>]
+let ``[R9.10] .echelon/routes.json lists exactly the routes the shell parses`` () =
+    let doc = JsonDocument.Parse(IO.File.ReadAllText(IO.Path.Combine(repoRoot (), ".echelon", "routes.json")))
+    Assert.Equal("echelon.routes/v1", doc.RootElement.GetProperty("schema").GetString())
+    Assert.Equal("hash", doc.RootElement.GetProperty("mode").GetString())
+    let published =
+        [ for r in doc.RootElement.GetProperty("routes").EnumerateArray() ->
+              r.GetProperty("name").GetString(), r.GetProperty("pattern").GetString(), [ for p in r.GetProperty("params").EnumerateArray() -> p.GetProperty("name").GetString() ] ]
+    Assert.Equal<(string * string * string list) list>(ScreenRoute.table |> List.sortBy (fun (n, _, _) -> n), published |> List.sortBy (fun (n, _, _) -> n))
+
+[<Fact>]
+let ``[R9.10] [R9.9] Copy link writes the canonical absolute URL to the clipboard and never evidence text`` () =
+    let st, _ = boot "#/"
+    let st, _ = start st
+    let iid = (currentId st).Value
+    let st, _ = send st (event "f.evContent" None (Some "secret customer note"))
+    let st, _ = send st (event "f.evSource" None (Some "support ticket"))
+    let st, doc = send st (event "ev.add" None None)
+    let eid = (first ((view doc).GetProperty("evidence"))).GetProperty("id").GetString()
+    let st, doc = send st (event "copy.e" (Some eid) None)
+    let clip = effects doc |> List.find (fun e -> kindOf e = "Clipboard")
+    let url = clip.GetProperty("text").GetString()
+    Assert.Equal("writeText", clip.GetProperty("operation").GetString())
+    Assert.Equal("https://kevinmmiller.us/indy-init-rehearsal-001/#/i/" + Id.text iid + "/e/" + eid, url)
+    Assert.DoesNotContain("secret", url)
+    let c = clip.GetProperty("correlationId").GetString()
+    let st, doc = send st ("{\"kind\":\"EffectResult\",\"result\":{\"kind\":\"ClipboardResult\",\"correlationId\":\"" + c + "\",\"outcome\":{\"kind\":\"Success\"}}}")
+    Assert.Equal("Link copied: " + url, text doc "notice")
+    let _, doc = send st (event "copy.report" None None)
+    Assert.EndsWith("/report", (effects doc |> List.find (fun e -> kindOf e = "Clipboard")).GetProperty("text").GetString())
+
+[<Fact>]
+let ``[R9.6] [R9.8] an entity link opens its detail, and a missing entity shows not found with a way back`` () =
+    let st, _ = boot "#/"
+    let st, _ = start st
+    let iid = (currentId st).Value
+    let st, _ = send st (event "f.hypStatement" None (Some "Expired certificate"))
+    let st, doc = send st (event "hyp.add" None None)
+    let hid = (first ((view doc).GetProperty("hypotheses"))).GetProperty("id").GetString()
+    let go hash = send st ("{\"kind\":\"LocationChanged\",\"location\":{\"origin\":\"x\",\"path\":\"/\",\"query\":\"\",\"hash\":\"" + hash + "\"}}")
+    let _, doc = go ("#/i/" + Id.text iid + "/h/" + hid)
+    Assert.True((view doc).GetProperty("hasFocus").GetBoolean())
+    Assert.Equal("Expired certificate", text doc "focusText")
+    Assert.True((first ((view doc).GetProperty("hypotheses"))).GetProperty("isFocused").GetBoolean())
+    let _, doc = go ("#/i/" + Id.text iid + "/h/1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d")
+    Assert.True((view doc).GetProperty("isMissing").GetBoolean())
+    Assert.False((view doc).GetProperty("isWorkspace").GetBoolean())
+    Assert.Equal("#/i/" + Id.text iid, text doc "missingBackHref")
