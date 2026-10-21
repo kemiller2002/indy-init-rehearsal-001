@@ -47,3 +47,4 @@ playwright-report/
 
 # agent worktrees (EX-INDY-INIT-2026-R001 R-03)
 .claude/worktrees/
+verification/
