@@ -710,8 +710,10 @@ type PendingOp =
     | SaveIndex
     | SaveSettings
     | SaveSync
-    | RemoteWrite of InvestigationId
-    | RemoteRead of InvestigationId
+    /// The remote identity travels with the request: a result for another
+    /// repository (settings changed meanwhile) is never adopted (D-009).
+    | RemoteWrite of InvestigationId * remote: string
+    | RemoteRead of InvestigationId * remote: string
     | Subscribe
     | NavigationAck
     | CopyLink of url: string
@@ -742,7 +744,17 @@ type AppState =
       /// Event count included in the write in flight (to detect changes made meanwhile).
       SentLength: Map<InvestigationId, int>
       SyncDetail: Map<InvestigationId, string>
-      Remote: RemoteConfig option }
+      Remote: RemoteConfig option
+      /// Index entries as read from this device, kept even when their investigation
+      /// could not be decoded, so a save never drops them (R10.7).
+      StoredIndex: Map<InvestigationId, IndexCodec.Entry>
+      Unreadable: Map<InvestigationId, string>
+      /// The saved index could not be read: it is never overwritten.
+      IndexUnreadable: bool
+      /// A change happened before the initial load finished; the index is written once it has.
+      IndexDirty: bool
+      /// The remote identity the saved sync statuses were confirmed against.
+      SyncRemote: string option }
 
 let initial: AppState =
     { Investigations = Map.empty
@@ -765,7 +777,12 @@ let initial: AppState =
       RemoteSha = Map.empty
       SentLength = Map.empty
       SyncDetail = Map.empty
-      Remote = None }
+      Remote = None
+      StoredIndex = Map.empty
+      Unreadable = Map.empty
+      IndexUnreadable = false
+      IndexDirty = false
+      SyncRemote = None }
 
 /// The boundary supplies entropy and the clock for one message; handle stays pure.
 let withContext (entropy: Guid) (now: DateTimeOffset) (state: AppState) : AppState =
@@ -878,11 +895,18 @@ let private syncCode (status: SyncStatus) =
     // Sending and unknown outcomes restart as pending: never as synced (R10.6, R10.7).
     | Pending | Sending | SyncUnknown -> "pending"
 
-/// "rci:sync": per investigation, the remote status and last known blob sha.
+/// Which repository and branch a sync status refers to.
+let remoteIdentity (config: RemoteConfig) = config.Owner + "/" + config.Repository + "@" + config.Branch
+
+let private currentIdentity (st: AppState) = st.Remote |> Option.map remoteIdentity |> Option.defaultValue ""
+
+/// "rci:sync": per investigation, the remote status and last known blob sha,
+/// plus the repository they were confirmed against.
 let syncDocument (st: AppState) : string =
     JsonOut.render (
         JObj
             [ "schema", JStr "rci.sync/v1"
+              "remote", JStr(currentIdentity st)
               "investigations",
               JObj
                   [ for KeyValue(iid, status) in st.Sync ->
@@ -896,6 +920,7 @@ let syncDocument (st: AppState) : string =
 
 let private readSync (text: string) (st: AppState) : AppState =
     let root = JsonIn.parse text
+    let st = { st with SyncRemote = JsonIn.child "remote" root |> JsonIn.str }
     match JsonIn.child "investigations" root with
     | Some(:? JsonObject as o) ->
         o
@@ -918,16 +943,32 @@ let private readSync (text: string) (st: AppState) : AppState =
             st
     | _ -> st
 
+/// "rci:settings" holds the repository only. The access token is never
+/// persisted: it lives in engine memory for this session (R11.3).
 let settingsDocument (config: RemoteConfig) : string =
-    JsonOut.render (JObj [ "owner", JStr config.Owner; "repository", JStr config.Repository; "branch", JStr config.Branch; "token", JStr config.Token ])
+    JsonOut.render (JObj [ "owner", JStr config.Owner; "repository", JStr config.Repository; "branch", JStr config.Branch ])
 
 let private readSettings (text: string) : RemoteConfig option =
     let root = JsonIn.parse text
     let field name = JsonIn.child name root |> JsonIn.str
-    match field "owner", field "repository", field "token" with
-    | Some owner, Some repo, Some token when owner <> "" && repo <> "" && token <> "" ->
-        Some { Owner = owner; Repository = repo; Branch = field "branch" |> Option.defaultValue "main"; Token = token }
+    match field "owner", field "repository" with
+    | Some owner, Some repo when owner <> "" && repo <> "" ->
+        // A token stored by an older build is ignored, never adopted.
+        Some { Owner = owner; Repository = repo; Branch = field "branch" |> Option.defaultValue "main"; Token = "" }
     | _ -> None
+
+let private hasToken (st: AppState) = st.Remote |> Option.exists (fun r -> r.Token <> "")
+
+/// Reset every investigation's remote state: nothing confirmed for another
+/// repository (or none) counts here (D-009/I-18).
+let private resetRemoteState (st: AppState) : AppState =
+    let status = if st.Remote.IsSome then Pending else LocalOnly
+    { st with
+        Sync = st.Investigations |> Map.map (fun _ _ -> status)
+        RemoteSha = Map.empty
+        SyncDetail = Map.empty
+        SentLength = Map.empty
+        SyncRemote = Some(currentIdentity st) }
 
 let private saveSyncState (st: AppState) = storageSet SaveSync Storage.syncKey (syncDocument st) st
 
@@ -938,18 +979,18 @@ let private put (iid: InvestigationId) (sha: string option) (st: AppState) : App
     | Some config, Some events ->
         let title = investigationOf st iid |> Option.map (fun i -> i.Title.Value) |> Option.defaultValue "investigation"
         let request = GitHub.writeRequest config iid (EventCodec.encode iid events) sha ("Root-cause investigation: " + Words.clip 60 title + " (version " + string events.Length + ")")
-        let c, st = Ids.correlation st (RemoteWrite iid)
+        let c, st = Ids.correlation st (RemoteWrite(iid, remoteIdentity config))
         { st with Sync = st.Sync |> Map.add iid Sending; SentLength = st.SentLength |> Map.add iid events.Length }, [ httpOf c request ]
     | _ -> st, []
 
 /// Send a pending investigation when online and configured; otherwise it stays pending.
 let private sendIfReady (iid: InvestigationId) (st: AppState) : AppState * Effect list =
     match st.Remote, Map.tryFind iid st.Sync with
-    | Some config, Some Pending when st.Online ->
+    | Some config, Some Pending when st.Online && config.Token <> "" ->
         match Map.tryFind iid st.RemoteSha with
         | Some sha -> put iid (Some sha) st
         | None ->
-            let c, st = Ids.correlation st (RemoteRead iid)
+            let c, st = Ids.correlation st (RemoteRead(iid, remoteIdentity config))
             { st with Sync = st.Sync |> Map.add iid Sending; SentLength = st.SentLength |> Map.add iid 0 }, [ httpOf c (GitHub.readRequest config iid) ]
     | _ -> st, []
 
@@ -961,14 +1002,26 @@ let private sendAllPending (st: AppState) : AppState * Effect list =
 
 /// After every successful command: save locally (investigation + index), then mark
 /// the remote copy pending and try to send it (R10.5, R10.6).
+/// The index to store: what was read from this device (including entries whose
+/// investigation could not be decoded) merged with what is in memory. Written
+/// only after the initial load, and never over an unreadable index (R10.7).
+let private saveIndex (st: AppState) : AppState * Effect list =
+    if st.IndexUnreadable then st, []
+    elif not st.Loaded then { st with IndexDirty = true }, []
+    else
+        let entries =
+            st.Investigations
+            |> Map.fold (fun m i evs -> match entryOf i evs with Some e -> Map.add i e m | None -> m) st.StoredIndex
+        let st = { st with StoredIndex = entries; IndexDirty = false }
+        storageSet SaveIndex Storage.indexKey (IndexCodec.encode (entries |> Map.toList |> List.map snd)) st
+
 let private persistAfterChange (iid: InvestigationId) (st: AppState) : AppState * Effect list =
     match Map.tryFind iid st.Investigations with
     | None -> st, []
     | Some events ->
-        let entries = st.Investigations |> Map.toList |> List.choose (fun (i, evs) -> entryOf i evs)
         let st = { st with Local = st.Local |> Map.add iid Saving }
         let st, saveInv = storageSet (SaveInvestigation iid) (Storage.investigationKey iid) (EventCodec.encode iid events) st
-        let st, saveIndex = storageSet SaveIndex Storage.indexKey (IndexCodec.encode entries) st
+        let st, saveIndex = saveIndex st
         match st.Remote with
         | None -> st, saveInv @ saveIndex
         | Some _ ->
@@ -981,23 +1034,30 @@ let private persistAfterChange (iid: InvestigationId) (st: AppState) : AppState 
             st, saveInv @ saveIndex @ saveSync @ send
 
 let private saveSettings (config: RemoteConfig option) (st: AppState) : AppState * Effect list =
+    let previous = st.Remote
+    let st = { st with Remote = config }
     match config with
     | None ->
         let c, st = Ids.correlation st SaveSettings
-        st, [ StorageRemove(c, Storage.settingsKey) ]
+        let st = resetRemoteState st
+        let st, saveSync = saveSyncState st
+        st, [ StorageRemove(c, Storage.settingsKey) ] @ saveSync
     | Some cfg ->
         let st, save = storageSet SaveSettings Storage.settingsKey (settingsDocument cfg) st
-        // Everything not yet confirmed by GitHub becomes pending.
+        let sameRemote = previous |> Option.exists (fun p -> remoteIdentity p = remoteIdentity cfg && p.Token <> "")
         let st =
-            { st with
-                Sync =
-                    st.Investigations
-                    |> Map.fold
-                        (fun m iid _ ->
-                            match Map.tryFind iid m with
-                            | Some Synced | Some Sending | Some(Conflicted _) -> m
-                            | _ -> Map.add iid Pending m)
-                        st.Sync }
+            if sameRemote then
+                // Same repository and branch: what GitHub confirmed still holds; the rest is pending.
+                { st with
+                    Sync =
+                        st.Investigations
+                        |> Map.fold
+                            (fun m iid _ ->
+                                match Map.tryFind iid m with
+                                | Some Synced | Some Sending | Some(Conflicted _) -> m
+                                | _ -> Map.add iid Pending m)
+                            st.Sync }
+            else resetRemoteState st
         let st, send = sendAllPending st
         let st, saveSync = saveSyncState st
         st, save @ saveSync @ send
@@ -1168,8 +1228,9 @@ let private settingsFromDrafts (st: AppState) : RemoteConfig option =
     | Some owner, Some repo, Some token ->
         Some { Owner = owner.Trim(); Repository = repo.Trim(); Branch = (optDraft st "setBranch" |> Option.defaultValue "main").Trim(); Token = token.Trim() }
     | Some owner, Some repo, None ->
-        // Keep a token already saved when only the repository details change.
-        st.Remote |> Option.map (fun r -> { r with Owner = owner.Trim(); Repository = repo.Trim(); Branch = (optDraft st "setBranch" |> Option.defaultValue "main").Trim() })
+        // No new token: keep the one held in memory for this session (if any).
+        let token = st.Remote |> Option.map (fun r -> r.Token) |> Option.defaultValue ""
+        Some { Owner = owner.Trim(); Repository = repo.Trim(); Branch = (optDraft st "setBranch" |> Option.defaultValue "main").Trim(); Token = token }
     | _ -> None
 
 /// UI events: field drafts ("f.<field>") and intents.
@@ -1182,6 +1243,9 @@ let private onEvent (name: string) (key: string option) (value: string option) (
     | Some result -> result
     | None ->
     match name with
+    | "start" when not st.Loaded ->
+        // M6: nothing is created before the saved investigations have loaded.
+        incomplete st "StartInvestigation" "LOAD.IN_PROGRESS" "R10.7" "Investigations saved on this device are still loading; try again in a moment."
     | "start" -> startInvestigation st
     | "dismissRefusals" -> { st with Refusals = [] }, []
     | "hyp.add" ->
@@ -1278,9 +1342,13 @@ let private onEvent (name: string) (key: string option) (value: string option) (
         inWorkspace st (run "RecordConclusion" human "Conclusion recorded." [ "conclStatement"; "conclStrength"; "conclCause"; "conclResidual" ] (RecordConclusion(cid, draft st "conclStatement", choice Words.conclusions SupportedCause (draft st "conclStrength"), causes, optDraft st "conclResidual")))
     | "settings.save" ->
         match settingsFromDrafts st with
-        | Some config -> saveSettings (Some config) ({ st with Remote = Some config; Notice = "GitHub settings saved on this device." } |> clear [ "setToken" ])
+        | Some config ->
+            let notice =
+                if config.Token = "" then "Repository saved. Enter an access token to sync; it is kept in memory for this session only."
+                else "GitHub settings saved. The access token is kept in memory for this session only and is never saved on this device."
+            saveSettings (Some config) ({ st with Notice = notice } |> clear [ "setToken" ])
         | None -> incomplete st "SaveSettings" "SETTINGS.INCOMPLETE" "settings" "Enter the owner, repository and an access token."
-    | "settings.clear" -> saveSettings None ({ st with Remote = None; Notice = "GitHub settings removed. Investigations stay on this device." } |> clear [ "setOwner"; "setRepo"; "setBranch"; "setToken" ])
+    | "settings.clear" -> saveSettings None ({ st with Notice = "GitHub settings removed. Investigations stay on this device." } |> clear [ "setOwner"; "setRepo"; "setBranch"; "setToken" ])
     | "sync.retry" -> retrySync st
     | _ ->
         match suffix "hyp." name with
@@ -1356,15 +1424,28 @@ let private finishLoading (st: AppState) =
     if loading || st.Loaded then st, []
     else
         let st = { st with Loaded = true }
-        sendAllPending st
+        // Statuses confirmed for another repository (or none) do not count now.
+        let st = if st.SyncRemote.IsSome && st.SyncRemote <> Some(currentIdentity st) then resetRemoteState st else st
+        let st, index = if st.IndexDirty then saveIndex st else st, []
+        let st, send = sendAllPending st
+        st, index @ send
 
 let private onStorage (op: PendingOp) (result: Result<string option, string>) (st: AppState) : AppState * Effect list =
     match op, result with
-    | LoadSettings, Ok(Some text) -> finishLoading { st with Remote = readSettings text }
+    | LoadSettings, Ok(Some text) ->
+        let remote = readSettings text
+        // A token persisted by an older build is erased from this device (R11.3).
+        let st, scrub =
+            match remote, JsonIn.child "token" (JsonIn.parse text) with
+            | Some cfg, Some _ -> storageSet SaveSettings Storage.settingsKey (settingsDocument cfg) st
+            | _ -> st, []
+        let st, more = finishLoading { st with Remote = remote }
+        st, scrub @ more
     | LoadSync, Ok(Some text) -> finishLoading (readSync text st)
     | LoadIndex, Ok(Some text) ->
         match IndexCodec.decode text with
         | Ok entries ->
+            let st = { st with StoredIndex = entries |> List.map (fun e -> e.Id, e) |> Map.ofList }
             let st, effects =
                 entries
                 |> List.fold
@@ -1374,14 +1455,15 @@ let private onStorage (op: PendingOp) (result: Result<string option, string>) (s
                     (st, [])
             let st, more = finishLoading st
             st, effects @ more
-        | Error e -> finishLoading { st with Notice = "The saved list of investigations could not be read: " + e }
+        | Error e -> finishLoading { st with IndexUnreadable = true; Notice = "The saved list of investigations could not be read (" + e + "); it is left untouched." }
     | LoadInvestigation iid, Ok(Some text) ->
         match EventCodec.decode text with
         | Ok(id, events) when id = iid && not events.IsEmpty ->
             finishLoading { st with Investigations = st.Investigations |> Map.add iid events; Local = st.Local |> Map.add iid SavedLocally }
-        | Ok _ -> finishLoading { st with Notice = "A saved investigation did not match its index entry and was not opened." }
-        | Error e -> finishLoading { st with Notice = "A saved investigation could not be read: " + e }
-    | (LoadSettings | LoadSync | LoadIndex | LoadInvestigation _), Ok None -> finishLoading st
+        | Ok _ -> finishLoading { st with Unreadable = st.Unreadable |> Map.add iid "the stored document names a different investigation" }
+        | Error e -> finishLoading { st with Unreadable = st.Unreadable |> Map.add iid e }
+    | LoadInvestigation iid, Ok None -> finishLoading { st with Unreadable = st.Unreadable |> Map.add iid "its stored document is missing" }
+    | (LoadSettings | LoadSync | LoadIndex), Ok None -> finishLoading st
     | (LoadSettings | LoadSync | LoadIndex | LoadInvestigation _), Error reason ->
         finishLoading { st with Notice = "This device's storage is unavailable (" + reason + "); work will not survive a reload." }
     | SaveInvestigation iid, Ok _ -> { st with Local = st.Local |> Map.add iid SavedLocally }, []
@@ -1406,9 +1488,8 @@ let private onRemoteRead (iid: InvestigationId) (outcome: HttpOutcome) (st: AppS
                     | Reconcile.PushLocal -> put iid (Some sha) st
                     | Reconcile.AdoptRemote ->
                         let st = { st with Investigations = st.Investigations |> Map.add iid remote; Sync = st.Sync |> Map.add iid Synced; Notice = "Newer history from GitHub was loaded." }
-                        let entries = st.Investigations |> Map.toList |> List.choose (fun (i, evs) -> entryOf i evs)
                         let st, a = storageSet (SaveInvestigation iid) (Storage.investigationKey iid) (EventCodec.encode iid remote) st
-                        let st, b = storageSet SaveIndex Storage.indexKey (IndexCodec.encode entries) st
+                        let st, b = saveIndex st
                         st, a @ b
                     | Reconcile.Diverged detail -> { st with Sync = st.Sync |> Map.add iid (Conflicted detail) }, []
                 | Error e -> { st with Sync = st.Sync |> Map.add iid (Conflicted("the copy on GitHub could not be read: " + e)) }, []
@@ -1542,6 +1623,7 @@ let private remoteText (st: AppState) (iid: InvestigationId) =
         let where = " (" + cfg.Owner + "/" + cfg.Repository + ")"
         match Map.tryFind iid st.Sync |> Option.defaultValue Pending with
         | Synced -> "Saved to GitHub" + where, "ok"
+        | Pending when cfg.Token = "" -> "Changes pending upload to GitHub (not yet synced) — enter your access token in GitHub settings; it is not kept after a reload", "attention"
         | Pending when not st.Online -> "Offline — changes pending upload to GitHub (not yet synced)", "attention"
         | Pending -> "Changes pending upload to GitHub (not yet synced)", "attention"
         | Sending -> "Uploading to GitHub… (not yet confirmed)", "attention"
@@ -1598,8 +1680,10 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                 if not real then []
                 else
                     inv.Causes |> Map.toList |> List.map snd
-                    |> List.filter (fun c -> (c.State = CauseProposed || c.State = CauseReopened) && c.Members |> List.exists (fun m -> m.Hypothesis = h.Id))
-                    |> List.collect (fun c -> Policy.causeBlockers inv c.Id)
+                    |> List.filter (fun c -> c.Members |> List.exists (fun m -> m.Hypothesis = h.Id))
+                    |> List.map (fun c -> Policy.causeBlockers inv c.Id)
+                    |> List.filter (fun blockers -> not (blockers |> List.exists (fun e -> e.Code = "CAUSE.STATE")))
+                    |> List.concat
             let posture =
                 Words.hypothesis h.State + " because of " + describeLinks "supporting" (linked Supports) + ", " + describeLinks "contradicting" (linked Contradicts)
                 + ", " + describeLinks "telling-apart" (linked Discriminates) + ", " + describeLinks "inconclusive" (linked Insufficient) + "."
@@ -1757,9 +1841,11 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "statement", s x.Statement.Value
                   "scope", s x.Scope.Value
                   "basis", s (Words.join ", " (x.Basis |> List.map (fun e -> lbl l.Ev e.Value))) ])
-    // Only a cause awaiting confirmation has confirmation blockers worth listing.
-    let awaitingConfirmation (c: CausalAssertion) = c.State = CauseProposed || c.State = CauseReopened
-    let causeBlockers = causes |> List.map (fun c -> c, (if real && awaitingConfirmation c then Policy.causeBlockers inv c.Id else []))
+    // Policy decides: a CAUSE.STATE blocker means the cause is not confirmable in its
+    // state, so it has no confirmation work to list and no Confirm button.
+    let gate = causes |> List.map (fun c -> c, (if real then Policy.causeBlockers inv c.Id else []))
+    let confirmable (blockers: DomainError list) = not (blockers |> List.exists (fun e -> e.Code = "CAUSE.STATE"))
+    let causeBlockers = gate |> List.map (fun (c, blockers) -> c, (if confirmable blockers then blockers else []))
     let causeItems =
         causeBlockers
         |> List.map (fun (c, blockers) ->
@@ -1771,7 +1857,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "mechanism", s (c.Mechanism |> Option.map (fun x -> x.Value) |> Option.defaultValue "not stated")
                   "state", s (Words.cause c.State)
                   "isConfirmed", b (c.State = CauseConfirmed)
-                  "hideConfirm", b (c.State = CauseConfirmed || c.State = CauseSuperseded)
+                  "hideConfirm", b (not real || not (confirmable (gate |> List.find (fun (x, _) -> x.Id = c.Id) |> snd)))
                   "blockerCount", n blockers.Length
                   "isBlocked", b (not blockers.IsEmpty)
                   "readiness",
@@ -2019,7 +2105,18 @@ let private homeKeys (st: AppState) : (string * J) list =
             | _ -> None)
         |> List.sortByDescending fst
         |> List.map snd
-    [ "investigations", JArr rows; "hasInvestigations", b (not rows.IsEmpty); "noInvestigations", b rows.IsEmpty ]
+    let unreadable =
+        st.StoredIndex
+        |> Map.toList
+        |> List.filter (fun (iid, _) -> st.Loaded && not (st.Investigations.ContainsKey iid))
+        |> List.map (fun (iid, e) ->
+            item
+                [ "id", s (Id.text iid)
+                  "title", s e.Title
+                  "reason", s ("Could not be read: " + (Map.tryFind iid st.Unreadable |> Option.defaultValue "not loaded") + ". It is kept in the index and was not changed.") ])
+    [ "unreadable", JArr unreadable
+      "hasUnreadable", b (not unreadable.IsEmpty)
+      "investigations", JArr rows; "hasInvestigations", b (not rows.IsEmpty); "noInvestigations", b rows.IsEmpty ]
 
 /// The complete ViewState: every key in every projection (Limen rule).
 let private factoryKeys (st: AppState) : (string * J) list =
@@ -2150,10 +2247,14 @@ let project (st: AppState) : (string * J) list =
       "connection", s (if st.Online then "Online" else "Offline — work continues on this device")
       "isOffline", b (not st.Online)
       "remoteConfigured", b st.Remote.IsSome
+      "needsToken", b (st.Remote.IsSome && not (hasToken st))
+      "startDisabled", b (not st.Loaded)
       "settingsSummary",
       s (
           match st.Remote with
-          | Some r -> "Syncing to GitHub repository " + r.Owner + "/" + r.Repository + " (branch " + r.Branch + "). An access token is saved on this device only; it is never shown or put in links."
+          | Some r when r.Token = "" ->
+              "GitHub repository " + r.Owner + "/" + r.Repository + " (branch " + r.Branch + "). No access token in this session: enter it to sync. Tokens are kept in memory only and are asked for again after a reload."
+          | Some r -> "Syncing to GitHub repository " + r.Owner + "/" + r.Repository + " (branch " + r.Branch + "). The access token is kept in memory for this session only; it is never saved, shown or put in links."
           | None -> "Not connected to GitHub. Investigations are saved on this device only."
       ) ]
     @ homeKeys st
@@ -2194,10 +2295,10 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
         | None -> st, [], NoHandshake
     | HttpDone(c, outcome) ->
         match Map.tryFind c st.Pending with
-        | Some(RemoteRead iid) ->
+        | Some(RemoteRead(iid, remote)) when remote = currentIdentity st ->
             let st, fx = onRemoteRead iid outcome { st with Pending = st.Pending |> Map.remove c }
             st, fx, NoHandshake
-        | Some(RemoteWrite iid) ->
+        | Some(RemoteWrite(iid, remote)) when remote = currentIdentity st ->
             let st, fx = onRemoteWrite iid outcome { st with Pending = st.Pending |> Map.remove c }
             st, fx, NoHandshake
         | Some FactoryLoad ->

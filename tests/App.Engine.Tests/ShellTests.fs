@@ -275,7 +275,7 @@ let ``a 409 from GitHub is shown as a conflict and nothing is overwritten`` () =
     | other -> failwithf "expected a conflict, got %A" other
 
 [<Fact>]
-let ``the token never appears in any URL, view text or stored investigation`` () =
+let ``[R11.3] [R9.9] the token is never stored on the device and never appears in any URL or view text`` () =
     let st, _ = boot "#/"
     let st, settingsDoc = configure st
     let st, doc = start st
@@ -289,7 +289,7 @@ let ``the token never appears in any URL, view text or stored investigation`` ()
                 Assert.DoesNotContain(token, e.GetProperty("url").GetString())
                 Assert.DoesNotContain(token, (if e.TryGetProperty("body") |> fst then e.GetProperty("body").GetString() else ""))
             | "Navigation" -> Assert.DoesNotContain(token, e.GetProperty("url").GetString())
-            | "Storage" when e.GetProperty("key").GetString() <> "rci:settings" ->
+            | "Storage" ->
                 Assert.DoesNotContain(token, e.GetRawText())
             | _ -> ()
     // The token travels only in the Authorization header.
@@ -578,3 +578,147 @@ let ``[R15.4] history is append-only: every earlier stored document is a byte-id
             Assert.Equal<Event list>(older, List.take older.Length newer)
             Assert.Equal(earlier, EventCodec.encode iid (List.take older.Length newer))
         | _ -> failwith "stored documents must decode"
+
+// ---------------------------------------------------------------------------
+// Stop-the-line fixes: remote identity (C2), load-before-write (M6), token (M3)
+// ---------------------------------------------------------------------------
+
+let private syncedInvestigation () =
+    let st, _ = boot "#/"
+    let st, _ = configure st
+    let st, doc = start st
+    let read = (httpEffect doc).Value
+    let st, doc = send st (httpSuccess (read.GetProperty("correlationId").GetString()) 404 "{}")
+    let write = (httpEffect doc).Value
+    let st, doc = send st (httpSuccess (write.GetProperty("correlationId").GetString()) 201 writeResponse)
+    Assert.StartsWith("Saved to GitHub", text doc "remoteStatus")
+    st, write
+
+[<Fact>]
+let ``[R10.6] changing the repository resets every status to pending; nothing is shown as saved without a request`` () =
+    let st, oldWrite = syncedInvestigation ()
+    let iid = (currentId st).Value
+    let st, _ = send st (event "f.setOwner" None (Some "bob"))
+    let st, _ = send st (event "f.setRepo" None (Some "repoB"))
+    let st, doc = send st (event "settings.save" None None)
+    Assert.DoesNotContain("Saved to GitHub", text doc "remoteStatus")
+    Assert.Equal(Some Sending, Map.tryFind iid st.Sync)
+    Assert.True(st.RemoteSha.IsEmpty)
+    // The new repository is read first (no sha carried over from the old one).
+    let read = (httpEffect doc).Value
+    Assert.Equal("GET", read.GetProperty("method").GetString())
+    Assert.Contains("/repos/bob/repoB/", read.GetProperty("url").GetString())
+    // A late result for the old repository is never adopted.
+    let st, doc = send st (httpSuccess (oldWrite.GetProperty("correlationId").GetString()) 201 writeResponse)
+    Assert.DoesNotContain("Saved to GitHub", text doc "remoteStatus")
+    // Disconnecting makes everything local only.
+    let st, doc = send st (event "settings.clear" None None)
+    Assert.Equal("Local only — not synced to GitHub", text doc "remoteStatus")
+    Assert.Equal(Some LocalOnly, Map.tryFind iid st.Sync)
+
+let private storageGets (doc: JsonDocument) =
+    effects doc
+    |> List.filter (fun e -> kindOf e = "Storage")
+    |> List.map (fun e -> e.GetProperty("key").GetString(), e.GetProperty("correlationId").GetString())
+    |> Map.ofList
+
+[<Fact>]
+let ``[R10.6] statuses confirmed for another repository are reset when loaded`` () =
+    let iid = Id.create<InvestigationTag> (Guid("0b0e8d7c-1111-4222-8333-944455556666"))
+    let st, doc = send initial (initialize "#/")
+    let gets = storageGets doc
+    let syncDoc = "{\"schema\":\"rci.sync/v1\",\"remote\":\"alice/old@main\",\"investigations\":{\"" + Id.text iid + "\":{\"status\":\"synced\",\"sha\":\"abc\"}}}"
+    let st, _ = send st (storageResult gets["rci:settings"] (Some "{\"owner\":\"bob\",\"repository\":\"new\",\"branch\":\"main\"}"))
+    let st, _ = send st (storageResult gets["rci:sync"] (Some syncDoc))
+    let st, _ = send st (storageResult gets["rci:index"] None)
+    Assert.True(st.Loaded)
+    Assert.NotEqual(Some Synced, Map.tryFind iid st.Sync)
+    Assert.False(st.RemoteSha.ContainsKey iid)
+
+[<Fact>]
+let ``[R11.3] the token is kept in memory only; after a reload it must be entered again and a stored legacy token is erased`` () =
+    let st, _ = boot "#/"
+    let _, doc = configure st
+    let settingsWrite = effects doc |> List.find (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString() = "rci:settings")
+    Assert.DoesNotContain("token", settingsWrite.GetProperty("value").GetString())
+    let st, doc = send initial (initialize "#/")
+    let gets = storageGets doc
+    let st, doc = send st (storageResult gets["rci:settings"] (Some("{\"owner\":\"o\",\"repository\":\"r\",\"branch\":\"main\",\"token\":\"" + token + "\"}")))
+    let scrub = effects doc |> List.find (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString() = "rci:settings")
+    Assert.Equal("set", scrub.GetProperty("operation").GetString())
+    Assert.DoesNotContain(token, scrub.GetRawText())
+    Assert.Equal(Some "", st.Remote |> Option.map (fun r -> r.Token))
+    let v = project st |> Map.ofList
+    Assert.Equal(JBool true, v["needsToken"])
+
+[<Fact>]
+let ``[R10.7] nothing is created before saved investigations load, and the index is never written from a partial load`` () =
+    let st, doc = send initial (initialize "#/")
+    let gets = storageGets doc
+    let st, _ = send st (event "f.observation" None (Some "Early"))
+    let st, doc = send st (event "start" None None)
+    Assert.Equal("LOAD.IN_PROGRESS", (first ((view doc).GetProperty("refusals"))).GetProperty("code").GetString())
+    Assert.True((view doc).GetProperty("startDisabled").GetBoolean())
+    Assert.Empty(effects doc)
+    // The index names two investigations; one decodes, one is corrupt.
+    let good = Id.create<InvestigationTag> (Guid("0b0e8d7c-1111-4222-8333-944455556666"))
+    let bad = Id.create<InvestigationTag> (Guid("1a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d"))
+    let events =
+        let env =
+            { CommandId = Guid("3a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d"); Investigation = good; ExpectedVersion = None; Actor = Actor.human "u"
+              RequestedAt = DateTimeOffset.UnixEpoch
+              Command = StartInvestigation(good, "Kept", Id.create (Guid("2a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d")), "Kept observation") }
+        match Decide.execute None env with
+        | Ok e -> e
+        | Error _ -> failwith "start"
+    let index =
+        IndexCodec.encode
+            [ { Id = good; Title = "Kept"; Lifecycle = "Draft"; Version = 1L; UpdatedAt = DateTimeOffset.UnixEpoch }
+              { Id = bad; Title = "Corrupt one"; Lifecycle = "Draft"; Version = 3L; UpdatedAt = DateTimeOffset.UnixEpoch } ]
+    let st, _ = send st (storageResult gets["rci:settings"] None)
+    let st, _ = send st (storageResult gets["rci:sync"] None)
+    let st, doc = send st (storageResult gets["rci:index"] (Some index))
+    let invGets = storageGets doc
+    let st, _ = send st (storageResult invGets["rci:inv:" + Id.text good] (Some(EventCodec.encode good events)))
+    // A change to the loaded one while the other is still loading writes no index.
+    let st, _ = send st ("{\"kind\":\"LocationChanged\",\"location\":{\"origin\":\"x\",\"path\":\"/\",\"query\":\"\",\"hash\":\"#/i/" + Id.text good + "\"}}")
+    let st, _ = send st (event "f.hypStatement" None (Some "A hypothesis"))
+    let st, doc = send st (event "hyp.add" None None)
+    Assert.DoesNotContain("rci:index", effects doc |> List.filter (fun e -> kindOf e = "Storage") |> List.map (fun e -> e.GetProperty("key").GetString()))
+    // The corrupt one finishes loading: the deferred index keeps both entries.
+    let st, doc = send st (storageResult invGets["rci:inv:" + Id.text bad] (Some "{not json"))
+    let indexWrite = effects doc |> List.find (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString() = "rci:index")
+    match IndexCodec.decode (indexWrite.GetProperty("value").GetString()) with
+    | Ok entries ->
+        Assert.Equal<Set<InvestigationId>>(set [ good; bad ], entries |> List.map (fun e -> e.Id) |> Set.ofList)
+        Assert.Equal(2L, (entries |> List.find (fun e -> e.Id = good)).Version)
+    | Error e -> failwith e
+    let home = project { st with Screen = HomeScreen } |> Map.ofList
+    Assert.Equal(JBool true, home["hasUnreadable"])
+
+[<Fact>]
+let ``[R10.7] an unreadable index is never overwritten`` () =
+    let st, doc = send initial (initialize "#/")
+    let gets = storageGets doc
+    let st, _ = send st (storageResult gets["rci:settings"] None)
+    let st, _ = send st (storageResult gets["rci:sync"] None)
+    let st, _ = send st (storageResult gets["rci:index"] (Some "garbage"))
+    let _, doc = start st
+    Assert.DoesNotContain("rci:index", effects doc |> List.filter (fun e -> kindOf e = "Storage") |> List.map (fun e -> e.GetProperty("key").GetString()))
+
+[<Fact>]
+let ``[R8.1] the Confirm action follows the policy gate: a confirmed cause offers no Confirm and lists no blockers`` () =
+    let st, _, hyps, _ = supportedWithAlternative ()
+    let st, _ = send st (event "f.hypReason" None (Some "DNS fine"))
+    let st, _ = send st (event "hyp.Supersede" (Some hyps["DNS misconfiguration"]) None)
+    let st, _ = send st (event "f.causeOutcome" None (Some "502s"))
+    let st, _ = send st (event "f.causeRoot" None (Some hyps["Expired certificate"]))
+    let st, _ = send st (event "f.causeMechanism" None (Some "expired cert breaks TLS"))
+    let st, doc = send st (event "cause.add" None None)
+    let cause = first ((view doc).GetProperty("causes"))
+    Assert.False(cause.GetProperty("hideConfirm").GetBoolean())
+    let _, doc = send st (event "cause.confirm" (Some(cause.GetProperty("id").GetString())) None)
+    let cause = first ((view doc).GetProperty("causes"))
+    Assert.Equal("Confirmed", cause.GetProperty("state").GetString())
+    Assert.True(cause.GetProperty("hideConfirm").GetBoolean())
+    Assert.Equal(0, (view doc).GetProperty("causeBlockers").GetArrayLength())

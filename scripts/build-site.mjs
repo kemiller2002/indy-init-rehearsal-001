@@ -12,6 +12,7 @@
 //
 // Every URL in the output is relative; nothing points into node_modules.
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -68,7 +69,12 @@ cpSync(join(modules, "print-components", "src", "styles", "print.css"), join(dis
 
 // 3. The page.
 const shortSha = commit.slice(0, 7);
-const html = readFileSync(join(kernel, "index.html"), "utf8").replaceAll("__BUILD_SHA__", shortSha);
+const source = readFileSync(join(kernel, "index.html"), "utf8");
+// CSP: the inline import map is allowed by its exact sha256 hash, nothing else inline.
+const importMap = source.match(/<script type="importmap">([\s\S]*?)<\/script>/);
+if (importMap === null) throw new Error("index.html has no import map");
+const importMapHash = "sha256-" + createHash("sha256").update(importMap[1], "utf8").digest("base64");
+const html = source.replaceAll("__BUILD_SHA__", shortSha).replaceAll("__IMPORTMAP_HASH__", importMapHash);
 writeFileSync(join(dist, "index.html"), html);
 cpSync(join(kernel, "main.js"), join(dist, "main.js"));
 cpSync(join(kernel, "app.css"), join(dist, "app.css"));

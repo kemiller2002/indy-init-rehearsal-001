@@ -9,6 +9,9 @@ test("the site loads every resource and the engine renders the home view @ipad",
   });
   page.on("requestfailed", (request) => failures.push(`failed ${request.url()}`));
   page.on("pageerror", (error) => failures.push(`script error: ${error.message}`));
+  page.on("console", (message) => {
+    if (message.text().includes("Content Security Policy")) failures.push(`CSP: ${message.text()}`);
+  });
 
   await page.goto("./#/");
   await expect(page.getByRole("heading", { level: 1, name: "Investigations" })).toBeVisible();
@@ -17,6 +20,9 @@ test("the site loads every resource and the engine renders the home view @ipad",
   expect(diagnostics).toEqual([]);
   expect(failures).toEqual([]);
   await expect(page.getByText(/^Build [0-9a-f]{7}|Build unknown/)).toBeVisible();
+  const csp = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute("content");
+  expect(csp).toContain("default-src 'self'");
+  expect(csp).toContain("connect-src 'self' https://api.github.com");
 });
 
 test("[R9.2] the workspace fits a 375px phone screen without sideways scrolling", async ({ page }) => {

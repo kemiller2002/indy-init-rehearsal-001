@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The import map is the only inline script; the build pins it by hash. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' '__IMPORTMAP_HASH__'; connect-src 'self' https://api.github.com; img-src 'self' data:; style-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="description" content="Root-Cause Investigator: keep observations, hypotheses and evidence straight until the cause is proven.">
   <title data-text="pageTitle">Root-Cause Investigator</title>
   <link rel="stylesheet" href="./vendor/forma/all.css">
@@ -83,11 +85,22 @@
               <label class="ef-field__label" for="start-title-field">Short title (optional)</label>
               <input id="start-title-field" type="text" data-event="f.title" data-bind-value="draft_title">
             </div>
-            <div class="ef-actions"><button type="submit">Start investigation</button></div>
+            <div class="ef-actions"><button type="submit" data-bind-disabled="startDisabled">Start investigation</button></div>
           </form>
         </section>
         <section aria-labelledby="list-title" class="ef-section">
           <h2 id="list-title">Saved on this device</h2>
+          <template data-if="hasUnreadable">
+            <div class="ef-alert" data-tone="attention" data-testid="unreadable">
+              <div class="ef-alert__icon" aria-hidden="true">!</div>
+              <div>
+                <h3 class="ef-alert__title">Some saved investigations could not be read</h3>
+                <ul class="plain-list">
+                  <template data-each="unreadable" data-key="id"><li><strong data-text="title"></strong> — <span data-text="reason"></span></li></template>
+                </ul>
+              </div>
+            </div>
+          </template>
           <template data-if="noInvestigations">
             <p class="empty">No investigations yet. Start one above.</p>
           </template>
@@ -135,7 +148,7 @@
           </div>
           <div class="ef-field">
             <label class="ef-field__label" for="set-token">Access token</label>
-            <span class="ef-field__description" id="set-token-help">Stored only in this browser. Never shown, never put in links, reports or GitHub files. Leave empty to keep the saved token.</span>
+            <span class="ef-field__description" id="set-token-help">Kept in memory for this session only: never saved on this device, never shown, never put in links, reports or GitHub files. After a reload you will be asked for it again. Leave empty to keep the token entered earlier in this session.</span>
             <input id="set-token" type="password" autocomplete="off" aria-describedby="set-token-help" data-event="f.setToken">
           </div>
           <div class="ef-actions">

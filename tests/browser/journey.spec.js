@@ -117,7 +117,7 @@ test("AC-07 an illegal action is refused with its reason and Aegis fault code", 
   await expect(stateOf(page, "Mail queue worker")).toHaveText("Proposed");
 });
 
-test("AC-08 [R9.6][R9.7] reload preserves the full investigation state; the deep link opens it", async ({ page }) => {
+test("AC-08 [R10.7] reload preserves the full investigation state at the same deep link", async ({ page }) => {
   await supportedAndFalsified(page);
   await proposeCause(page);
   const url = page.url();
@@ -212,4 +212,15 @@ test("[R15.2][R15.5] AI-suggested hypothesis is recorded as the AI's and accepte
   await expect(hypothesis(page, "The indexer job stopped")).toBeVisible();
   await expect(proposal).toContainText("Accepted");
   await expect(page.getByTestId("history-item").filter({ hasText: "AI suggestion recorded" })).toContainText("AI suggestion");
+});
+
+test("[R9.6] a deep link pasted into a new tab of the same browser opens the same investigation", async ({ page, context }) => {
+  await supportedAndFalsified(page);
+  const url = page.url();
+  const other = await context.newPage();
+  await other.goto(url);
+  await expect(other.locator("html")).toHaveAttribute("data-kernel", "running");
+  await expect(other.getByRole("heading", { level: 1, name: "Checkout 502 errors" })).toBeVisible();
+  await expect(stateOf(other, "DNS misconfiguration")).toHaveText("Ruled out");
+  await other.close();
 });
