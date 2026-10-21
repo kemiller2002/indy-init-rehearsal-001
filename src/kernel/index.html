@@ -273,6 +273,7 @@
                   <p><span class="ef-status-lozenge" data-bind-data-state="tone" data-text="state" data-testid="hypothesis-state"></span></p>
                   <template data-if="hasMechanism"><p>Mechanism: <span data-text="mechanism"></span></p></template>
                   <p class="muted">Supported by: <span data-text="supportedBy"></span> · Contradicted by: <span data-text="contradictedBy"></span></p>
+                  <p class="posture" data-testid="posture"><strong>Why this standing:</strong> <span data-text="posture"></span></p>
                   <p class="muted" data-text="lastChange"></p>
                   <div class="ef-cluster actions" role="group" aria-label="Allowed actions">
                     <button type="button" data-event="hyp.MarkPlausible" data-bind-hidden="hideMarkPlausible">Mark plausible</button>
@@ -294,7 +295,17 @@
           </section>
 
           <section class="ws-panel" aria-labelledby="ai-title">
-            <h2 id="ai-title">AI suggestions</h2>
+            <h2 id="ai-title">AI suggestions and challenges</h2>
+            <div class="challenge" data-testid="challenge">
+              <h3>Challenge the leading explanation</h3>
+              <p class="muted">A rule-based helper, not AI: it applies fixed rules to the recorded state and can only suggest. You decide.</p>
+              <p data-testid="challenge-status" data-text="challengeStatus"></p>
+              <button type="button" data-event="challenge" data-bind-hidden="challengeHidden">Challenge the leading explanation</button>
+              <h4>Questions to answer before concluding</h4>
+              <ul class="plain-list">
+                <template data-each="challengeQuestions" data-key="id"><li data-testid="challenge-question" data-text="text"></li></template>
+              </ul>
+            </div>
             <p class="muted">There is no live AI model here. Paste a suggestion an assistant gave you; it is recorded as the AI's, and only you can accept it.</p>
             <form data-event="ai.add" class="form">
               <div class="ef-field">
@@ -314,12 +325,12 @@
             <ul class="card-list">
               <template data-each="proposals" data-key="id">
                 <li class="ef-card" data-testid="proposal">
-                  <p><span class="ef-badge">AI suggestion</span> <strong data-text="text"></strong></p>
+                  <p><span class="ef-badge" data-text="by"></span> <strong data-text="text"></strong></p>
                   <p class="muted" data-text="rationale"></p>
                   <p><span data-text="state"></span> <span data-text="decision"></span></p>
                   <template data-if="isActive">
                     <div class="ef-cluster" role="group" aria-label="Your decision">
-                      <button type="button" data-event="ai.accept">Accept as hypothesis</button>
+                      <button type="button" data-event="ai.accept" data-text="acceptLabel">Accept</button>
                       <button type="button" data-event="ai.reject">Reject</button>
                     </div>
                   </template>
@@ -551,9 +562,21 @@
                 <label class="ef-field__label" for="pred-statement">…we expect to see</label>
                 <input id="pred-statement" type="text" data-event="f.predStatement" data-bind-value="draft_predStatement">
               </div>
+              <div class="ef-select-field">
+                <label class="ef-field__label" for="pred-strength">How strongly it tests the hypothesis</label>
+                <span class="ef-select">
+                  <select class="ef-select__input" id="pred-strength" data-event="f.predStrength" data-bind-value="draft_predStrength">
+                    <option value="DiscriminatingPrediction">Tells hypotheses apart (preferred)</option>
+                    <option value="Expected">Expected</option>
+                    <option value="Necessary">Must happen</option>
+                    <option value="NonDiscriminating">Does not tell apart</option>
+                  </select>
+                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                </span>
+              </div>
               <div class="ef-actions"><button type="submit">Add prediction</button></div>
             </form>
-            <ul class="plain-list"><template data-each="predictions" data-key="id"><li data-text="text"></li></template></ul>
+            <ul class="plain-list"><template data-each="predictions" data-key="id"><li data-testid="prediction" data-bind-data-preferred="isDiscriminating"><template data-if="isDiscriminating"><span class="ef-badge" data-ef-status="success">Preferred: tells hypotheses apart</span></template> <span data-text="text"></span></li></template></ul>
 
             <form data-event="act.add" class="form">
               <div class="ef-select-field">

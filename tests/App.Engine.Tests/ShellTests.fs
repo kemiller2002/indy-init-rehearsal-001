@@ -47,7 +47,9 @@ let mutable private tick = 0
 /// One message through `handle`, with deterministic entropy and clock.
 let private send (st: AppState) (message: string) : AppState * JsonDocument =
     tick <- tick + 1
-    let stamped = withContext (Guid("6f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f")) (DateTimeOffset(2026, 10, 21, 12, 0, 0, TimeSpan.Zero).AddMinutes(float tick)) st
+    // Deterministic but distinct entropy per message, as the WASM boundary supplies.
+    let entropy = Guid("6f1c2d3e-4b5a-4c6d-8e7f-" + tick.ToString("x12"))
+    let stamped = withContext entropy (DateTimeOffset(2026, 10, 21, 12, 0, 0, TimeSpan.Zero).AddMinutes(float tick)) st
     let next, json = handle stamped message
     next, JsonDocument.Parse json
 
@@ -432,3 +434,91 @@ let ``[R14.2] [R14.3] [R16.5] the factory view loads factory.json by an Http eff
 let ``an unreadable factory record is explained, never shown as empty success`` () =
     Assert.True(Result.isError (decodeFactory "{}"))
     Assert.True(Result.isError (decodeFactory "nope"))
+
+// ---------------------------------------------------------------------------
+// Round 2: challenge helper and evidence-linked posture
+// ---------------------------------------------------------------------------
+
+/// Two hypotheses, one evidence item, H1 supported via the kernel.
+let private supportedWithAlternative () =
+    let st, _ = boot "#/"
+    let st, _ = start st
+    let st, _ = send st (event "f.hypStatement" None (Some "Expired certificate"))
+    let st, _ = send st (event "hyp.add" None None)
+    let st, _ = send st (event "f.hypStatement" None (Some "DNS misconfiguration"))
+    let st, doc = send st (event "hyp.add" None None)
+    let hyps = [ for h in (view doc).GetProperty("hypotheses").EnumerateArray() -> h.GetProperty("statement").GetString(), h.GetProperty("id").GetString() ] |> Map.ofList
+    let st, _ = send st (event "f.evContent" None (Some "openssl shows expiry at 01:58"))
+    let st, _ = send st (event "f.evSource" None (Some "openssl"))
+    let st, doc = send st (event "ev.add" None None)
+    let eid = (first ((view doc).GetProperty("evidence"))).GetProperty("id").GetString()
+    let st, _ = send st (event "f.relEvidence" None (Some eid))
+    let st, _ = send st (event "f.relHypothesis" None (Some hyps["Expired certificate"]))
+    let st, _ = send st (event "f.relKind" None (Some "Supports"))
+    let st, _ = send st (event "rel.add" None None)
+    let st, _ = send st (event "f.hypReason" None (Some "fits"))
+    let st, _ = send st (event "hyp.MarkPlausible" (Some hyps["Expired certificate"]) None)
+    let st, _ = send st (event "f.hypReason" None (Some "expiry matches"))
+    let st, _ = send st (event "f.hypEvidence" None (Some eid))
+    let st, doc = send st (event "hyp.MarkSupported" (Some hyps["Expired certificate"]) None)
+    st, doc, hyps, eid
+
+[<Fact>]
+let ``[R15.3] [R4.3] the rule-based challenge records an agent proposal for a falsifying check, once`` () =
+    let st, doc, _, _ = supportedWithAlternative ()
+    Assert.True((view doc).GetProperty("challengeAvailable").GetBoolean())
+    let st, doc = send st (event "challenge" None None)
+    let p = first ((view doc).GetProperty("proposals"))
+    Assert.StartsWith("What result would falsify \"Expired certificate\"?", p.GetProperty("text").GetString())
+    Assert.Equal("Rule-based helper (not AI)", p.GetProperty("by").GetString())
+    Assert.Equal("Accept as planned check", p.GetProperty("acceptLabel").GetString())
+    Assert.False((view doc).GetProperty("challengeAvailable").GetBoolean())
+    let iid = (currentId st).Value
+    let proposal = (investigationOf st iid).Value.Proposals |> Map.toList |> List.map snd |> List.exactlyOne
+    Assert.Equal(ProposedAction, proposal.Kind)
+    match proposal.Provenance.Actor.Kind with
+    | Agent _ -> ()
+    | _ -> failwith "the challenge must be recorded as an agent proposal"
+    // Accepting is the human's decision and yields a planned check through the kernel.
+    let pid = p.GetProperty("id").GetString()
+    let _, doc = send st (event "ai.accept" (Some pid) None)
+    Assert.Equal(1, (view doc).GetProperty("actions").GetArrayLength())
+
+[<Fact>]
+let ``[R15.1] blocked cause confirmation asks one question per policy blocker`` () =
+    let st, _, hyps, _ = supportedWithAlternative ()
+    let st, _ = send st (event "f.causeOutcome" None (Some "502s"))
+    let st, _ = send st (event "f.causeRoot" None (Some hyps["Expired certificate"]))
+    let st, doc = send st (event "cause.add" None None)
+    let iid = (currentId st).Value
+    let inv = (investigationOf st iid).Value
+    let cid = inv.Causes |> Map.toList |> List.exactlyOne |> fst
+    let blockers = Policy.causeBlockers inv cid
+    let questions = [ for q in (view doc).GetProperty("challengeQuestions").EnumerateArray() -> q.GetProperty("text").GetString() ]
+    Assert.Equal(blockers.Length, questions.Length)
+    Assert.Contains(questions, fun q -> q.StartsWith("What observation would rule the alternative in or out?"))
+    Assert.Contains(questions, fun q -> q.StartsWith("How, step by step, does the cause produce the problem?"))
+
+[<Fact>]
+let ``[R6.2] hypothesis posture is explained by linked evidence, never a number or percentage`` () =
+    let _, doc, _, _ = supportedWithAlternative ()
+    let postures = [ for h in (view doc).GetProperty("hypotheses").EnumerateArray() -> h.GetProperty("statement").GetString(), h.GetProperty("posture").GetString() ] |> Map.ofList
+    Assert.Equal("Supported by evidence because of 1 supporting (E1), no contradicting evidence, no telling-apart evidence, no inconclusive evidence.", postures["Expired certificate"])
+    for KeyValue(_, p) in postures do
+        Assert.DoesNotContain("%", p)
+        Assert.DoesNotContain("confidence", p.ToLowerInvariant())
+
+[<Fact>]
+let ``[R4.3] discriminating predictions are marked as preferred`` () =
+    let st, _, hyps, _ = supportedWithAlternative ()
+    let st, _ = send st (event "f.predHypothesis" None (Some hyps["Expired certificate"]))
+    let st, _ = send st (event "f.predStatement" None (Some "Renewing the certificate on one node stops its 502s only"))
+    let st, _ = send st (event "f.predStrength" None (Some "DiscriminatingPrediction"))
+    let st, doc = send st (event "pred.add" None None)
+    Assert.True((first ((view doc).GetProperty("predictions"))).GetProperty("isDiscriminating").GetBoolean())
+    let st, _ = send st (event "f.predHypothesis" None (Some hyps["DNS misconfiguration"]))
+    let st, _ = send st (event "f.predStatement" None (Some "Something fails"))
+    let st, _ = send st (event "f.predStrength" None (Some "Expected"))
+    let _, doc = send st (event "pred.add" None None)
+    let flags = [ for p in (view doc).GetProperty("predictions").EnumerateArray() -> p.GetProperty("isDiscriminating").GetBoolean() ]
+    Assert.Equal<bool list>([ true; false ], flags)

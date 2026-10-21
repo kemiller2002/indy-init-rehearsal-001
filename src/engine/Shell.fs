@@ -635,6 +635,7 @@ module Words =
     let actor (a: Actor) =
         match a.Kind with
         | Human -> "You"
+        | Agent(_, "deterministic-rules") -> "Rule-based helper (not AI)"
         | Agent _ -> "AI suggestion"
         | System -> "System"
 
@@ -799,6 +800,10 @@ let private human = Actor.human "local-user"
 
 /// AI proposals are entered by a person on the AI's behalf (no live model).
 let private assistant = Actor.agent "ai-assistant" "none" "manual-entry"
+
+/// The "Challenge the leading explanation" helper: fixed rules, no model.
+/// Like any agent it can only record proposals (D-004); a person decides.
+let private challenger = Actor.agent "challenge-helper" "none" "deterministic-rules"
 
 let investigationOf (st: AppState) (iid: InvestigationId) : Investigation option =
     st.Investigations |> Map.tryFind iid |> Option.bind Evolve.replay
@@ -1022,6 +1027,52 @@ let private refusalsOf (operation: string) (errors: DomainError list) : Refusal 
         { Code = e.Code; Message = e.Message; Rule = e.Rule; FaultCode = code; Operation = operation })
 
 /// Execute one command against an investigation; on success persist and sync.
+// ---------------------------------------------------------------------------
+// "Challenge the leading explanation": a deterministic, rule-based helper
+// (R15.1, R15.3, R4.3). It is not a language model. Its only output is an
+// agent proposal through Decide; a person accepts or rejects it.
+// ---------------------------------------------------------------------------
+
+[<RequireQualifiedAccess>]
+module Challenge =
+    let private standing (h: Hypothesis) =
+        match h.State with
+        | Proposed | Plausible | Weakened -> true
+        | Supported | Falsified | Superseded -> false
+
+    /// Rule: one or more hypotheses are Supported while alternatives still stand.
+    /// Returns the proposal text and rationale for the first leading hypothesis.
+    let suggestion (inv: Investigation) : (string * string) option =
+        let all = inv.Hypotheses |> Map.toList |> List.map snd |> List.sortBy (fun h -> h.Provenance.RecordedAt)
+        let alternatives = all |> List.filter standing
+        match all |> List.tryFind (fun h -> h.State = Supported), alternatives with
+        | Some leading, (_ :: _) ->
+            let others = Words.join "; " (alternatives |> List.map (fun h -> "\"" + Words.clip 60 h.Statement.Value + "\""))
+            Some(
+                "What result would falsify \"" + leading.Statement.Value + "\"? Plan a check whose outcome would differ if " + others + " were true instead.",
+                "Rule-based helper: a supported explanation with alternatives still standing should face a check that could prove it wrong (R15.3, R4.3)."
+            )
+        | _ -> None
+
+    /// The same suggestion is not offered twice while it awaits a decision.
+    let available (inv: Investigation) =
+        match suggestion inv with
+        | Some(text, _) -> not (inv.Proposals |> Map.exists (fun _ p -> p.State = ProposalActive && p.Text.Value = text))
+        | None -> false
+
+    /// R15.1: questions before conclusions, one per Policy cause blocker.
+    let question (e: DomainError) =
+        match e.Code with
+        | "CAUSE.NO_SUPPORTING_EVIDENCE" -> "Which evidence directly supports this member of the cause? (" + e.Message + ")"
+        | "CAUSE.MEMBER_NOT_SUPPORTED" -> "What evidence would move this hypothesis to supported — or rule it out? (" + e.Message + ")"
+        | "CAUSE.ALTERNATIVE_NOT_ADDRESSED" -> "What observation would rule the alternative in or out? (" + e.Message + ")"
+        | "CAUSE.OPEN_UNKNOWN" -> "Can this open question be answered before concluding? (" + e.Message + ")"
+        | "CAUSE.OPEN_CONTRADICTION" -> "What explains the conflicting evidence? (" + e.Message + ")"
+        | "CAUSE.UNVERIFIED_ASSUMPTION" -> "How can this assumption be checked? (" + e.Message + ")"
+        | "CAUSE.NO_MECHANISM" -> "How, step by step, does the cause produce the problem? (" + e.Message + ")"
+        | "CAUSE.NO_ROOT" -> "Which member is the root cause rather than a contributing factor? (" + e.Message + ")"
+        | _ -> "Before concluding: " + e.Message
+
 let private run (operation: string) (actor: Actor) (notice: string) (fields: string list) (command: Command) (iid: InvestigationId) (st: AppState) : AppState * Effect list =
     let state = investigationOf st iid
     let commandId, st = Ids.next st
@@ -1139,6 +1190,12 @@ let private onEvent (name: string) (key: string option) (value: string option) (
     | "ai.add" ->
         let pid, st = newId<ProposalTag> st
         inWorkspace st (run "RecordProposal" assistant "AI-suggested hypothesis recorded for your review." [ "aiText"; "aiRationale" ] (RecordProposal(pid, ProposedHypothesis, draft st "aiText", optDraft st "aiRationale")))
+    | "challenge" ->
+        match currentId st |> Option.bind (investigationOf st) |> Option.bind Challenge.suggestion with
+        | Some(text, rationale) ->
+            let pid, st = newId<ProposalTag> st
+            inWorkspace st (run "RecordProposal" challenger "Rule-based helper suggested a check that could falsify the leading explanation." [] (RecordProposal(pid, ProposedAction, text, Some rationale)))
+        | None -> incomplete st "RecordProposal" "CHALLENGE.NOT_APPLICABLE" "R15.3" "There is no supported explanation with alternatives still standing to challenge."
     | "ai.accept" ->
         match parseKey<ProposalTag> key with
         | Some pid ->
@@ -1528,6 +1585,27 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                 |> List.filter (fun (_, c, _) -> Transitions.hypothesis h.State c |> Option.isNone)
                 |> List.map (fun (_, c, label) -> label + " (only when " + legalFrom Transitions.hypothesis Words.allHypothesisStates Words.hypothesis c + ")")
             let last = h.History |> List.tryLast
+            // R6.2: posture is explained by linked evidence and open blockers, never a number or percentage.
+            let linked kind =
+                rels |> List.filter (fun r -> r.Hypothesis = h.Id && r.Kind = kind && (inv.Evidence |> Map.tryFind r.Evidence |> Option.exists (fun e -> e.SupersededBy.IsNone)))
+                |> List.map (fun r -> lbl l.Ev r.Evidence.Value)
+            let describeLinks (word: string) (labels: string list) =
+                match labels with
+                | [] -> "no " + word + " evidence"
+                | [ one ] -> "1 " + word + " (" + one + ")"
+                | many -> string many.Length + " " + word + " (" + Words.join ", " many + ")"
+            let causeBlockersHere =
+                if not real then []
+                else
+                    inv.Causes |> Map.toList |> List.map snd
+                    |> List.filter (fun c -> (c.State = CauseProposed || c.State = CauseReopened) && c.Members |> List.exists (fun m -> m.Hypothesis = h.Id))
+                    |> List.collect (fun c -> Policy.causeBlockers inv c.Id)
+            let posture =
+                Words.hypothesis h.State + " because of " + describeLinks "supporting" (linked Supports) + ", " + describeLinks "contradicting" (linked Contradicts)
+                + ", " + describeLinks "telling-apart" (linked Discriminates) + ", " + describeLinks "inconclusive" (linked Insufficient) + "."
+                + (match causeBlockersHere with
+                   | [] -> ""
+                   | blockers -> " Confirming it as a cause is blocked by: " + Words.join "; " (blockers |> List.map (fun e -> e.Message)))
             item (
                 [ "id", s (Id.text h.Id)
                   "href", s (ScreenRoute.format (EntityScreen(iid, HypothesisEntity, h.Id.Value)))
@@ -1539,6 +1617,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "state", s (Words.hypothesis h.State)
                   "tone", s (Words.hypothesisTone h.State)
                   "isRuledOut", b (h.State = Falsified)
+                  "posture", s posture
                   "supportedBy", s (if supporting.IsEmpty then "none" else Words.join ", " supporting)
                   "contradictedBy", s (if contradicting.IsEmpty then "none" else Words.join ", " contradicting)
                   "lastChange",
@@ -1661,7 +1740,12 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
         |> Map.toList
         |> List.map snd
         |> List.sortBy (fun p -> p.Provenance.RecordedAt)
-        |> List.map (fun p -> item [ "id", s (Id.text p.Id); "text", s (hypName p.Hypothesis + " predicts: " + p.Statement.Value + " (" + Words.strength p.Strength + ")") ])
+        |> List.map (fun p ->
+            item
+                [ "id", s (Id.text p.Id)
+                  "text", s (hypName p.Hypothesis + " predicts: " + p.Statement.Value + " (" + Words.strength p.Strength + ")")
+                  // R4.3: checks that tell hypotheses apart are preferred.
+                  "isDiscriminating", b (p.Strength = DiscriminatingPrediction) ])
     let negativeItems =
         inv.NegativeKnowledge
         |> Map.toList
@@ -1758,7 +1842,15 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "rationale", s (p.Rationale |> Option.map (fun x -> x.Value) |> Option.defaultValue "")
                   "state", s (Words.proposal p.State)
                   "decision", s (p.Decision |> Option.map (fun x -> x.Value) |> Option.defaultValue "")
-                  "isActive", b (p.State = ProposalActive && isOpen) ])
+                  "isActive", b (p.State = ProposalActive && isOpen)
+                  "by", s (Words.actor p.Provenance.Actor)
+                  "acceptLabel",
+                  s (
+                      match p.Kind with
+                      | ProposedHypothesis -> "Accept as hypothesis"
+                      | ProposedAction -> "Accept as planned check"
+                      | ProposedUnknown -> "Accept as open question"
+                  ) ])
     let historyItems =
         events
         |> List.rev
@@ -1842,6 +1934,20 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
       "hasProposals", b (not proposalItems.IsEmpty)
       "history", JArr historyItems
       "resolutionBlockers", JArr resolutionItems
+      "challengeAvailable", b (real && isOpen && Challenge.available inv)
+      "challengeHidden", b (not (real && isOpen && Challenge.available inv))
+      "challengeStatus",
+      s (
+          match Challenge.suggestion inv with
+          | Some _ when Challenge.available inv -> "A supported explanation still has alternatives standing: ask what would prove it wrong."
+          | Some _ -> "The suggested falsifying check is waiting for your decision below."
+          | None -> "Nothing to challenge yet: it applies once one explanation is supported while others still stand."
+      )
+      "challengeQuestions",
+      JArr(
+          causeBlockers
+          |> List.collect (fun (c, blockers) -> blockers |> List.mapi (fun i e -> item [ "id", s (Id.text c.Id + "-q" + string i); "text", s (Challenge.question e) ]))
+      )
       "outstanding", JArr outstanding
       "hasOutstanding", b (not outstanding.IsEmpty)
       "noOutstanding", b outstanding.IsEmpty
