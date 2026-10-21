@@ -166,8 +166,8 @@ test("AC-11 resolve is blocked until the correction has verification evidence; A
 
   // Blocked: implemented is not verified (R7.4), and there is no conclusion.
   await expect(page.getByTestId("resolve-blocker").filter({ hasText: "RESOLVE.CORRECTION_NOT_VERIFIED" })).toBeVisible();
-  await page.getByRole("button", { name: "Resolve investigation" }).click();
-  await expect(refusal(page).filter({ hasText: "RESOLVE.CORRECTION_NOT_VERIFIED" })).toBeVisible();
+  // The kernel would refuse it, so Resolve is not offered; the reasons are listed instead.
+  await expect(page.getByRole("button", { name: "Resolve investigation" })).toBeHidden();
 
   // AC-10 interim report names the unresolved work.
   await page.getByRole("link", { name: "Open report" }).click();

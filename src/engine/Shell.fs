@@ -878,6 +878,7 @@ let draftFields =
       "hypStatement"; "hypMechanism"; "hypReason"; "hypEvidence"
       "aiText"; "aiRationale"; "aiReason"
       "evKind"; "evContent"; "evCategory"; "evSource"; "evCaptured"
+      "supOld"; "supNew"; "supReason"
       "relEvidence"; "relHypothesis"; "relKind"; "relRationale"
       "unkQuestion"; "unkMateriality"; "unkBasis"
       "conStatement"; "conEvidence"; "conMateriality"; "conBasis"
@@ -1294,6 +1295,11 @@ let private onEvent (name: string) (key: string option) (value: string option) (
         let content = if draft st "evKind" = "url" then UrlInput((draft st "evContent").Trim()) else TextInput(draft st "evContent")
         let category = choice Words.categories DirectObservation (draft st "evCategory")
         inWorkspace st (run "AdmitEvidence" human "Evidence added." [ "evKind"; "evContent"; "evCategory"; "evSource"; "evCaptured" ] (AdmitEvidence(eid, content, category, draft st "evSource", dateDraft st "evCaptured")))
+    | "ev.supersede" ->
+        match guidDraft st "supOld", guidDraft st "supNew" with
+        | Some o, Some r ->
+            inWorkspace st (run "SupersedeEvidence" human "Evidence replaced; the earlier item stays in the record." [ "supOld"; "supNew"; "supReason" ] (SupersedeEvidence(Id.create o, Id.create r, draft st "supReason")))
+        | _ -> incomplete st "SupersedeEvidence" "FORM.INCOMPLETE" "form" "Choose the evidence to replace and the evidence that replaces it."
     | "rel.add" ->
         match guidDraft st "relEvidence", guidDraft st "relHypothesis" with
         | Some e, Some h ->
@@ -1799,6 +1805,11 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
         rels
         |> List.filter (fun r -> r.Kind = Contradicts)
         |> List.map (fun r -> item [ "id", s (Id.text r.Id); "text", s ("Evidence " + evName r.Evidence + " contradicts hypothesis " + hypName r.Hypothesis) ])
+    // m2: a button that needs no typed input is shown only when the kernel would
+    // accept that exact command now (decide without emitting anything).
+    let accepts (command: Command) =
+        real
+        && (Decide.probe inv (Actor.human "local-user") st.Now command |> Result.isOk)
     let transitionFlags (table: (string * 'C * string) list) (legal: 'C -> bool) =
         table |> List.map (fun (name, c, _) -> "hide" + name, b (not isOpen || not (legal c)))
     let unknownItems =
@@ -1841,7 +1852,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "purpose", s a.Purpose.Value
                   "targets", s (if a.Targets.IsEmpty then "no hypothesis" else Words.join ", " (a.Targets |> List.map hypName))
                   "state", s (Words.action a.State) ]
-                @ transitionFlags Words.actionCommands (fun c -> Transitions.action a.State c |> Option.isSome)
+                @ transitionFlags Words.actionCommands (fun c -> accepts (TransitionAction(a.Id, c)))
             ))
     let findingItems =
         inv.Findings
@@ -1923,18 +1934,34 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "description", s c.Description.Value
                   "targets", s (Words.join ", " (c.Targets |> List.map (fun t -> lbl l.Cause t.Value)))
                   "state", s (Words.correction c.State) ]
-                @ transitionFlags Words.correctionCommands (fun cmd -> Transitions.correction c.State cmd |> Option.isSome)
+                @ transitionFlags Words.correctionCommands (fun cmd -> accepts (TransitionCorrection(c.Id, cmd)))
             ))
+    // VERIFICATION.EVIDENCE_PREDATES_ROUND: only evidence admitted after verification of the
+    // chosen fix started (and still active) can verify it (Policy.freshEvidence).
+    let roundsInPlay =
+        match Guid.TryParse(draft st "verCriterion") with
+        | true, g -> inv.Criteria |> Map.tryFind (Id.create g) |> Option.map (fun c -> [ Policy.verificationRound inv c.CorrectiveAction ]) |> Option.defaultValue []
+        | _ ->
+            corrections
+            |> List.filter (fun c -> c.State = AwaitingVerificationOfEffect)
+            |> List.map (fun c -> Policy.verificationRound inv c.Id)
+    let verificationEvidence = evidence |> List.filter (fun e -> roundsInPlay |> List.exists (fun r -> Policy.freshEvidence inv r e.Id))
+    let verificationEvidenceNote =
+        match evidence.Length - verificationEvidence.Length with
+        | 0 -> ""
+        | excluded ->
+            string excluded + " earlier or replaced evidence item(s) are not offered: verification needs evidence added after verification of the fix started."
     let criterionItems =
         criteria
         |> List.map (fun c ->
             let verifications = inv.Verifications |> Map.toList |> List.map snd |> List.filter (fun v -> v.Criterion = c.Id)
-            let met = verifications |> List.exists (fun v -> v.Outcome = Satisfied && not v.Evidence.IsEmpty)
+            let met = Policy.criterionSatisfied inv c
             item
                 [ "id", s (Id.text c.Id)
                   "label", s (lbl l.Crit c.Id.Value)
                   "expected", s c.ExpectedOutcome.Value
                   "correction", s (lbl l.Corr c.CorrectiveAction.Value)
+                  "isMet", b met
                   "status", s (if met then "Met, with evidence" elif verifications.IsEmpty then "Not yet verified" else "Not met yet") ])
     let verificationItems =
         inv.Verifications
@@ -2002,7 +2029,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
             |> List.map (fun c -> "Contradiction", "Explain or accept: \"" + c.Statement.Value + "\" (" + Words.materiality c.Materiality + ")", "CONTRADICTION.OPEN")
         let criterionWork =
             criteria
-            |> List.filter (fun c -> not (inv.Verifications |> Map.exists (fun _ v -> v.Criterion = c.Id && v.Outcome = Satisfied && not v.Evidence.IsEmpty)))
+            |> List.filter (fun c -> not (Policy.criterionSatisfied inv c))
             |> List.map (fun c -> "Verification", "Verify with evidence: " + lbl l.Crit c.Id.Value + " \"" + c.ExpectedOutcome.Value + "\"", "CRITERION.UNVERIFIED")
         let causeWork =
             causeBlockers |> List.collect (fun (c, blockers) -> fromPolicy ("Cause " + lbl l.Cause c.Id.Value) blockers)
@@ -2012,7 +2039,12 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
         |> List.mapi (fun i (source, message, code) -> item [ "id", s (string i); "source", s source; "message", s message; "code", s code ])
     let resolutionItems = resolution |> List.mapi (fun i e -> item [ "id", s (string i); "code", s e.Code; "message", s e.Message; "rule", s e.Rule ])
     let lifecycleFlags =
-        LifecycleCommands.all |> List.map (fun (name, c, _) -> "lifeHide_" + name, b (not (LifecycleCommands.legal inv.Lifecycle c)))
+        LifecycleCommands.all
+        |> List.map (fun (name, c, _) ->
+            match c with
+            // Reopening needs a typed basis: structural table plus the refusal explanation.
+            | ReopenInvestigation _ -> "lifeHide_" + name, b (not (LifecycleCommands.legal inv.Lifecycle c))
+            | _ -> "lifeHide_" + name, b (not (accepts c)))
     [ "wsId", s (Id.text iid)
       "wsTitle", s inv.Title.Value
       "wsObservation", s (observation |> Option.map (fun o -> o.Original.Value) |> Option.defaultValue "")
@@ -2036,6 +2068,8 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
       "evidence", JArr evidenceItems
       "hasEvidence", b (not evidenceItems.IsEmpty)
       "evidenceOptions", JArr(evidence |> List.map (fun e -> option (Id.text e.Id) (evName e.Id)))
+      "verEvidenceOptions", JArr(verificationEvidence |> List.map (fun e -> option (Id.text e.Id) (evName e.Id)))
+      "verEvidenceNote", s verificationEvidenceNote
       "relationships", JArr relationshipItems
       "contradictingLinks", JArr contradictingLinks
       "hasContradictingLinks", b (not contradictingLinks.IsEmpty)
