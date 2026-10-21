@@ -1,0 +1,8 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  App.Engine -> /home/user/indy-init-rehearsal-001/src/engine/bin/Release/net10.0/IndyInitRootCauseInvestigator.Engine.dll
+  App.Engine.Tests -> /home/user/indy-init-rehearsal-001/tests/App.Engine.Tests/bin/Release/net10.0/App.Engine.Tests.dll
+Test run for /home/user/indy-init-rehearsal-001/tests/App.Engine.Tests/bin/Release/net10.0/App.Engine.Tests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+
+Passed!  - Failed:     0, Passed:   137, Skipped:     0, Total:   137, Duration: 1 s - App.Engine.Tests.dll (net10.0)

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "praxis.validation-result/1",
+  "workItemId": "SLICE-SEMANTIC-KERNEL",
+  "claimant": "anthropic/claude-code",
+  "claimToken": "rc-kernel",
+  "generation": 1,
+  "validation": "engine-tests",
+  "evidenceId": "EV-ENGINE-TESTS",
+  "revision": "0b000871daea671d3cb7ee3877b7615381827f72",
+  "observedAt": "2026-10-21T18:42:17.254Z",
+  "startedAt": "2026-10-21T18:42:11.039Z",
+  "status": "passed",
+  "exitCode": 0,
+  "command": [
+    "dotnet",
+    "test",
+    "App.slnx",
+    "-c",
+    "Release"
+  ],
+  "outputSha256": "sha256:1acc17502a721d7b082801e31111003c7b23c3816548434f77de8cf5123116e7"
+}

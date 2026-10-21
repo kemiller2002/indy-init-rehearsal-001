@@ -1013,6 +1013,98 @@ let ``[A36][D-005] a resolved investigation refuses content changes and reopens 
     closed |> attempt (RecordHypothesis(hyp 9, "H9", None)) |> refused "INVESTIGATION.NOT_OPEN"
     Assert.Equal(Active, (closed |> attempt (ReopenInvestigation basis) |> stateAfter).Lifecycle)
 
+// ---------------------------------------------------------------------------
+// Regression tests for the RC1 adversarial review (run/adversarial-review-rc1.md).
+// ---------------------------------------------------------------------------
+
+[<Fact>]
+let ``[R6.1][I-19][I-20] C1 resolution re-checks a confirmed cause: falsifying its root cause blocks resolution`` () =
+    resolvable
+    |> script [ admit 70 "New trace contradicts the serializer theory"
+                TransitionHypothesis(hyp 1, Falsify, "trace shows the field present", [ ev 70 ]) ]
+    |> attempt ResolveInvestigation
+    |> refused "RESOLVE.CAUSE_NO_LONGER_HOLDS"
+
+[<Fact>]
+let ``[R6.1][A7] C1 a material contradiction opened after confirmation blocks resolution`` () =
+    resolvable
+    |> script [ admit 71 "Error persists on canary"; RecordContradiction(con 1, "Canary still fails", [ ev 71 ], Material) ]
+    |> attempt ResolveInvestigation
+    |> refused "RESOLVE.CAUSE_NO_LONGER_HOLDS"
+
+[<Fact>]
+let ``[R4.2][A11] M1 a prediction recorded after a relevant finding is stored as retrospective`` () =
+    let inv =
+        opened
+        |> script [ RecordHypothesis(hyp 1, "Cache stampede", None)
+                    RecordAction(act 1, Test, "Disable the cache", [ hyp 1 ])
+                    TransitionAction(act 1, ApproveAction)
+                    TransitionAction(act 1, StartAction)
+                    RecordFinding(fnd 1, act 1, "Errors stopped", None) ]
+        |> attempt (RecordPrediction(pred 1, hyp 1, "Errors stop when the cache is off", DiscriminatingPrediction, Prospective))
+        |> stateAfter
+    Assert.Equal(Retrospective, inv.Predictions[pred 1].Timing)
+
+[<Fact>]
+let ``[R4.2] M1 a prediction before any finding keeps its prospective timing`` () =
+    let inv =
+        opened
+        |> script [ RecordHypothesis(hyp 1, "Cache stampede", None) ]
+        |> attempt (RecordPrediction(pred 1, hyp 1, "Errors stop when the cache is off", DiscriminatingPrediction, Prospective))
+        |> stateAfter
+    Assert.Equal(Prospective, inv.Predictions[pred 1].Timing)
+
+[<Fact>]
+let ``[R7.4] M2 a verification citing superseded evidence does not make a correction effective`` () =
+    let inv =
+        confirmed
+        |> script (implementedCorrection Correction
+                   @ [ TransitionCorrection(corr 1, StartVerificationOfEffect)
+                       admit 60 "Error rate 0.01% (wrong time window)"
+                       admit 61 "Corrected export"
+                       SupersedeEvidence(ev 60, ev 61, "wrong time window") ])
+        |> attempt (RecordVerification(ver 1, crit 1, Satisfied, [ ev 60 ]))
+        |> stateAfter
+    Assert.Equal(AwaitingVerificationOfEffect, inv.CorrectiveActions[corr 1].State)
+
+[<Fact>]
+let ``[R7.4][A21] M2 satisfied verifications from before rework do not count in the next round`` () =
+    let inv =
+        confirmed
+        |> script (implementedCorrection Correction
+                   @ [ RecordCriterion(crit 2, corr 1, "Latency p95 below 300 ms", None)
+                       TransitionCorrection(corr 1, StartVerificationOfEffect)
+                       admit 60 "Error rate fine"; admit 61 "Latency 900 ms"
+                       RecordVerification(ver 1, crit 1, Satisfied, [ ev 60 ])
+                       RecordVerification(ver 2, crit 2, Failed, [ ev 61 ])
+                       TransitionCorrection(corr 1, RequireRework)
+                       TransitionCorrection(corr 1, StartCorrection)
+                       TransitionCorrection(corr 1, MarkImplemented)
+                       TransitionCorrection(corr 1, StartVerificationOfEffect)
+                       admit 62 "Latency 210 ms" ])
+        |> attempt (RecordVerification(ver 3, crit 2, Satisfied, [ ev 62 ]))
+        |> stateAfter
+    Assert.Equal(AwaitingVerificationOfEffect, inv.CorrectiveActions[corr 1].State)
+    Assert.False(Policy.allCriteriaSatisfied inv (corr 1))
+
+[<Fact>]
+let ``[R4.4] m1 a finding on an approved action passes through InProgress`` () =
+    let events, _ =
+        opened
+        |> script [ RecordHypothesis(hyp 1, "h", None); RecordAction(act 1, Test, "probe", [ hyp 1 ]); TransitionAction(act 1, ApproveAction) ]
+        |> attempt (RecordFinding(fnd 1, act 1, "result", None))
+        |> accepted
+    let states = events |> List.choose (fun e -> match e.Body with ActionTransitioned(_, s) -> Some s | _ -> None)
+    Assert.Equal<ActionState list>([ ActionInProgress; ActionCompleted ], states)
+
+[<Fact>]
+let ``[I-19][I-20] m4 validateHistory rejects a forged history that confirms a cause without the gate`` () =
+    let genuine = opened |> script [ RecordHypothesis(hyp 1, "h", Some "m"); RecordCausalAssertion(cause 1, "o", [ memberOf RootCause 1 ], Some "m") ]
+    let last = List.last genuine
+    let forged = genuine @ [ { last with Sequence = last.Sequence + 1L; Body = CausalAssertionConfirmed(cause 1, "forged") } ]
+    Assert.Empty(Evolve.validateHistory resolvable)
+    Assert.Contains("HISTORY.UNGATED_CONFIRMATION", Evolve.validateHistory forged |> List.map (fun e -> e.Code))
+
 module AgentAuthorityBoundary =
     open System
     open IndyInitRootCauseInvestigator.Engine

@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The import map is the only inline script; the build pins it by hash. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' '__IMPORTMAP_HASH__'; connect-src 'self' https://api.github.com; img-src 'self' data:; style-src 'self'; base-uri 'none'; form-action 'none'">
   <meta name="description" content="Root-Cause Investigator: keep observations, hypotheses and evidence straight until the cause is proven.">
   <title data-text="pageTitle">Root-Cause Investigator</title>
   <link rel="stylesheet" href="./vendor/forma/all.css">
@@ -26,6 +28,7 @@
         <ul class="app-nav">
           <li><a href="#/">Investigations</a></li>
           <li><a href="#/settings">GitHub settings</a></li>
+          <li><a href="#/factory">How this app was built</a></li>
         </ul>
       </nav>
       <p class="app-connection" data-text="connection" data-bind-data-offline="isOffline">Online</p>
@@ -82,11 +85,22 @@
               <label class="ef-field__label" for="start-title-field">Short title (optional)</label>
               <input id="start-title-field" type="text" data-event="f.title" data-bind-value="draft_title">
             </div>
-            <div class="ef-actions"><button type="submit">Start investigation</button></div>
+            <div class="ef-actions"><button type="submit" data-bind-disabled="startDisabled">Start investigation</button></div>
           </form>
         </section>
         <section aria-labelledby="list-title" class="ef-section">
           <h2 id="list-title">Saved on this device</h2>
+          <template data-if="hasUnreadable">
+            <div class="ef-alert" data-tone="attention" data-testid="unreadable">
+              <div class="ef-alert__icon" aria-hidden="true">!</div>
+              <div>
+                <h3 class="ef-alert__title">Some saved investigations could not be read</h3>
+                <ul class="plain-list">
+                  <template data-each="unreadable" data-key="id"><li><strong data-text="title"></strong> — <span data-text="reason"></span></li></template>
+                </ul>
+              </div>
+            </div>
+          </template>
           <template data-if="noInvestigations">
             <p class="empty">No investigations yet. Start one above.</p>
           </template>
@@ -109,6 +123,7 @@
       <div class="screen screen--missing">
         <h1>Not found</h1>
         <p data-text="missingText"></p>
+        <template data-if="hasMissingBack"><p><a class="ef-button" data-bind-href="missingBackHref">Back to the investigation</a></p></template>
         <p><a class="ef-button" href="#/">Go to your investigations</a></p>
       </div>
     </template>
@@ -133,7 +148,7 @@
           </div>
           <div class="ef-field">
             <label class="ef-field__label" for="set-token">Access token</label>
-            <span class="ef-field__description" id="set-token-help">Stored only in this browser. Never shown, never put in links, reports or GitHub files. Leave empty to keep the saved token.</span>
+            <span class="ef-field__description" id="set-token-help">Kept in memory for this session only: never saved on this device, never shown, never put in links, reports or GitHub files. After a reload you will be asked for it again. Leave empty to keep the token entered earlier in this session.</span>
             <input id="set-token" type="password" autocomplete="off" aria-describedby="set-token-help" data-event="f.setToken">
           </div>
           <div class="ef-actions">
@@ -142,6 +157,44 @@
           </div>
         </form>
         <p><a href="#/">Back to investigations</a></p>
+      </div>
+    </template>
+
+    <!-- S20/S21: factory proof — the state of the factory when this site was built -->
+    <template data-if="isFactory">
+      <div class="screen screen--factory">
+        <h1>How this app was built</h1>
+        <div class="ef-alert" data-tone="attention">
+          <div class="ef-alert__icon" aria-hidden="true">i</div>
+          <div>
+            <h2 class="ef-alert__title">Factory state at build time</h2>
+            <p>This is a snapshot taken when the site was built, not a live view. It lists the requirements in scope, the slice of work each belongs to, and the state of each work item.</p>
+          </div>
+        </div>
+        <p data-testid="factory-status" data-text="factoryStatus" role="status"></p>
+        <template data-if="hasFactory">
+          <div class="factory">
+            <p>Experiment <strong data-text="factoryExperiment"></strong> · commit <code data-testid="factory-commit" data-text="factoryCommit"></code></p>
+            <p data-testid="factory-tests" data-text="factoryTests"></p>
+            <section class="ef-section" aria-labelledby="slices-title">
+              <h2 id="slices-title">Work items</h2>
+              <ul class="plain-list">
+                <template data-each="factoryWorkItems" data-key="id"><li data-testid="factory-work-item"><code data-text="id"></code> <span data-text="title"></span> — <strong data-text="status"></strong></li></template>
+              </ul>
+            </section>
+            <section class="ef-section" aria-labelledby="reqs-title">
+              <h2 id="reqs-title">Requirements in scope (<span data-text="factoryRequirementCount"></span>)</h2>
+              <div class="table-scroll">
+                <table class="factory-table">
+                  <thead><tr><th scope="col">Requirement</th><th scope="col">Title</th><th scope="col">Kind</th><th scope="col">Slice</th><th scope="col">Slice state</th></tr></thead>
+                  <tbody>
+                    <template data-each="factoryRequirements" data-key="id"><tr data-testid="factory-requirement"><td><code data-text="id"></code></td><td data-text="title"></td><td data-text="scope"></td><td data-text="slice"></td><td data-text="status"></td></tr></template>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </template>
       </div>
     </template>
 
@@ -155,6 +208,7 @@
             <span class="ef-status-lozenge" data-state="unknown" data-text="wsLifecycle"></span>
             <span>Version <span data-text="wsVersion"></span></span>
             <a data-bind-href="reportHref">Open report</a>
+            <button type="button" data-event="copy.workspace">Copy link to this investigation</button>
           </p>
           <div class="persistence" aria-label="Where this investigation is saved">
             <p class="persistence__local" data-testid="local-status" data-text="localStatus"></p>
@@ -164,11 +218,32 @@
           </div>
         </header>
 
+        <template data-if="hasFocus">
+          <section class="focus-panel ef-surface" aria-labelledby="focus-title" data-testid="focus">
+            <p class="ef-eyebrow" data-text="focusKind"></p>
+            <h2 id="focus-title"><span data-text="focusLabel"></span> <span data-text="focusText"></span></h2>
+            <p data-text="focusState"></p>
+            <p><a data-bind-href="workspaceHref">Show the whole investigation</a></p>
+          </section>
+        </template>
         <div class="ws-grid">
           <section class="ws-panel ws-panel--wide" aria-labelledby="obs-title">
             <h2 id="obs-title">What was observed</h2>
             <blockquote class="observation" data-testid="observation" data-text="wsObservation"></blockquote>
             <p class="muted" data-text="wsObservationBy"></p>
+          </section>
+
+          <section class="ws-panel ws-panel--wide" aria-labelledby="todo-title" data-testid="outstanding">
+            <h2 id="todo-title">Outstanding work</h2>
+            <p class="outstanding-summary" data-text="outstandingSummary"></p>
+            <ul class="ef-obligation-list" aria-label="Open obligations">
+              <template data-each="outstanding" data-key="id">
+                <li class="ef-obligation" data-ef-severity="warning" data-testid="outstanding-item">
+                  <span class="ef-obligation__status" data-text="source"></span>
+                  <div><strong data-text="message"></strong><p class="muted">Code <code data-text="code"></code></p></div>
+                </li>
+              </template>
+            </ul>
           </section>
 
           <section class="ws-panel ws-panel--wide" aria-labelledby="hyp-title">
@@ -206,11 +281,12 @@
             <template data-if="hasHypotheses"><p class="muted">The actions shown on each hypothesis are the ones allowed right now.</p></template>
             <ul class="card-list">
               <template data-each="hypotheses" data-key="id">
-                <li class="ef-card hypothesis" data-testid="hypothesis" data-bind-data-tone="tone">
+                <li class="ef-card hypothesis" data-testid="hypothesis" data-bind-data-tone="tone" data-bind-data-focused="isFocused">
                   <h3 class="ef-card__title"><span data-text="label"></span>: <span data-text="statement"></span></h3>
                   <p><span class="ef-status-lozenge" data-bind-data-state="tone" data-text="state" data-testid="hypothesis-state"></span></p>
                   <template data-if="hasMechanism"><p>Mechanism: <span data-text="mechanism"></span></p></template>
                   <p class="muted">Supported by: <span data-text="supportedBy"></span> · Contradicted by: <span data-text="contradictedBy"></span></p>
+                  <p class="posture" data-testid="posture"><strong>Why this standing:</strong> <span data-text="posture"></span></p>
                   <p class="muted" data-text="lastChange"></p>
                   <div class="ef-cluster actions" role="group" aria-label="Allowed actions">
                     <button type="button" data-event="hyp.MarkPlausible" data-bind-hidden="hideMarkPlausible">Mark plausible</button>
@@ -221,6 +297,7 @@
                     <button type="button" data-event="hyp.Reopen" data-bind-hidden="hideReopen">Reopen</button>
                   </div>
                   <p class="unavailable" data-text="unavailable"></p>
+                  <p class="item-links"><a data-bind-href="href">Link to this hypothesis</a> <button type="button" data-event="copy.h">Copy link</button></p>
                 </li>
               </template>
             </ul>
@@ -231,7 +308,17 @@
           </section>
 
           <section class="ws-panel" aria-labelledby="ai-title">
-            <h2 id="ai-title">AI suggestions</h2>
+            <h2 id="ai-title">AI suggestions and challenges</h2>
+            <div class="challenge" data-testid="challenge">
+              <h3>Challenge the leading explanation</h3>
+              <p class="muted">A rule-based helper, not AI: it applies fixed rules to the recorded state and can only suggest. You decide.</p>
+              <p data-testid="challenge-status" data-text="challengeStatus"></p>
+              <button type="button" data-event="challenge" data-bind-hidden="challengeHidden">Challenge the leading explanation</button>
+              <h4>Questions to answer before concluding</h4>
+              <ul class="plain-list">
+                <template data-each="challengeQuestions" data-key="id"><li data-testid="challenge-question" data-text="text"></li></template>
+              </ul>
+            </div>
             <p class="muted">There is no live AI model here. Paste a suggestion an assistant gave you; it is recorded as the AI's, and only you can accept it.</p>
             <form data-event="ai.add" class="form">
               <div class="ef-field">
@@ -251,12 +338,12 @@
             <ul class="card-list">
               <template data-each="proposals" data-key="id">
                 <li class="ef-card" data-testid="proposal">
-                  <p><span class="ef-badge">AI suggestion</span> <strong data-text="text"></strong></p>
+                  <p><span class="ef-badge" data-text="by"></span> <strong data-text="text"></strong></p>
                   <p class="muted" data-text="rationale"></p>
                   <p><span data-text="state"></span> <span data-text="decision"></span></p>
                   <template data-if="isActive">
                     <div class="ef-cluster" role="group" aria-label="Your decision">
-                      <button type="button" data-event="ai.accept">Accept as hypothesis</button>
+                      <button type="button" data-event="ai.accept" data-text="acceptLabel">Accept</button>
                       <button type="button" data-event="ai.reject">Reject</button>
                     </div>
                   </template>
@@ -309,13 +396,14 @@
             </form>
             <ul class="card-list">
               <template data-each="evidence" data-key="id">
-                <li class="ef-card" data-testid="evidence">
+                <li class="ef-card" data-testid="evidence" data-bind-data-focused="isFocused">
                   <p><strong data-text="label"></strong> · <span data-text="category"></span> · <span data-text="checked"></span></p>
                   <template data-if="isText"><p class="evidence-text" data-text="content"></p></template>
                   <template data-if="isUrl"><p><a data-bind-href="url" data-text="content" rel="noopener noreferrer" target="_blank"></a></p></template>
                   <p class="muted">Source: <span data-text="source"></span> · captured <span data-text="captured"></span></p>
                   <p class="muted" data-text="provenance"></p>
                   <p class="muted" data-text="superseded"></p>
+                  <p class="item-links"><a data-bind-href="href">Link to this evidence</a> <button type="button" data-event="copy.e">Copy link</button></p>
                 </li>
               </template>
             </ul>
@@ -487,9 +575,21 @@
                 <label class="ef-field__label" for="pred-statement">…we expect to see</label>
                 <input id="pred-statement" type="text" data-event="f.predStatement" data-bind-value="draft_predStatement">
               </div>
+              <div class="ef-select-field">
+                <label class="ef-field__label" for="pred-strength">How strongly it tests the hypothesis</label>
+                <span class="ef-select">
+                  <select class="ef-select__input" id="pred-strength" data-event="f.predStrength" data-bind-value="draft_predStrength">
+                    <option value="DiscriminatingPrediction">Tells hypotheses apart (preferred)</option>
+                    <option value="Expected">Expected</option>
+                    <option value="Necessary">Must happen</option>
+                    <option value="NonDiscriminating">Does not tell apart</option>
+                  </select>
+                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                </span>
+              </div>
               <div class="ef-actions"><button type="submit">Add prediction</button></div>
             </form>
-            <ul class="plain-list"><template data-each="predictions" data-key="id"><li data-text="text"></li></template></ul>
+            <ul class="plain-list"><template data-each="predictions" data-key="id"><li data-testid="prediction" data-bind-data-preferred="isDiscriminating"><template data-if="isDiscriminating"><span class="ef-badge" data-ef-status="success">Preferred: tells hypotheses apart</span></template> <span data-text="text"></span> <small class="muted" data-testid="prediction-timing" data-text="timing"></small></li></template></ul>
 
             <form data-event="act.add" class="form">
               <div class="ef-select-field">
@@ -838,7 +938,7 @@
     <!-- S22: report preview (Folio) -->
     <template data-if="isReport">
       <div class="screen screen--report">
-        <p class="no-print"><a data-bind-href="workspaceHref">Back to the investigation</a> · Use your browser's Print or Share → Print to save a PDF.</p>
+        <p class="no-print"><a data-bind-href="workspaceHref">Back to the investigation</a> · <button type="button" data-event="copy.report">Copy link to this report</button> · Use your browser's Print or Share → Print to save a PDF.</p>
         <ef-print-document class="report">
           <ef-print-title-page>
             <p class="ef-eyebrow" data-testid="report-kind" data-text="reportKind"></p>
@@ -853,6 +953,15 @@
               <h2>Unresolved work</h2>
               <ul>
                 <template data-each="reportUnresolved" data-key="id"><li><strong data-text="heading"></strong> <small data-text="detail"></small> <code data-text="status"></code></li></template>
+              </ul>
+            </ef-print-section>
+          </template>
+          <template data-if="reportIsInterim">
+            <ef-print-section class="report-outstanding" data-testid="report-outstanding">
+              <h2>Outstanding work</h2>
+              <p data-text="outstandingSummary"></p>
+              <ul>
+                <template data-each="outstanding" data-key="id"><li><strong data-text="source"></strong>: <span data-text="message"></span> <code data-text="code"></code></li></template>
               </ul>
             </ef-print-section>
           </template>

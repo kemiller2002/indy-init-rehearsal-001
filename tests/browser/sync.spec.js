@@ -96,3 +96,16 @@ test("[R10.6] without GitHub settings the workspace says it is local only", asyn
   await startInvestigation(page, "Report generation is slow.", "Slow reports");
   await expect(remote(page)).toHaveText("Local only — not synced to GitHub");
 });
+
+test("[R11.3] (GitHub API mocked) the token is not saved on the device; after a reload it must be entered again", async ({ page }) => {
+  await mockGitHub(page, { offline: false });
+  await configure(page);
+  const stored = await page.evaluate(() => Object.keys(localStorage).map((k) => localStorage.getItem(k) ?? "").join("\n"));
+  expect(stored).not.toContain(token);
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-kernel", "running");
+  await expect(page.getByText("No access token in this session")).toBeVisible();
+  await startInvestigation(page, "Queue depth grows overnight.", "Queue depth");
+  await expect(remote(page)).toContainText("enter your access token");
+  await expect(remote(page)).not.toContainText("Saved to GitHub");
+});

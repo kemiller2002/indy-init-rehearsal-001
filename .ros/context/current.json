@@ -4,7 +4,7 @@
   "repository": "indy-init-rehearsal-001",
   "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-10-21T17:38:34.255Z",
+  "updatedAt": "2026-10-21T18:21:45.314Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -159,6 +159,17 @@
       "updatedAt": "2026-10-21T17:38:34.255Z",
       "telemetryExecutionIds": [
         "EXE-20261021T173834828Z-ee9e650c"
+      ]
+    },
+    {
+      "id": "SLICE-POLICY-CAPABILITIES",
+      "type": "task",
+      "state": "active",
+      "semanticState": "active",
+      "evidence": [],
+      "updatedAt": "2026-10-21T18:21:45.314Z",
+      "telemetryExecutionIds": [
+        "EXE-20261021T182145885Z-ab98ad73"
       ]
     }
   ]

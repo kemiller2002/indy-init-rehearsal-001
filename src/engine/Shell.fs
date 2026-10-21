@@ -116,34 +116,82 @@ module JsonIn =
 type Screen =
     | HomeScreen
     | WorkspaceScreen of InvestigationId
+    /// One addressable thing inside an investigation (R9.6): #/i/{id}/{kind}/{entity}.
+    | EntityScreen of InvestigationId * EntityKind * Guid
     | ReportScreen of InvestigationId
     | SettingsScreen
+    | FactoryScreen
     | MissingScreen of path: string
+    /// A link carrying a reserved parameter (token, code, key, session, ...) is never opened (R9.9).
+    | RefusedLinkScreen of parameter: string
 
 [<RequireQualifiedAccess>]
 module ScreenRoute =
+    /// Path segment for each addressable entity kind.
+    let entitySegments =
+        [ "h", HypothesisEntity
+          "e", EvidenceEntity
+          "u", UnknownEntity
+          "x", ContradictionEntity
+          "t", ActionEntity
+          "c", CausalAssertionEntity
+          "a", CorrectiveActionEntity
+          "k", CriterionEntity
+          "p", ProposalEntity ]
+
+    /// Limen's reserved parameter names: never accepted in a link (R9.9).
+    let reservedParameters =
+        [ "token"; "code"; "key"; "session"; "access_token"; "id_token"; "refresh_token"; "password"; "secret"; "state"; "auth" ]
+
+    let private fragmentOf (location: string) =
+        if location.StartsWith("#", StringComparison.Ordinal) then location.Substring 1 else location
+
     let private pathOf (location: string) =
-        let fragment = if location.StartsWith("#", StringComparison.Ordinal) then location.Substring 1 else location
+        let fragment = fragmentOf location
         match fragment.IndexOf '?' with
         | -1 -> fragment
         | index -> fragment.Substring(0, index)
 
+    /// Parameter names in the hash query (values are never read).
+    let parameterNames (location: string) : string list =
+        let fragment = fragmentOf location
+        match fragment.IndexOf '?' with
+        | -1 -> []
+        | index ->
+            fragment.Substring(index + 1).Split('&', StringSplitOptions.RemoveEmptyEntries)
+            |> Array.map (fun pair -> (match pair.IndexOf '=' with -1 -> pair | i -> pair.Substring(0, i)).Trim().ToLowerInvariant())
+            |> List.ofArray
+
+    let private canonicalId<'Tag> (text: string) : Id<'Tag> option =
+        match Id.tryParse<'Tag> text with
+        | Some id when Id.text id = text -> Some id
+        | _ -> None
+
     /// Pure and total: a location hash to its screen. Unknown paths and
     /// malformed ids are a value (MissingScreen), never an exception.
     let parse (location: string) : Screen =
+        match parameterNames location |> List.tryFind (fun n -> List.contains n reservedParameters) with
+        | Some reserved -> RefusedLinkScreen reserved
+        | None ->
         let path = pathOf location
         let segments = path.Split('/', StringSplitOptions.RemoveEmptyEntries) |> List.ofArray
         let missing () = MissingScreen(if path.StartsWith("/", StringComparison.Ordinal) then path else "/" + path)
+        let exact (parts: string list) = path = "/" + String.Join("/", parts)
         match segments with
         | [] -> HomeScreen
-        | [ "settings" ] when path = "/settings" -> SettingsScreen
-        | [ "i"; id ] when path = "/i/" + id ->
-            match Id.tryParse<InvestigationTag> id with
-            | Some iid when Id.text iid = id -> WorkspaceScreen iid
-            | _ -> missing ()
-        | [ "i"; id; "report" ] when path = "/i/" + id + "/report" ->
-            match Id.tryParse<InvestigationTag> id with
-            | Some iid when Id.text iid = id -> ReportScreen iid
+        | [ "settings" ] when exact segments -> SettingsScreen
+        | [ "factory" ] when exact segments -> FactoryScreen
+        | [ "i"; id ] when exact segments ->
+            match canonicalId<InvestigationTag> id with
+            | Some iid -> WorkspaceScreen iid
+            | None -> missing ()
+        | [ "i"; id; "report" ] when exact segments ->
+            match canonicalId<InvestigationTag> id with
+            | Some iid -> ReportScreen iid
+            | None -> missing ()
+        | [ "i"; id; segment; entity ] when exact segments ->
+            match canonicalId<InvestigationTag> id, List.tryFind (fun (s, _) -> s = segment) entitySegments, canonicalId<InvestigationTag> entity with
+            | Some iid, Some(_, kind), Some eid -> EntityScreen(iid, kind, eid.Value)
             | _ -> missing ()
         | _ -> missing ()
 
@@ -152,9 +200,24 @@ module ScreenRoute =
         match screen with
         | HomeScreen -> "#/"
         | WorkspaceScreen iid -> "#/i/" + Id.text iid
+        | EntityScreen(iid, kind, eid) ->
+            let segment = entitySegments |> List.tryFind (fun (_, k) -> k = kind) |> Option.map fst |> Option.defaultValue "h"
+            "#/i/" + Id.text iid + "/" + segment + "/" + eid.ToString("D")
         | ReportScreen iid -> "#/i/" + Id.text iid + "/report"
         | SettingsScreen -> "#/settings"
+        | FactoryScreen -> "#/factory"
         | MissingScreen path -> "#" + path
+        | RefusedLinkScreen _ -> "#/"
+
+    /// The route table published as .echelon/routes.json (name, pattern, path params).
+    let table =
+        [ "home", "/", []
+          "workspace", "/i/{investigation}", [ "investigation" ]
+          "report", "/i/{investigation}/report", [ "investigation" ]
+          "entity", "/i/{investigation}/{kind}/{entity}", [ "investigation"; "kind"; "entity" ]
+          "settings", "/settings", []
+          "factory", "/factory", []
+          "notFound", "/{*rest}", [ "rest" ] ]
 
 // ---------------------------------------------------------------------------
 // Limen wire: inbound messages and outbound effects
@@ -188,12 +251,13 @@ type HttpOutcome =
     | HttpOutcomeUnknown of reason: string
 
 type Inbound =
-    | Initialize of hash: string * handshake: HandshakeOffer option
+    | Initialize of hash: string * baseUrl: string * handshake: HandshakeOffer option
     | UiEvent of name: string * key: string option * value: string option
     | StorageDone of correlation: string * Result<string option, string>
     | HttpDone of correlation: string * HttpOutcome
     | CapabilityDone of correlation: string * online: bool option
     | NavigationDone of correlation: string
+    | ClipboardDone of correlation: string * failure: string option
     | LocationChanged of hash: string
     | ConnectivityChanged of online: bool
     | Unrecognized of reason: string
@@ -205,6 +269,7 @@ type Effect =
     | HttpCall of correlation: string * httpMethod: string * url: string * headers: (string * string) list * body: string option
     | Navigate of correlation: string * url: string
     | SubscribeConnectivity of correlation: string
+    | ClipboardWrite of correlation: string * text: string
 
 type HandshakeReply =
     | NoHandshake
@@ -261,14 +326,21 @@ module Wire =
                 | Some "Completed" -> JsonIn.child "result" outcome |> JsonIn.child "state" |> JsonIn.child "online" |> JsonIn.bool
                 | _ -> None
             CapabilityDone(correlation, online)
-        | Some "ClipboardResult" -> Unrecognized "clipboard result"
+        | Some "ClipboardResult" ->
+            match JsonIn.child "kind" outcome |> JsonIn.str with
+            | Some "Success" -> ClipboardDone(correlation, None)
+            | _ -> ClipboardDone(correlation, Some(JsonIn.child "reason" outcome |> JsonIn.str |> Option.defaultValue "unknown"))
         | other -> Unrecognized("effect result " + Option.defaultValue "?" other)
 
     /// Tolerant decoding: anything outside what the shell understands is a value.
     let decode (json: string) : Inbound =
         let root = JsonIn.parse json
         match JsonIn.child "kind" root |> JsonIn.str with
-        | Some "Initialize" -> Initialize(hashOf (JsonIn.child "location" root), offerOf (JsonIn.child "handshake" root))
+        | Some "Initialize" ->
+            let location = JsonIn.child "location" root
+            let origin = JsonIn.child "origin" location |> JsonIn.str |> Option.defaultValue ""
+            let path = JsonIn.child "path" location |> JsonIn.str |> Option.defaultValue "/"
+            Initialize(hashOf location, origin + path, offerOf (JsonIn.child "handshake" root))
         | Some "Event" ->
             let e = JsonIn.child "event" root
             UiEvent(JsonIn.child "name" e |> JsonIn.str |> Option.defaultValue "", JsonIn.child "key" e |> JsonIn.str, JsonIn.child "value" e |> JsonIn.str)
@@ -320,6 +392,7 @@ module Wire =
                 @ (match body with Some b -> [ "body", JStr b ] | None -> [])
                 @ [ "timeoutMs", JNum 20000L; "response", JStr "text" ]
             )
+        | ClipboardWrite(c, text) -> JObj [ "kind", JStr "Clipboard"; "correlationId", JStr c; "operation", JStr "writeText"; "text", JStr text ]
         | Navigate(c, url) -> JObj [ "kind", JStr "Navigation"; "operation", JStr "push"; "correlationId", JStr c; "url", JStr url ]
         | SubscribeConnectivity c ->
             JObj
@@ -562,6 +635,7 @@ module Words =
     let actor (a: Actor) =
         match a.Kind with
         | Human -> "You"
+        | Agent(_, "deterministic-rules") -> "Rule-based helper (not AI)"
         | Agent _ -> "AI suggestion"
         | System -> "System"
 
@@ -608,6 +682,24 @@ type LocalSave =
     | SavedLocally
     | SaveFailed of reason: string
 
+/// The factory/proof data published with the build (dist/factory.json).
+type FactoryInfo =
+    { Label: string
+      Commit: string
+      BuiltAt: string
+      Experiment: string
+      /// id, title, scope, slice
+      Requirements: (string * string * string * string) list
+      /// id, title, status
+      WorkItems: (string * string * string) list
+      Tests: (string * int) list option }
+
+type FactoryState =
+    | FactoryNotRequested
+    | FactoryLoading
+    | FactoryLoaded of FactoryInfo
+    | FactoryFailed of reason: string
+
 /// What an outstanding correlation id was for.
 type PendingOp =
     | LoadSettings
@@ -618,10 +710,14 @@ type PendingOp =
     | SaveIndex
     | SaveSettings
     | SaveSync
-    | RemoteWrite of InvestigationId
-    | RemoteRead of InvestigationId
+    /// The remote identity travels with the request: a result for another
+    /// repository (settings changed meanwhile) is never adopted (D-009).
+    | RemoteWrite of InvestigationId * remote: string
+    | RemoteRead of InvestigationId * remote: string
     | Subscribe
     | NavigationAck
+    | CopyLink of url: string
+    | FactoryLoad
 
 type AppState =
     { Investigations: Map<InvestigationId, Event list>
@@ -640,12 +736,25 @@ type AppState =
       IdCounter: int
       Now: DateTimeOffset
       LifecycleNegotiated: bool
+      /// origin + path of the page, for absolute share links (never carries a query).
+      BaseUrl: string
+      Factory: FactoryState
       Sync: Map<InvestigationId, SyncStatus>
       RemoteSha: Map<InvestigationId, string>
       /// Event count included in the write in flight (to detect changes made meanwhile).
       SentLength: Map<InvestigationId, int>
       SyncDetail: Map<InvestigationId, string>
-      Remote: RemoteConfig option }
+      Remote: RemoteConfig option
+      /// Index entries as read from this device, kept even when their investigation
+      /// could not be decoded, so a save never drops them (R10.7).
+      StoredIndex: Map<InvestigationId, IndexCodec.Entry>
+      Unreadable: Map<InvestigationId, string>
+      /// The saved index could not be read: it is never overwritten.
+      IndexUnreadable: bool
+      /// A change happened before the initial load finished; the index is written once it has.
+      IndexDirty: bool
+      /// The remote identity the saved sync statuses were confirmed against.
+      SyncRemote: string option }
 
 let initial: AppState =
     { Investigations = Map.empty
@@ -662,11 +771,18 @@ let initial: AppState =
       IdCounter = 0
       Now = DateTimeOffset.UnixEpoch
       LifecycleNegotiated = false
+      BaseUrl = ""
+      Factory = FactoryNotRequested
       Sync = Map.empty
       RemoteSha = Map.empty
       SentLength = Map.empty
       SyncDetail = Map.empty
-      Remote = None }
+      Remote = None
+      StoredIndex = Map.empty
+      Unreadable = Map.empty
+      IndexUnreadable = false
+      IndexDirty = false
+      SyncRemote = None }
 
 /// The boundary supplies entropy and the clock for one message; handle stays pure.
 let withContext (entropy: Guid) (now: DateTimeOffset) (state: AppState) : AppState =
@@ -702,12 +818,16 @@ let private human = Actor.human "local-user"
 /// AI proposals are entered by a person on the AI's behalf (no live model).
 let private assistant = Actor.agent "ai-assistant" "none" "manual-entry"
 
+/// The "Challenge the leading explanation" helper: fixed rules, no model.
+/// Like any agent it can only record proposals (D-004); a person decides.
+let private challenger = Actor.agent "challenge-helper" "none" "deterministic-rules"
+
 let investigationOf (st: AppState) (iid: InvestigationId) : Investigation option =
     st.Investigations |> Map.tryFind iid |> Option.bind Evolve.replay
 
 let currentId (st: AppState) : InvestigationId option =
     match st.Screen with
-    | WorkspaceScreen iid | ReportScreen iid when st.Investigations.ContainsKey iid -> Some iid
+    | WorkspaceScreen iid | ReportScreen iid | EntityScreen(iid, _, _) when st.Investigations.ContainsKey iid -> Some iid
     | _ -> None
 
 let private draft (st: AppState) (name: string) = st.Drafts |> Map.tryFind name |> Option.defaultValue ""
@@ -775,11 +895,18 @@ let private syncCode (status: SyncStatus) =
     // Sending and unknown outcomes restart as pending: never as synced (R10.6, R10.7).
     | Pending | Sending | SyncUnknown -> "pending"
 
-/// "rci:sync": per investigation, the remote status and last known blob sha.
+/// Which repository and branch a sync status refers to.
+let remoteIdentity (config: RemoteConfig) = config.Owner + "/" + config.Repository + "@" + config.Branch
+
+let private currentIdentity (st: AppState) = st.Remote |> Option.map remoteIdentity |> Option.defaultValue ""
+
+/// "rci:sync": per investigation, the remote status and last known blob sha,
+/// plus the repository they were confirmed against.
 let syncDocument (st: AppState) : string =
     JsonOut.render (
         JObj
             [ "schema", JStr "rci.sync/v1"
+              "remote", JStr(currentIdentity st)
               "investigations",
               JObj
                   [ for KeyValue(iid, status) in st.Sync ->
@@ -793,6 +920,7 @@ let syncDocument (st: AppState) : string =
 
 let private readSync (text: string) (st: AppState) : AppState =
     let root = JsonIn.parse text
+    let st = { st with SyncRemote = JsonIn.child "remote" root |> JsonIn.str }
     match JsonIn.child "investigations" root with
     | Some(:? JsonObject as o) ->
         o
@@ -815,16 +943,32 @@ let private readSync (text: string) (st: AppState) : AppState =
             st
     | _ -> st
 
+/// "rci:settings" holds the repository only. The access token is never
+/// persisted: it lives in engine memory for this session (R11.3).
 let settingsDocument (config: RemoteConfig) : string =
-    JsonOut.render (JObj [ "owner", JStr config.Owner; "repository", JStr config.Repository; "branch", JStr config.Branch; "token", JStr config.Token ])
+    JsonOut.render (JObj [ "owner", JStr config.Owner; "repository", JStr config.Repository; "branch", JStr config.Branch ])
 
 let private readSettings (text: string) : RemoteConfig option =
     let root = JsonIn.parse text
     let field name = JsonIn.child name root |> JsonIn.str
-    match field "owner", field "repository", field "token" with
-    | Some owner, Some repo, Some token when owner <> "" && repo <> "" && token <> "" ->
-        Some { Owner = owner; Repository = repo; Branch = field "branch" |> Option.defaultValue "main"; Token = token }
+    match field "owner", field "repository" with
+    | Some owner, Some repo when owner <> "" && repo <> "" ->
+        // A token stored by an older build is ignored, never adopted.
+        Some { Owner = owner; Repository = repo; Branch = field "branch" |> Option.defaultValue "main"; Token = "" }
     | _ -> None
+
+let private hasToken (st: AppState) = st.Remote |> Option.exists (fun r -> r.Token <> "")
+
+/// Reset every investigation's remote state: nothing confirmed for another
+/// repository (or none) counts here (D-009/I-18).
+let private resetRemoteState (st: AppState) : AppState =
+    let status = if st.Remote.IsSome then Pending else LocalOnly
+    { st with
+        Sync = st.Investigations |> Map.map (fun _ _ -> status)
+        RemoteSha = Map.empty
+        SyncDetail = Map.empty
+        SentLength = Map.empty
+        SyncRemote = Some(currentIdentity st) }
 
 let private saveSyncState (st: AppState) = storageSet SaveSync Storage.syncKey (syncDocument st) st
 
@@ -835,18 +979,18 @@ let private put (iid: InvestigationId) (sha: string option) (st: AppState) : App
     | Some config, Some events ->
         let title = investigationOf st iid |> Option.map (fun i -> i.Title.Value) |> Option.defaultValue "investigation"
         let request = GitHub.writeRequest config iid (EventCodec.encode iid events) sha ("Root-cause investigation: " + Words.clip 60 title + " (version " + string events.Length + ")")
-        let c, st = Ids.correlation st (RemoteWrite iid)
+        let c, st = Ids.correlation st (RemoteWrite(iid, remoteIdentity config))
         { st with Sync = st.Sync |> Map.add iid Sending; SentLength = st.SentLength |> Map.add iid events.Length }, [ httpOf c request ]
     | _ -> st, []
 
 /// Send a pending investigation when online and configured; otherwise it stays pending.
 let private sendIfReady (iid: InvestigationId) (st: AppState) : AppState * Effect list =
     match st.Remote, Map.tryFind iid st.Sync with
-    | Some config, Some Pending when st.Online ->
+    | Some config, Some Pending when st.Online && config.Token <> "" ->
         match Map.tryFind iid st.RemoteSha with
         | Some sha -> put iid (Some sha) st
         | None ->
-            let c, st = Ids.correlation st (RemoteRead iid)
+            let c, st = Ids.correlation st (RemoteRead(iid, remoteIdentity config))
             { st with Sync = st.Sync |> Map.add iid Sending; SentLength = st.SentLength |> Map.add iid 0 }, [ httpOf c (GitHub.readRequest config iid) ]
     | _ -> st, []
 
@@ -858,14 +1002,26 @@ let private sendAllPending (st: AppState) : AppState * Effect list =
 
 /// After every successful command: save locally (investigation + index), then mark
 /// the remote copy pending and try to send it (R10.5, R10.6).
+/// The index to store: what was read from this device (including entries whose
+/// investigation could not be decoded) merged with what is in memory. Written
+/// only after the initial load, and never over an unreadable index (R10.7).
+let private saveIndex (st: AppState) : AppState * Effect list =
+    if st.IndexUnreadable then st, []
+    elif not st.Loaded then { st with IndexDirty = true }, []
+    else
+        let entries =
+            st.Investigations
+            |> Map.fold (fun m i evs -> match entryOf i evs with Some e -> Map.add i e m | None -> m) st.StoredIndex
+        let st = { st with StoredIndex = entries; IndexDirty = false }
+        storageSet SaveIndex Storage.indexKey (IndexCodec.encode (entries |> Map.toList |> List.map snd)) st
+
 let private persistAfterChange (iid: InvestigationId) (st: AppState) : AppState * Effect list =
     match Map.tryFind iid st.Investigations with
     | None -> st, []
     | Some events ->
-        let entries = st.Investigations |> Map.toList |> List.choose (fun (i, evs) -> entryOf i evs)
         let st = { st with Local = st.Local |> Map.add iid Saving }
         let st, saveInv = storageSet (SaveInvestigation iid) (Storage.investigationKey iid) (EventCodec.encode iid events) st
-        let st, saveIndex = storageSet SaveIndex Storage.indexKey (IndexCodec.encode entries) st
+        let st, saveIndex = saveIndex st
         match st.Remote with
         | None -> st, saveInv @ saveIndex
         | Some _ ->
@@ -878,23 +1034,30 @@ let private persistAfterChange (iid: InvestigationId) (st: AppState) : AppState 
             st, saveInv @ saveIndex @ saveSync @ send
 
 let private saveSettings (config: RemoteConfig option) (st: AppState) : AppState * Effect list =
+    let previous = st.Remote
+    let st = { st with Remote = config }
     match config with
     | None ->
         let c, st = Ids.correlation st SaveSettings
-        st, [ StorageRemove(c, Storage.settingsKey) ]
+        let st = resetRemoteState st
+        let st, saveSync = saveSyncState st
+        st, [ StorageRemove(c, Storage.settingsKey) ] @ saveSync
     | Some cfg ->
         let st, save = storageSet SaveSettings Storage.settingsKey (settingsDocument cfg) st
-        // Everything not yet confirmed by GitHub becomes pending.
+        let sameRemote = previous |> Option.exists (fun p -> remoteIdentity p = remoteIdentity cfg && p.Token <> "")
         let st =
-            { st with
-                Sync =
-                    st.Investigations
-                    |> Map.fold
-                        (fun m iid _ ->
-                            match Map.tryFind iid m with
-                            | Some Synced | Some Sending | Some(Conflicted _) -> m
-                            | _ -> Map.add iid Pending m)
-                        st.Sync }
+            if sameRemote then
+                // Same repository and branch: what GitHub confirmed still holds; the rest is pending.
+                { st with
+                    Sync =
+                        st.Investigations
+                        |> Map.fold
+                            (fun m iid _ ->
+                                match Map.tryFind iid m with
+                                | Some Synced | Some Sending | Some(Conflicted _) -> m
+                                | _ -> Map.add iid Pending m)
+                            st.Sync }
+            else resetRemoteState st
         let st, send = sendAllPending st
         let st, saveSync = saveSyncState st
         st, save @ saveSync @ send
@@ -924,6 +1087,52 @@ let private refusalsOf (operation: string) (errors: DomainError list) : Refusal 
         { Code = e.Code; Message = e.Message; Rule = e.Rule; FaultCode = code; Operation = operation })
 
 /// Execute one command against an investigation; on success persist and sync.
+// ---------------------------------------------------------------------------
+// "Challenge the leading explanation": a deterministic, rule-based helper
+// (R15.1, R15.3, R4.3). It is not a language model. Its only output is an
+// agent proposal through Decide; a person accepts or rejects it.
+// ---------------------------------------------------------------------------
+
+[<RequireQualifiedAccess>]
+module Challenge =
+    let private standing (h: Hypothesis) =
+        match h.State with
+        | Proposed | Plausible | Weakened -> true
+        | Supported | Falsified | Superseded -> false
+
+    /// Rule: one or more hypotheses are Supported while alternatives still stand.
+    /// Returns the proposal text and rationale for the first leading hypothesis.
+    let suggestion (inv: Investigation) : (string * string) option =
+        let all = inv.Hypotheses |> Map.toList |> List.map snd |> List.sortBy (fun h -> h.Provenance.RecordedAt)
+        let alternatives = all |> List.filter standing
+        match all |> List.tryFind (fun h -> h.State = Supported), alternatives with
+        | Some leading, (_ :: _) ->
+            let others = Words.join "; " (alternatives |> List.map (fun h -> "\"" + Words.clip 60 h.Statement.Value + "\""))
+            Some(
+                "What result would falsify \"" + leading.Statement.Value + "\"? Plan a check whose outcome would differ if " + others + " were true instead.",
+                "Rule-based helper: a supported explanation with alternatives still standing should face a check that could prove it wrong (R15.3, R4.3)."
+            )
+        | _ -> None
+
+    /// The same suggestion is not offered twice while it awaits a decision.
+    let available (inv: Investigation) =
+        match suggestion inv with
+        | Some(text, _) -> not (inv.Proposals |> Map.exists (fun _ p -> p.State = ProposalActive && p.Text.Value = text))
+        | None -> false
+
+    /// R15.1: questions before conclusions, one per Policy cause blocker.
+    let question (e: DomainError) =
+        match e.Code with
+        | "CAUSE.NO_SUPPORTING_EVIDENCE" -> "Which evidence directly supports this member of the cause? (" + e.Message + ")"
+        | "CAUSE.MEMBER_NOT_SUPPORTED" -> "What evidence would move this hypothesis to supported — or rule it out? (" + e.Message + ")"
+        | "CAUSE.ALTERNATIVE_NOT_ADDRESSED" -> "What observation would rule the alternative in or out? (" + e.Message + ")"
+        | "CAUSE.OPEN_UNKNOWN" -> "Can this open question be answered before concluding? (" + e.Message + ")"
+        | "CAUSE.OPEN_CONTRADICTION" -> "What explains the conflicting evidence? (" + e.Message + ")"
+        | "CAUSE.UNVERIFIED_ASSUMPTION" -> "How can this assumption be checked? (" + e.Message + ")"
+        | "CAUSE.NO_MECHANISM" -> "How, step by step, does the cause produce the problem? (" + e.Message + ")"
+        | "CAUSE.NO_ROOT" -> "Which member is the root cause rather than a contributing factor? (" + e.Message + ")"
+        | _ -> "Before concluding: " + e.Message
+
 let private run (operation: string) (actor: Actor) (notice: string) (fields: string list) (command: Command) (iid: InvestigationId) (st: AppState) : AppState * Effect list =
     let state = investigationOf st iid
     let commandId, st = Ids.next st
@@ -963,6 +1172,26 @@ let private navigate (screen: Screen) (st: AppState) : AppState * Effect list =
     let c, st = Ids.correlation st NavigationAck
     { st with Screen = screen }, [ Navigate(c, ScreenRoute.format screen) ]
 
+/// The shareable link of a screen: page origin + path + canonical hash (R9.10).
+/// It is built from ids only, so it never carries evidence text or secrets (R9.9).
+let shareLink (st: AppState) (screen: Screen) = st.BaseUrl + ScreenRoute.format screen
+
+let private copyLink (screen: Screen) (st: AppState) : AppState * Effect list =
+    let url = shareLink st screen
+    let c, st = Ids.correlation st (CopyLink url)
+    st, [ ClipboardWrite(c, url) ]
+
+let private copyEvent (name: string) (key: string option) (st: AppState) : (AppState * Effect list) option =
+    match currentId st, name with
+    | Some iid, "copy.workspace" -> Some(copyLink (WorkspaceScreen iid) st)
+    | Some iid, "copy.report" -> Some(copyLink (ReportScreen iid) st)
+    | Some iid, _ when name.StartsWith("copy.", StringComparison.Ordinal) ->
+        let segment = name.Substring 5
+        match ScreenRoute.entitySegments |> List.tryFind (fun (s, _) -> s = segment), key |> Option.bind Id.tryParse<InvestigationTag> with
+        | Some(_, kind), Some eid -> Some(copyLink (EntityScreen(iid, kind, eid.Value)) st)
+        | _ -> Some(st, [])
+    | _ -> None
+
 let private startInvestigation (st: AppState) : AppState * Effect list =
     let iid, st = newId<InvestigationTag> st
     let oid, st = newId<ObservationTag> st
@@ -999,8 +1228,9 @@ let private settingsFromDrafts (st: AppState) : RemoteConfig option =
     | Some owner, Some repo, Some token ->
         Some { Owner = owner.Trim(); Repository = repo.Trim(); Branch = (optDraft st "setBranch" |> Option.defaultValue "main").Trim(); Token = token.Trim() }
     | Some owner, Some repo, None ->
-        // Keep a token already saved when only the repository details change.
-        st.Remote |> Option.map (fun r -> { r with Owner = owner.Trim(); Repository = repo.Trim(); Branch = (optDraft st "setBranch" |> Option.defaultValue "main").Trim() })
+        // No new token: keep the one held in memory for this session (if any).
+        let token = st.Remote |> Option.map (fun r -> r.Token) |> Option.defaultValue ""
+        Some { Owner = owner.Trim(); Repository = repo.Trim(); Branch = (optDraft st "setBranch" |> Option.defaultValue "main").Trim(); Token = token }
     | _ -> None
 
 /// UI events: field drafts ("f.<field>") and intents.
@@ -1009,7 +1239,13 @@ let private onEvent (name: string) (key: string option) (value: string option) (
     | Some field -> { st with Drafts = st.Drafts |> Map.add field (Option.defaultValue "" value) }, []
     | None ->
     let st = { st with Notice = "" }
+    match copyEvent name key st with
+    | Some result -> result
+    | None ->
     match name with
+    | "start" when not st.Loaded ->
+        // M6: nothing is created before the saved investigations have loaded.
+        incomplete st "StartInvestigation" "LOAD.IN_PROGRESS" "R10.7" "Investigations saved on this device are still loading; try again in a moment."
     | "start" -> startInvestigation st
     | "dismissRefusals" -> { st with Refusals = [] }, []
     | "hyp.add" ->
@@ -1018,6 +1254,12 @@ let private onEvent (name: string) (key: string option) (value: string option) (
     | "ai.add" ->
         let pid, st = newId<ProposalTag> st
         inWorkspace st (run "RecordProposal" assistant "AI-suggested hypothesis recorded for your review." [ "aiText"; "aiRationale" ] (RecordProposal(pid, ProposedHypothesis, draft st "aiText", optDraft st "aiRationale")))
+    | "challenge" ->
+        match currentId st |> Option.bind (investigationOf st) |> Option.bind Challenge.suggestion with
+        | Some(text, rationale) ->
+            let pid, st = newId<ProposalTag> st
+            inWorkspace st (run "RecordProposal" challenger "Rule-based helper suggested a check that could falsify the leading explanation." [] (RecordProposal(pid, ProposedAction, text, Some rationale)))
+        | None -> incomplete st "RecordProposal" "CHALLENGE.NOT_APPLICABLE" "R15.3" "There is no supported explanation with alternatives still standing to challenge."
     | "ai.accept" ->
         match parseKey<ProposalTag> key with
         | Some pid ->
@@ -1100,9 +1342,13 @@ let private onEvent (name: string) (key: string option) (value: string option) (
         inWorkspace st (run "RecordConclusion" human "Conclusion recorded." [ "conclStatement"; "conclStrength"; "conclCause"; "conclResidual" ] (RecordConclusion(cid, draft st "conclStatement", choice Words.conclusions SupportedCause (draft st "conclStrength"), causes, optDraft st "conclResidual")))
     | "settings.save" ->
         match settingsFromDrafts st with
-        | Some config -> saveSettings (Some config) ({ st with Remote = Some config; Notice = "GitHub settings saved on this device." } |> clear [ "setToken" ])
+        | Some config ->
+            let notice =
+                if config.Token = "" then "Repository saved. Enter an access token to sync; it is kept in memory for this session only."
+                else "GitHub settings saved. The access token is kept in memory for this session only and is never saved on this device."
+            saveSettings (Some config) ({ st with Notice = notice } |> clear [ "setToken" ])
         | None -> incomplete st "SaveSettings" "SETTINGS.INCOMPLETE" "settings" "Enter the owner, repository and an access token."
-    | "settings.clear" -> saveSettings None ({ st with Remote = None; Notice = "GitHub settings removed. Investigations stay on this device." } |> clear [ "setOwner"; "setRepo"; "setBranch"; "setToken" ])
+    | "settings.clear" -> saveSettings None ({ st with Notice = "GitHub settings removed. Investigations stay on this device." } |> clear [ "setOwner"; "setRepo"; "setBranch"; "setToken" ])
     | "sync.retry" -> retrySync st
     | _ ->
         match suffix "hyp." name with
@@ -1134,21 +1380,72 @@ let private onEvent (name: string) (key: string option) (value: string option) (
 // Effect results
 // ---------------------------------------------------------------------------
 
+/// Pure decoding of dist/factory.json; anything unreadable is an explained failure.
+let decodeFactory (text: string) : Result<FactoryInfo, string> =
+    match JsonIn.parse text with
+    | None -> Error "factory.json is not JSON"
+    | Some root ->
+        let field name (n: JsonNode option) = JsonIn.child name n |> JsonIn.str |> Option.defaultValue ""
+        match JsonIn.child "schema" (Some root) |> JsonIn.str with
+        | Some "rci.factory/v1" ->
+            let tests =
+                match JsonIn.child "tests" (Some root) with
+                | Some(:? JsonObject as o) ->
+                    Some [ for KeyValue(k, _) in o do
+                               match JsonIn.child k (Some(o :> JsonNode)) |> JsonIn.int with
+                               | Some v -> yield k, v
+                               | None -> () ]
+                | _ -> None
+            Ok
+                { Label = field "label" (Some root)
+                  Commit = field "commit" (Some root)
+                  BuiltAt = field "builtAt" (Some root)
+                  Experiment = field "experiment" (Some root)
+                  Requirements =
+                    JsonIn.child "requirements" (Some root) |> JsonIn.list
+                    |> List.map (fun r -> field "id" r, field "title" r, field "scope" r, field "slice" r)
+                  WorkItems =
+                    JsonIn.child "workItems" (Some root) |> JsonIn.list
+                    |> List.map (fun w -> field "id" w, field "title" w, field "status" w)
+                  Tests = tests }
+        | other -> Error("unsupported factory schema " + Option.defaultValue "(none)" other)
+
+/// Entering the factory view requests ./factory.json once (Limen Http effect).
+let private ensureFactory (st: AppState) : AppState * Effect list =
+    match st.Screen, st.Factory with
+    | FactoryScreen, (FactoryNotRequested | FactoryFailed _) ->
+        let c, st = Ids.correlation st FactoryLoad
+        { st with Factory = FactoryLoading }, [ HttpCall(c, "GET", "./factory.json", [], None) ]
+    | _ -> st, []
+
 let private finishLoading (st: AppState) =
     let loading =
         st.Pending |> Map.exists (fun _ op -> match op with LoadIndex | LoadInvestigation _ | LoadSync | LoadSettings -> true | _ -> false)
     if loading || st.Loaded then st, []
     else
         let st = { st with Loaded = true }
-        sendAllPending st
+        // Statuses confirmed for another repository (or none) do not count now.
+        let st = if st.SyncRemote.IsSome && st.SyncRemote <> Some(currentIdentity st) then resetRemoteState st else st
+        let st, index = if st.IndexDirty then saveIndex st else st, []
+        let st, send = sendAllPending st
+        st, index @ send
 
 let private onStorage (op: PendingOp) (result: Result<string option, string>) (st: AppState) : AppState * Effect list =
     match op, result with
-    | LoadSettings, Ok(Some text) -> finishLoading { st with Remote = readSettings text }
+    | LoadSettings, Ok(Some text) ->
+        let remote = readSettings text
+        // A token persisted by an older build is erased from this device (R11.3).
+        let st, scrub =
+            match remote, JsonIn.child "token" (JsonIn.parse text) with
+            | Some cfg, Some _ -> storageSet SaveSettings Storage.settingsKey (settingsDocument cfg) st
+            | _ -> st, []
+        let st, more = finishLoading { st with Remote = remote }
+        st, scrub @ more
     | LoadSync, Ok(Some text) -> finishLoading (readSync text st)
     | LoadIndex, Ok(Some text) ->
         match IndexCodec.decode text with
         | Ok entries ->
+            let st = { st with StoredIndex = entries |> List.map (fun e -> e.Id, e) |> Map.ofList }
             let st, effects =
                 entries
                 |> List.fold
@@ -1158,14 +1455,19 @@ let private onStorage (op: PendingOp) (result: Result<string option, string>) (s
                     (st, [])
             let st, more = finishLoading st
             st, effects @ more
-        | Error e -> finishLoading { st with Notice = "The saved list of investigations could not be read: " + e }
+        | Error e -> finishLoading { st with IndexUnreadable = true; Notice = "The saved list of investigations could not be read (" + e + "); it is left untouched." }
     | LoadInvestigation iid, Ok(Some text) ->
         match EventCodec.decode text with
         | Ok(id, events) when id = iid && not events.IsEmpty ->
-            finishLoading { st with Investigations = st.Investigations |> Map.add iid events; Local = st.Local |> Map.add iid SavedLocally }
-        | Ok _ -> finishLoading { st with Notice = "A saved investigation did not match its index entry and was not opened." }
-        | Error e -> finishLoading { st with Notice = "A saved investigation could not be read: " + e }
-    | (LoadSettings | LoadSync | LoadIndex | LoadInvestigation _), Ok None -> finishLoading st
+            // m4: a history is adopted only if the kernel can verify it; the stored data is left untouched.
+            match Evolve.validateHistory events with
+            | [] -> finishLoading { st with Investigations = st.Investigations |> Map.add iid events; Local = st.Local |> Map.add iid SavedLocally }
+            | errors ->
+                finishLoading { st with Unreadable = st.Unreadable |> Map.add iid ("it could not be verified (" + Words.join ", " (errors |> List.map (fun e -> e.Code) |> List.distinct) + ")") }
+        | Ok _ -> finishLoading { st with Unreadable = st.Unreadable |> Map.add iid "the stored document names a different investigation" }
+        | Error e -> finishLoading { st with Unreadable = st.Unreadable |> Map.add iid e }
+    | LoadInvestigation iid, Ok None -> finishLoading { st with Unreadable = st.Unreadable |> Map.add iid "its stored document is missing" }
+    | (LoadSettings | LoadSync | LoadIndex), Ok None -> finishLoading st
     | (LoadSettings | LoadSync | LoadIndex | LoadInvestigation _), Error reason ->
         finishLoading { st with Notice = "This device's storage is unavailable (" + reason + "); work will not survive a reload." }
     | SaveInvestigation iid, Ok _ -> { st with Local = st.Local |> Map.add iid SavedLocally }, []
@@ -1188,11 +1490,13 @@ let private onRemoteRead (iid: InvestigationId) (outcome: HttpOutcome) (st: AppS
                     match Reconcile.plan local remote with
                     | Reconcile.UpToDate -> { st with Sync = st.Sync |> Map.add iid Synced; SyncDetail = st.SyncDetail |> Map.remove iid }, []
                     | Reconcile.PushLocal -> put iid (Some sha) st
+                    | Reconcile.AdoptRemote when not (Evolve.validateHistory remote).IsEmpty ->
+                        let codes = Evolve.validateHistory remote |> List.map (fun e -> e.Code) |> List.distinct
+                        { st with Sync = st.Sync |> Map.add iid (Conflicted("the copy on GitHub could not be verified (" + Words.join ", " codes + ") and was not adopted")) }, []
                     | Reconcile.AdoptRemote ->
                         let st = { st with Investigations = st.Investigations |> Map.add iid remote; Sync = st.Sync |> Map.add iid Synced; Notice = "Newer history from GitHub was loaded." }
-                        let entries = st.Investigations |> Map.toList |> List.choose (fun (i, evs) -> entryOf i evs)
                         let st, a = storageSet (SaveInvestigation iid) (Storage.investigationKey iid) (EventCodec.encode iid remote) st
-                        let st, b = storageSet SaveIndex Storage.indexKey (IndexCodec.encode entries) st
+                        let st, b = saveIndex st
                         st, a @ b
                     | Reconcile.Diverged detail -> { st with Sync = st.Sync |> Map.add iid (Conflicted detail) }, []
                 | Error e -> { st with Sync = st.Sync |> Map.add iid (Conflicted("the copy on GitHub could not be read: " + e)) }, []
@@ -1326,6 +1630,7 @@ let private remoteText (st: AppState) (iid: InvestigationId) =
         let where = " (" + cfg.Owner + "/" + cfg.Repository + ")"
         match Map.tryFind iid st.Sync |> Option.defaultValue Pending with
         | Synced -> "Saved to GitHub" + where, "ok"
+        | Pending when cfg.Token = "" -> "Changes pending upload to GitHub (not yet synced) — enter your access token in GitHub settings; it is not kept after a reload", "attention"
         | Pending when not st.Online -> "Offline — changes pending upload to GitHub (not yet synced)", "attention"
         | Pending -> "Changes pending upload to GitHub (not yet synced)", "attention"
         | Sending -> "Uploading to GitHub… (not yet confirmed)", "attention"
@@ -1369,8 +1674,33 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                 |> List.filter (fun (_, c, _) -> Transitions.hypothesis h.State c |> Option.isNone)
                 |> List.map (fun (_, c, label) -> label + " (only when " + legalFrom Transitions.hypothesis Words.allHypothesisStates Words.hypothesis c + ")")
             let last = h.History |> List.tryLast
+            // R6.2: posture is explained by linked evidence and open blockers, never a number or percentage.
+            let linked kind =
+                rels |> List.filter (fun r -> r.Hypothesis = h.Id && r.Kind = kind && (inv.Evidence |> Map.tryFind r.Evidence |> Option.exists (fun e -> e.SupersededBy.IsNone)))
+                |> List.map (fun r -> lbl l.Ev r.Evidence.Value)
+            let describeLinks (word: string) (labels: string list) =
+                match labels with
+                | [] -> "no " + word + " evidence"
+                | [ one ] -> "1 " + word + " (" + one + ")"
+                | many -> string many.Length + " " + word + " (" + Words.join ", " many + ")"
+            let causeBlockersHere =
+                if not real then []
+                else
+                    inv.Causes |> Map.toList |> List.map snd
+                    |> List.filter (fun c -> c.Members |> List.exists (fun m -> m.Hypothesis = h.Id))
+                    |> List.map (fun c -> Policy.causeBlockers inv c.Id)
+                    |> List.filter (fun blockers -> not (blockers |> List.exists (fun e -> e.Code = "CAUSE.STATE")))
+                    |> List.concat
+            let posture =
+                Words.hypothesis h.State + " because of " + describeLinks "supporting" (linked Supports) + ", " + describeLinks "contradicting" (linked Contradicts)
+                + ", " + describeLinks "telling-apart" (linked Discriminates) + ", " + describeLinks "inconclusive" (linked Insufficient) + "."
+                + (match causeBlockersHere with
+                   | [] -> ""
+                   | blockers -> " Confirming it as a cause is blocked by: " + Words.join "; " (blockers |> List.map (fun e -> e.Message)))
             item (
                 [ "id", s (Id.text h.Id)
+                  "href", s (ScreenRoute.format (EntityScreen(iid, HypothesisEntity, h.Id.Value)))
+                  "isFocused", b (st.Screen = EntityScreen(iid, HypothesisEntity, h.Id.Value))
                   "label", s (lbl l.Hyp h.Id.Value)
                   "statement", s h.Statement.Value
                   "mechanism", s (h.Mechanism |> Option.map (fun m -> m.Value) |> Option.defaultValue "")
@@ -1378,6 +1708,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "state", s (Words.hypothesis h.State)
                   "tone", s (Words.hypothesisTone h.State)
                   "isRuledOut", b (h.State = Falsified)
+                  "posture", s posture
                   "supportedBy", s (if supporting.IsEmpty then "none" else Words.join ", " supporting)
                   "contradictedBy", s (if contradicting.IsEmpty then "none" else Words.join ", " contradicting)
                   "lastChange",
@@ -1414,6 +1745,8 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
             let isUrl = match e.Content with ArtifactEvidence _ -> true | _ -> false
             item
                 [ "id", s (Id.text e.Id)
+                  "href", s (ScreenRoute.format (EntityScreen(iid, EvidenceEntity, e.Id.Value)))
+                  "isFocused", b (st.Screen = EntityScreen(iid, EvidenceEntity, e.Id.Value))
                   "label", s (lbl l.Ev e.Id.Value)
                   "content", s (evidenceText e)
                   "isUrl", b isUrl
@@ -1498,7 +1831,18 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
         |> Map.toList
         |> List.map snd
         |> List.sortBy (fun p -> p.Provenance.RecordedAt)
-        |> List.map (fun p -> item [ "id", s (Id.text p.Id); "text", s (hypName p.Hypothesis + " predicts: " + p.Statement.Value + " (" + Words.strength p.Strength + ")") ])
+        |> List.map (fun p ->
+            item
+                [ "id", s (Id.text p.Id)
+                  "text", s (hypName p.Hypothesis + " predicts: " + p.Statement.Value + " (" + Words.strength p.Strength + ")")
+                  "timing",
+                  s (
+                      match p.Timing with
+                      | Prospective -> "Made before the result was known"
+                      | Retrospective -> "Made after a relevant finding (retrospective: weaker test)"
+                  )
+                  // R4.3: checks that tell hypotheses apart are preferred.
+                  "isDiscriminating", b (p.Strength = DiscriminatingPrediction) ])
     let negativeItems =
         inv.NegativeKnowledge
         |> Map.toList
@@ -1510,7 +1854,11 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "statement", s x.Statement.Value
                   "scope", s x.Scope.Value
                   "basis", s (Words.join ", " (x.Basis |> List.map (fun e -> lbl l.Ev e.Value))) ])
-    let causeBlockers = causes |> List.map (fun c -> c, (if real then Policy.causeBlockers inv c.Id else []))
+    // Policy decides: a CAUSE.STATE blocker means the cause is not confirmable in its
+    // state, so it has no confirmation work to list and no Confirm button.
+    let gate = causes |> List.map (fun c -> c, (if real then Policy.causeBlockers inv c.Id else []))
+    let confirmable (blockers: DomainError list) = not (blockers |> List.exists (fun e -> e.Code = "CAUSE.STATE"))
+    let causeBlockers = gate |> List.map (fun (c, blockers) -> c, (if confirmable blockers then blockers else []))
     let causeItems =
         causeBlockers
         |> List.map (fun (c, blockers) ->
@@ -1522,7 +1870,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "mechanism", s (c.Mechanism |> Option.map (fun x -> x.Value) |> Option.defaultValue "not stated")
                   "state", s (Words.cause c.State)
                   "isConfirmed", b (c.State = CauseConfirmed)
-                  "hideConfirm", b (c.State = CauseConfirmed || c.State = CauseSuperseded)
+                  "hideConfirm", b (not real || not (Policy.canConfirm inv c.Id))
                   "blockerCount", n blockers.Length
                   "isBlocked", b (not blockers.IsEmpty)
                   "readiness",
@@ -1593,7 +1941,15 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "rationale", s (p.Rationale |> Option.map (fun x -> x.Value) |> Option.defaultValue "")
                   "state", s (Words.proposal p.State)
                   "decision", s (p.Decision |> Option.map (fun x -> x.Value) |> Option.defaultValue "")
-                  "isActive", b (p.State = ProposalActive && isOpen) ])
+                  "isActive", b (p.State = ProposalActive && isOpen)
+                  "by", s (Words.actor p.Provenance.Actor)
+                  "acceptLabel",
+                  s (
+                      match p.Kind with
+                      | ProposedHypothesis -> "Accept as hypothesis"
+                      | ProposedAction -> "Accept as planned check"
+                      | ProposedUnknown -> "Accept as open question"
+                  ) ])
     let historyItems =
         events
         |> List.rev
@@ -1604,6 +1960,28 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "at", s (Words.date e.At)
                   "actor", s (Words.actor e.Actor)
                   "text", s (describe inv l e.Body) ])
+    // R8.4 outstanding work: only what Policy, the transition tables and the
+    // recorded verifications already say; no legality is decided here.
+    let outstanding =
+        let fromPolicy source (errors: DomainError list) = errors |> List.map (fun e -> source, e.Message, e.Code)
+        let unknownWork =
+            inv.Unknowns |> Map.toList |> List.map snd
+            |> List.filter (fun u -> Transitions.unknown u.State ResolveUnknown |> Option.isSome)
+            |> List.map (fun u -> "Open question", "Answer or accept: \"" + u.Question.Value + "\" (" + Words.materiality u.Materiality + ")", "UNKNOWN.OPEN")
+        let contradictionWork =
+            inv.Contradictions |> Map.toList |> List.map snd
+            |> List.filter (fun c -> Transitions.contradiction c.State ResolveContradiction |> Option.isSome)
+            |> List.map (fun c -> "Contradiction", "Explain or accept: \"" + c.Statement.Value + "\" (" + Words.materiality c.Materiality + ")", "CONTRADICTION.OPEN")
+        let criterionWork =
+            criteria
+            |> List.filter (fun c -> not (inv.Verifications |> Map.exists (fun _ v -> v.Criterion = c.Id && v.Outcome = Satisfied && not v.Evidence.IsEmpty)))
+            |> List.map (fun c -> "Verification", "Verify with evidence: " + lbl l.Crit c.Id.Value + " \"" + c.ExpectedOutcome.Value + "\"", "CRITERION.UNVERIFIED")
+        let causeWork =
+            causeBlockers |> List.collect (fun (c, blockers) -> fromPolicy ("Cause " + lbl l.Cause c.Id.Value) blockers)
+        let resolveWork = if isOpen then fromPolicy "Resolution" resolution else []
+        unknownWork @ contradictionWork @ criterionWork @ causeWork @ resolveWork
+        |> List.distinctBy (fun (_, message, _) -> message)
+        |> List.mapi (fun i (source, message, code) -> item [ "id", s (string i); "source", s source; "message", s message; "code", s code ])
     let resolutionItems = resolution |> List.mapi (fun i e -> item [ "id", s (string i); "code", s e.Code; "message", s e.Message; "rule", s e.Rule ])
     let lifecycleFlags =
         LifecycleCommands.all |> List.map (fun (name, c, _) -> "lifeHide_" + name, b (not (LifecycleCommands.legal inv.Lifecycle c)))
@@ -1655,6 +2033,24 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
       "hasProposals", b (not proposalItems.IsEmpty)
       "history", JArr historyItems
       "resolutionBlockers", JArr resolutionItems
+      "challengeAvailable", b (real && isOpen && Challenge.available inv)
+      "challengeHidden", b (not (real && isOpen && Challenge.available inv))
+      "challengeStatus",
+      s (
+          match Challenge.suggestion inv with
+          | Some _ when Challenge.available inv -> "A supported explanation still has alternatives standing: ask what would prove it wrong."
+          | Some _ -> "The suggested falsifying check is waiting for your decision below."
+          | None -> "Nothing to challenge yet: it applies once one explanation is supported while others still stand."
+      )
+      "challengeQuestions",
+      JArr(
+          causeBlockers
+          |> List.collect (fun (c, blockers) -> blockers |> List.mapi (fun i e -> item [ "id", s (Id.text c.Id + "-q" + string i); "text", s (Challenge.question e) ]))
+      )
+      "outstanding", JArr outstanding
+      "hasOutstanding", b (not outstanding.IsEmpty)
+      "noOutstanding", b outstanding.IsEmpty
+      "outstandingSummary", s (if outstanding.IsEmpty then "Nothing outstanding." else string outstanding.Length + " thing(s) still need doing.")
       "canResolve", b (resolution.IsEmpty && LifecycleCommands.legal inv.Lifecycle ResolveInvestigation)
       "resolveSummary",
       s (
@@ -1722,22 +2118,85 @@ let private homeKeys (st: AppState) : (string * J) list =
             | _ -> None)
         |> List.sortByDescending fst
         |> List.map snd
-    [ "investigations", JArr rows; "hasInvestigations", b (not rows.IsEmpty); "noInvestigations", b rows.IsEmpty ]
+    let unreadable =
+        st.StoredIndex
+        |> Map.toList
+        |> List.filter (fun (iid, _) -> st.Loaded && not (st.Investigations.ContainsKey iid))
+        |> List.map (fun (iid, e) ->
+            item
+                [ "id", s (Id.text iid)
+                  "title", s e.Title
+                  "reason", s ("Could not be read: " + (Map.tryFind iid st.Unreadable |> Option.defaultValue "not loaded") + ". It is kept in the index and was not changed.") ])
+    [ "unreadable", JArr unreadable
+      "hasUnreadable", b (not unreadable.IsEmpty)
+      "investigations", JArr rows; "hasInvestigations", b (not rows.IsEmpty); "noInvestigations", b rows.IsEmpty ]
 
 /// The complete ViewState: every key in every projection (Limen rule).
+let private factoryKeys (st: AppState) : (string * J) list =
+    let info = match st.Factory with FactoryLoaded f -> Some f | _ -> None
+    let status =
+        match st.Factory with
+        | FactoryNotRequested | FactoryLoading -> "Loading the factory record…"
+        | FactoryLoaded f -> f.Label + " — commit " + (if f.Commit.Length > 7 then f.Commit.Substring(0, 7) else f.Commit) + ", built " + f.BuiltAt
+        | FactoryFailed reason -> "The factory record could not be loaded: " + reason
+    let requirements = info |> Option.map (fun f -> f.Requirements) |> Option.defaultValue []
+    let workItems = info |> Option.map (fun f -> f.WorkItems) |> Option.defaultValue []
+    let statusOf slice = workItems |> List.tryFind (fun (id, _, _) -> id = slice) |> Option.map (fun (_, _, st) -> st) |> Option.defaultValue "not in the work queue"
+    let slices =
+        requirements
+        |> List.groupBy (fun (_, _, _, slice) -> slice)
+        |> List.map (fun (slice, reqs) ->
+            item [ "id", s (if slice = "" then "unassigned" else slice); "slice", s (if slice = "" then "No slice" else slice); "count", n reqs.Length; "status", s (statusOf slice) ])
+    [ "isFactory", b (st.Screen = FactoryScreen)
+      "factoryStatus", s status
+      "hasFactory", b info.IsSome
+      "factoryCommit", s (info |> Option.map (fun f -> f.Commit) |> Option.defaultValue "")
+      "factoryExperiment", s (info |> Option.map (fun f -> f.Experiment) |> Option.defaultValue "")
+      "factoryRequirementCount", n requirements.Length
+      "factoryTests",
+      s (
+          match info |> Option.bind (fun f -> f.Tests) with
+          | Some counts when not counts.IsEmpty -> Words.join ", " (counts |> List.map (fun (k, v) -> k + ": " + string v))
+          | _ -> "Test results were not available when this site was built (CI runs the tests after the build)."
+      )
+      "factoryRequirements",
+      JArr(requirements |> List.map (fun (id, title, scope, slice) -> item [ "id", s id; "title", s title; "scope", s (if scope = "scoped-factory" then "Factory" else "Product"); "slice", s (if slice = "" then "—" else slice); "status", s (statusOf slice) ]))
+      "factorySlices", JArr slices
+      "factoryWorkItems", JArr(workItems |> List.map (fun (id, title, status) -> item [ "id", s id; "title", s title; "status", s status ])) ]
+
+/// The addressed entity of an EntityScreen: (kind word, label, text, state).
+let private focusOf (inv: Investigation) (events: Event list) (kind: EntityKind) (g: Guid) : (string * string * string * string) option =
+    let l = labelsOf events
+    match kind with
+    | HypothesisEntity -> inv.Hypotheses |> Map.tryFind (Id.create g) |> Option.map (fun h -> "Hypothesis", lbl l.Hyp g, h.Statement.Value, Words.hypothesis h.State)
+    | EvidenceEntity -> inv.Evidence |> Map.tryFind (Id.create g) |> Option.map (fun e -> "Evidence", lbl l.Ev g, evidenceText e, "Source: " + e.Source.Value)
+    | UnknownEntity -> inv.Unknowns |> Map.tryFind (Id.create g) |> Option.map (fun u -> "Open question", "", u.Question.Value, Words.unknown u.State)
+    | ContradictionEntity -> inv.Contradictions |> Map.tryFind (Id.create g) |> Option.map (fun c -> "Contradiction", "", c.Statement.Value, Words.contradiction c.State)
+    | ActionEntity -> inv.Actions |> Map.tryFind (Id.create g) |> Option.map (fun a -> "Test or experiment", lbl l.Act g, a.Purpose.Value, Words.action a.State)
+    | CausalAssertionEntity -> inv.Causes |> Map.tryFind (Id.create g) |> Option.map (fun c -> "Cause", lbl l.Cause g, c.Outcome.Value, Words.cause c.State)
+    | CorrectiveActionEntity -> inv.CorrectiveActions |> Map.tryFind (Id.create g) |> Option.map (fun c -> "Fix", lbl l.Corr g, c.Description.Value, Words.correction c.State)
+    | CriterionEntity -> inv.Criteria |> Map.tryFind (Id.create g) |> Option.map (fun c -> "Success criterion", lbl l.Crit g, c.ExpectedOutcome.Value, "")
+    | ProposalEntity -> inv.Proposals |> Map.tryFind (Id.create g) |> Option.map (fun p -> "AI suggestion", "", p.Text.Value, Words.proposal p.State)
+    | _ -> None
+
 let project (st: AppState) : (string * J) list =
     let screenOk iid = st.Investigations.ContainsKey iid
     let loading =
         match st.Screen with
-        | WorkspaceScreen iid | ReportScreen iid -> not st.Loaded && not (screenOk iid)
+        | WorkspaceScreen iid | ReportScreen iid | EntityScreen(iid, _, _) -> not st.Loaded && not (screenOk iid)
         | _ -> not st.Loaded
+    let current = currentId st |> Option.bind (fun iid -> investigationOf st iid |> Option.map (fun inv -> inv, st.Investigations[iid]))
+    let focus =
+        match st.Screen, current with
+        | EntityScreen(_, kind, g), Some(inv, events) -> focusOf inv events kind g
+        | _ -> None
     let isWorkspace, isReport, missing =
         match st.Screen with
         | WorkspaceScreen iid -> screenOk iid, false, st.Loaded && not (screenOk iid)
+        | EntityScreen(iid, _, _) -> screenOk iid && focus.IsSome, false, (st.Loaded && not (screenOk iid)) || (screenOk iid && focus.IsNone)
         | ReportScreen iid -> false, screenOk iid, st.Loaded && not (screenOk iid)
-        | MissingScreen _ -> false, false, true
-        | _ -> false, false, false
-    let current = currentId st |> Option.bind (fun iid -> investigationOf st iid |> Option.map (fun inv -> inv, st.Investigations[iid]))
+        | MissingScreen _ | RefusedLinkScreen _ -> false, false, true
+        | HomeScreen | SettingsScreen | FactoryScreen -> false, false, false
     let ws =
         match current, placeholder with
         | Some(inv, events), _ -> workspaceKeys st inv events true @ reportKeys inv events true
@@ -1748,14 +2207,33 @@ let project (st: AppState) : (string * J) list =
         | HomeScreen, _ -> "Root-Cause Investigator"
         | SettingsScreen, _ -> "GitHub settings · Root-Cause Investigator"
         | WorkspaceScreen _, Some(inv, _) -> inv.Title.Value + " · Root-Cause Investigator"
+        | EntityScreen _, Some(inv, _) when isWorkspace -> inv.Title.Value + " · Root-Cause Investigator"
+        | FactoryScreen, _ -> "How this app was built · Root-Cause Investigator"
         | ReportScreen _, Some(inv, _) -> "Report: " + inv.Title.Value + " · Root-Cause Investigator"
         | _, _ when loading -> "Loading · Root-Cause Investigator"
         | _ -> "Not found · Root-Cause Investigator"
     let missingText =
         match st.Screen with
         | MissingScreen path -> "There is no page at \"" + Words.clip 80 path + "\"."
-        | WorkspaceScreen _ | ReportScreen _ -> "This investigation is not on this device. It may have been created in another browser, or the link is wrong."
+        | RefusedLinkScreen parameter ->
+            "This link was not opened: it carries the parameter \"" + parameter + "\", which is never allowed in links because it could expose a secret."
+        | EntityScreen(iid, _, _) when screenOk iid ->
+            "This investigation has no such item. It may have been mistyped; history is never deleted, so nothing was removed."
+        | WorkspaceScreen _ | ReportScreen _ | EntityScreen _ -> "This investigation is not on this device. It may have been created in another browser, or the link is wrong."
         | _ -> ""
+    let backToInvestigation =
+        match st.Screen with
+        | EntityScreen(iid, _, _) when screenOk iid -> Some(ScreenRoute.format (WorkspaceScreen iid))
+        | _ -> None
+    let focusKeys =
+        let kind, label, text, state = focus |> Option.defaultValue ("", "", "", "")
+        [ "hasFocus", b focus.IsSome
+          "focusKind", s kind
+          "focusLabel", s label
+          "focusText", s text
+          "focusState", s state
+          "hasMissingBack", b backToInvestigation.IsSome
+          "missingBackHref", s (backToInvestigation |> Option.defaultValue "#/") ]
     let refusals =
         st.Refusals
         |> List.mapi (fun i r -> item [ "id", s (string i); "code", s r.Code; "message", s r.Message; "rule", s r.Rule; "fault", s ("Aegis fault " + r.FaultCode + " (domain refusal, " + r.Operation + ")") ])
@@ -1782,15 +2260,21 @@ let project (st: AppState) : (string * J) list =
       "connection", s (if st.Online then "Online" else "Offline — work continues on this device")
       "isOffline", b (not st.Online)
       "remoteConfigured", b st.Remote.IsSome
+      "needsToken", b (st.Remote.IsSome && not (hasToken st))
+      "startDisabled", b (not st.Loaded)
       "settingsSummary",
       s (
           match st.Remote with
-          | Some r -> "Syncing to GitHub repository " + r.Owner + "/" + r.Repository + " (branch " + r.Branch + "). An access token is saved on this device only; it is never shown or put in links."
+          | Some r when r.Token = "" ->
+              "GitHub repository " + r.Owner + "/" + r.Repository + " (branch " + r.Branch + "). No access token in this session: enter it to sync. Tokens are kept in memory only and are asked for again after a reload."
+          | Some r -> "Syncing to GitHub repository " + r.Owner + "/" + r.Repository + " (branch " + r.Branch + "). The access token is kept in memory for this session only; it is never saved, shown or put in links."
           | None -> "Not connected to GitHub. Investigations are saved on this device only."
       ) ]
     @ homeKeys st
     @ (draftFields |> List.map (fun f -> "draft_" + f, s (draftValue f)))
     @ ws
+    @ focusKeys
+    @ factoryKeys st
 
 // ---------------------------------------------------------------------------
 // handle: the whole engine, one message at a time
@@ -1798,10 +2282,10 @@ let project (st: AppState) : (string * J) list =
 
 let private step (message: Inbound) (st: AppState) : AppState * Effect list * HandshakeReply =
     match message with
-    | Initialize(hash, offer) ->
+    | Initialize(hash, baseUrl, offer) ->
         let reply = Wire.negotiate offer
         let lifecycle = match reply with Accepted(_, _, selected) -> not selected.IsEmpty | _ -> false
-        let st = { st with Screen = ScreenRoute.parse hash; LifecycleNegotiated = lifecycle }
+        let st = { st with Screen = ScreenRoute.parse hash; LifecycleNegotiated = lifecycle; BaseUrl = baseUrl }
         let c1, st = Ids.correlation st LoadSettings
         let c2, st = Ids.correlation st LoadSync
         let c3, st = Ids.correlation st LoadIndex
@@ -1811,7 +2295,8 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
                 let c, st = Ids.correlation st Subscribe
                 st, [ SubscribeConnectivity c ]
             else st, []
-        st, loads @ subscribe, reply
+        let st, factory = ensureFactory st
+        st, loads @ subscribe @ factory, reply
     | UiEvent(name, key, value) ->
         let st, fx = onEvent name key value st
         st, fx, NoHandshake
@@ -1823,19 +2308,38 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
         | None -> st, [], NoHandshake
     | HttpDone(c, outcome) ->
         match Map.tryFind c st.Pending with
-        | Some(RemoteRead iid) ->
+        | Some(RemoteRead(iid, remote)) when remote = currentIdentity st ->
             let st, fx = onRemoteRead iid outcome { st with Pending = st.Pending |> Map.remove c }
             st, fx, NoHandshake
-        | Some(RemoteWrite iid) ->
+        | Some(RemoteWrite(iid, remote)) when remote = currentIdentity st ->
             let st, fx = onRemoteWrite iid outcome { st with Pending = st.Pending |> Map.remove c }
             st, fx, NoHandshake
+        | Some FactoryLoad ->
+            let factory =
+                match outcome with
+                | HttpSuccess(200, body) -> (match decodeFactory body with Ok f -> FactoryLoaded f | Error e -> FactoryFailed e)
+                | HttpSuccess(status, _) -> FactoryFailed("the server answered " + string status)
+                | HttpFailure(reason, _) -> FactoryFailed("the request failed (" + reason + ")")
+                | HttpCancelled -> FactoryFailed "the request was cancelled"
+                | HttpOutcomeUnknown reason -> FactoryFailed reason
+            { st with Pending = st.Pending |> Map.remove c; Factory = factory }, [], NoHandshake
         | _ -> { st with Pending = st.Pending |> Map.remove c }, [], NoHandshake
     | CapabilityDone(c, online) ->
         let st = { st with Pending = st.Pending |> Map.remove c; Online = Option.defaultValue st.Online online }
         let st, fx = if st.Loaded then sendAllPending st else st, []
         st, fx, NoHandshake
     | NavigationDone c -> { st with Pending = st.Pending |> Map.remove c }, [], NoHandshake
-    | LocationChanged hash -> { st with Screen = ScreenRoute.parse hash; Refusals = []; Notice = "" }, [], NoHandshake
+    | ClipboardDone(c, failure) ->
+        let notice =
+            match Map.tryFind c st.Pending, failure with
+            | Some(CopyLink url), None -> "Link copied: " + url
+            | Some(CopyLink url), Some "denied" -> "The browser did not allow copying. The link is: " + url
+            | Some(CopyLink url), Some _ -> "Copying is not available here. The link is: " + url
+            | _ -> st.Notice
+        { st with Pending = st.Pending |> Map.remove c; Notice = notice }, [], NoHandshake
+    | LocationChanged hash ->
+        let st, fx = ensureFactory { st with Screen = ScreenRoute.parse hash; Refusals = []; Notice = "" }
+        st, fx, NoHandshake
     | ConnectivityChanged online ->
         let st = { st with Online = online }
         let st, fx = if online && st.Loaded then sendAllPending st else st, []

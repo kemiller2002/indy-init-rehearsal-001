@@ -273,6 +273,8 @@ type CorrectiveAction =
       Description: NonEmptyText
       Targets: CausalAssertionId list
       State: CorrectiveActionState
+      /// Event sequence at which the current verification round began (0 = never).
+      AwaitingSince: int64
       Provenance: Provenance }
 
 type Criterion =
@@ -287,6 +289,8 @@ type Verification =
       Criterion: CriterionId
       Outcome: VerificationOutcome
       Evidence: EvidenceId list
+      /// Event sequence that recorded it (verification freshness, R7.4).
+      Sequence: int64
       Provenance: Provenance }
 
 type Conclusion =

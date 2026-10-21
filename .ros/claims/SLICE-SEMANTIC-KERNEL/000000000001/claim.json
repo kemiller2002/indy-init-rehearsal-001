@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "praxis.work-claim/1",
+  "workItemId": "SLICE-SEMANTIC-KERNEL",
+  "revision": 1,
+  "generation": 1,
+  "status": "claimed",
+  "holder": {
+    "claimant": "anthropic/claude-code",
+    "claimToken": "rc-kernel",
+    "acquiredAt": "2026-10-21T18:42:10.419Z",
+    "leaseExpiresAt": "2026-10-21T19:12:10.419Z"
+  },
+  "previousClaimant": null,
+  "pendingPacketDigest": null,
+  "consumedPacketDigests": [],
+  "completion": null,
+  "updatedAt": "2026-10-21T18:42:10.419Z"
+}
