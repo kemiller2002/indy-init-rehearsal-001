@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "praxis.work-claim/1",
+  "workItemId": "SLICE-SEMANTIC-KERNEL",
+  "revision": 3,
+  "generation": 1,
+  "status": "completed",
+  "holder": {
+    "claimant": "anthropic/claude-code",
+    "claimToken": "rc-kernel",
+    "acquiredAt": "2026-10-21T18:42:10.419Z",
+    "leaseExpiresAt": "2026-10-21T19:12:10.419Z"
+  },
+  "previousClaimant": null,
+  "pendingPacketDigest": null,
+  "consumedPacketDigests": [
+    "sha256:e12945d04404f93fdf45b393084e1967263edb51e6610d2b72c8055dc07fdbcb"
+  ],
+  "completion": {
+    "packetDigest": "sha256:e12945d04404f93fdf45b393084e1967263edb51e6610d2b72c8055dc07fdbcb",
+    "receiptDigest": "sha256:1ac3faee667f529a4e182f624d83e32fa3d572a71a89b7bd538fab969aa8c3da",
+    "commit": "0b000871daea671d3cb7ee3877b7615381827f72",
+    "verificationRevision": "0b000871daea671d3cb7ee3877b7615381827f72",
+    "requirementIds": [
+      "SLICE-SEMANTIC-KERNEL"
+    ],
+    "telemetryExecutions": [],
+    "verifier": {
+      "name": "dokimos",
+      "version": "0.7.0+04b5f856367b47a087285109c1fc5923ec351389"
+    },
+    "completedAt": "2026-10-21T18:42:32.133Z"
+  },
+  "updatedAt": "2026-10-21T18:42:32.133Z"
+}
