@@ -6,7 +6,7 @@
 | ROS-INSTALL-3-16-0 | ROS-INSTALL-3-16-0 | complete |  |  |
 | SLICE-ADVANCED-VIEWS | Slice 17 advanced-views: advanced reasoning views and diagnostics: dependency and causal-set visualizations, uncertainty map, miners, search | ready | indy-init, slice, cut:stretch | low |
 | SLICE-AI-PROPOSALS | Slice 08 ai-proposals: bounded context and proof-carrying structured AI proposals | ready | indy-init, slice, cut:never-cut | high |
-| SLICE-BOOTSTRAP | Slice 01 bootstrap: capture blank-repo provenance and establish governed engineering environment | ready | indy-init, slice, cut:never-cut | high |
+| SLICE-BOOTSTRAP | Slice 01 bootstrap: capture blank-repo provenance and establish governed engineering environment | complete | indy-init, slice, cut:never-cut | high |
 | SLICE-BOUNDED-AUTONOMY | Slice 19 bounded-autonomy: bounded autonomous investigation sessions with budgets, stop conditions and human checkpoints | ready | indy-init, slice, cut:stretch | low |
 | SLICE-COUNTERFACTUAL | Slice 16 counterfactual: sandbox branch without source mutation | ready | indy-init, slice, cut:stretch | low |
 | SLICE-CROSS-INVESTIGATION | Slice 21 cross-investigation: cross-investigation intelligence: prior cases, similarity retrieval, reusable experiments | ready | indy-init, slice, cut:stretch | low |

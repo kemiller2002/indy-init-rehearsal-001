@@ -4,7 +4,7 @@
   "repository": "indy-init-rehearsal-001",
   "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-10-21T16:32:05.050Z",
+  "updatedAt": "2026-10-21T16:46:19.914Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -24,10 +24,19 @@
     {
       "id": "SLICE-BOOTSTRAP",
       "type": "task",
-      "state": "active",
-      "semanticState": "active",
-      "evidence": [],
-      "updatedAt": "2026-10-21T16:32:05.050Z",
+      "state": "complete",
+      "semanticState": "complete",
+      "evidence": [
+        {
+          "type": "implementation",
+          "path": "evidence/bootstrap/README.md"
+        },
+        {
+          "type": "tests",
+          "path": "evidence/bootstrap/tests.txt"
+        }
+      ],
+      "updatedAt": "2026-10-21T16:46:19.914Z",
       "telemetryExecutionIds": [
         "EXE-20261021T163205535Z-ca660a1d"
       ],
@@ -50,7 +59,8 @@
           "status": "verified",
           "mechanism": "git-remote-observation"
         }
-      }
+      },
+      "completedAt": "2026-10-21T16:46:19.914Z"
     }
   ]
 }
