@@ -5,7 +5,14 @@
     "moduleResolution": "Bundler",
     "strict": true,
     "noEmit": true,
-    "lib": ["ES2022", "DOM"]
+    "allowJs": true,
+    "checkJs": true,
+    "skipLibCheck": true,
+    "lib": ["ES2022", "DOM"],
+    "paths": {
+      "limen/*": ["./node_modules/@echelon-foundry/limen/dist/*"],
+      "folio/*": ["./node_modules/@echelon-foundry/print-components/src/*"]
+    }
   },
-  "include": ["src/kernel/**/*.ts"]
+  "include": ["src/kernel/**/*.js", "src/kernel/**/*.ts"]
 }

@@ -13,9 +13,28 @@
       ],
       "priority": "high",
       "status": "ready",
-      "attachments": [],
+      "attachments": [
+        {
+          "id": "ATT-1",
+          "seq": 1,
+          "name": "requirements-trace.json",
+          "file": "1-requirements-trace.json",
+          "size": 223844,
+          "contentType": null,
+          "uploadedAt": "2026-10-21T16:27:33.203Z"
+        },
+        {
+          "id": "ATT-2",
+          "seq": 2,
+          "name": "ecir-source-manifest.json",
+          "file": "2-ecir-source-manifest.json",
+          "size": 362627,
+          "contentType": null,
+          "uploadedAt": "2026-10-21T16:27:33.628Z"
+        }
+      ],
       "createdAt": "2026-10-21T16:26:42.2681542+00:00",
-      "updatedAt": "2026-10-21T16:26:43.0008247+00:00",
+      "updatedAt": "2026-10-21T16:27:33.628Z",
       "createdBy": "conditor",
       "createdByActor": {
         "kind": "agent",
@@ -26,6 +45,581 @@
       },
       "source": "conditor",
       "sourceReference": "kickoff/indy-init.kickoff.json"
+    },
+    {
+      "id": "SLICE-BOOTSTRAP",
+      "title": "Slice 01 bootstrap: capture blank-repo provenance and establish governed engineering environment",
+      "description": "capture blank-repo provenance and establish governed engineering environment\n\nSlice 1 of 23 in the indy-init requirements queue; cut policy never-cut.\nBasis: kickoff prioritySlices order 1.\n\nSource requirements (34), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- R (12): R0.1..R0.4, R13.1..R13.8\n- P (21): P25.1..P25.7, P45.1..P45.14\n- K (1): K-SLICE-bootstrap\n\nAcceptance criteria (factory decisions):\n- Baseline security from the first commit (DF-CON-2026-A002): no credential, token or provider key is committed, bundled into the client, or written to Praxis state, reports or logs (P35.3, R11.3, K-STOP-11). A CI check fails the build when one appears.\n- Every page ships a restrictive Content-Security-Policy: no inline script, no eval, and connect-src limited to the GitHub API and the chosen AI provider (P35.9, SECURITY-THREAT-MODEL section 17). A browser test asserts it. GitHub Pages cannot set headers and a meta-tag CSP cannot carry frame-ancestors, so record that gap as a deviation (P40.4).\n- Commit package-lock.json so CI installs from the lockfile, and run `npx limen init` (it adopts limen.config.json) so the Limen boundary is verified in CI.\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:never-cut"
+      ],
+      "priority": "high",
+      "status": "complete",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:11.206Z",
+      "updatedAt": "2026-10-21T16:46:19.914Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "kickoff/indy-init.kickoff.json#prioritySlices/bootstrap"
+    },
+    {
+      "id": "SLICE-SEMANTIC-KERNEL",
+      "title": "Slice 02 semantic-kernel: typed generic investigation state, commands, events, decide/evolve",
+      "description": "typed generic investigation state, commands, events, decide/evolve\n\nSlice 2 of 23 in the indy-init requirements queue; cut policy never-cut. Depends on SLICE-BOOTSTRAP.\nBasis: kickoff prioritySlices order 2.\n\nSource requirements (222), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- R (17): R1.1..R1.3, R2.1..R2.5, R3.1..R3.5, R5.1..R5.4\n- P (88): P0.1..P0.5, P1.1..P1.6, P2.1..P2.4, P3.1..P3.6, P4.1..P4.10, P5.1..P5.6, P23.1..P23.5, P24.1..P24.5, P28.1..P28.8, P29.1..P29.17, P37.1..P37.16\n- A (56): A1..A17, A24, A28..A30, A33, A37..A38, A41..A49, A51..A54, A56..A57, A116..A126, A130..A135\n- D (25): D-001..D-015, D-101..D-110\n- I (20): I-01..I-20\n- F (10): F1..F10\n- K (6): K-SLICE-semantic-kernel, K-GATE-domain, K-STOP-04, K-STOP-06..K-STOP-07, K-STOP-09\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:never-cut"
+      ],
+      "priority": "high",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:12.215Z",
+      "updatedAt": "2026-10-21T16:27:12.683Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "kickoff/indy-init.kickoff.json#prioritySlices/semantic-kernel"
+    },
+    {
+      "id": "SLICE-POLICY-CAPABILITIES",
+      "title": "Slice 03 policy-capabilities: deterministic blockers, legal actions, cause and resolution gates",
+      "description": "deterministic blockers, legal actions, cause and resolution gates\n\nSlice 3 of 23 in the indy-init requirements queue; cut policy never-cut. Depends on SLICE-SEMANTIC-KERNEL.\nBasis: kickoff prioritySlices order 3.\n\nSource requirements (28), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- R (4): R8.1..R8.4\n- P (14): P31.1..P31.14\n- A (9): A27, A55, A62..A63, A66..A67, A127..A129\n- K (1): K-SLICE-policy-capabilities\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:never-cut"
+      ],
+      "priority": "high",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:13.093Z",
+      "updatedAt": "2026-10-21T16:27:13.557Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "kickoff/indy-init.kickoff.json#prioritySlices/policy-capabilities"
+    },
+    {
+      "id": "SLICE-SEMANTIC-COMPILER",
+      "title": "Slice 04 semantic-compiler: semantic compiler and exhaustive transition validation: registry, generated checks, state-space and property tests",
+      "description": "semantic compiler and exhaustive transition validation: registry, generated checks, state-space and property tests\n\nSlice 4 of 23 in the indy-init requirements queue; cut policy cut-last. Depends on SLICE-POLICY-CAPABILITIES.\nBasis: KICKOFF-EXECUTION-PACKET section 3 item 3; IMPLEMENTATION-SLICES Slice 2A.\n\nSource requirements (47), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- P (25): P39.1..P39.25\n- A (22): A171..A192\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:cut-last"
+      ],
+      "priority": "medium",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:13.926Z",
+      "updatedAt": "2026-10-21T16:27:14.414Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "conditor.json#requirementsImport/additionalSlices/semantic-compiler"
+    },
+    {
+      "id": "SLICE-WORKSPACE",
+      "title": "Slice 05 workspace: one complete accessible investigation workspace",
+      "description": "one complete accessible investigation workspace\n\nSlice 5 of 23 in the indy-init requirements queue; cut policy never-cut. Depends on SLICE-POLICY-CAPABILITIES.\nBasis: kickoff prioritySlices order 4.\n\nSource requirements (69), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- R (10): R9.1..R9.10\n- P (34): P18.1..P18.7, P19.1..P19.4, P34.1..P34.20, P40.9..P40.11\n- A (12): A61, A91..A100, A197\n- S (9): S01..S08, S24\n- K (4): K-SLICE-workspace, K-GATE-workspace, K-STOP-01, K-STOP-10\n\nAcceptance criteria (factory decisions):\n- Baseline input safety (DF-CON-2026-A002): every user and evidence input is validated at the domain boundary through typed commands and refused with an explainable reason, and untrusted text renders inert, never as HTML, script or instructions (P35.7, P35.8, A101, A105).\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:never-cut"
+      ],
+      "priority": "high",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:14.960Z",
+      "updatedAt": "2026-10-21T16:27:15.472Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "kickoff/indy-init.kickoff.json#prioritySlices/workspace"
+    },
+    {
+      "id": "SLICE-LOCAL-PERSISTENCE",
+      "title": "Slice 06 local-persistence: durable local work and honest pending/synced state",
+      "description": "durable local work and honest pending/synced state\n\nSlice 6 of 23 in the indy-init requirements queue; cut policy never-cut. Depends on SLICE-WORKSPACE.\nBasis: kickoff prioritySlices order 5.\n\nSource requirements (46), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- R (3): R10.5..R10.7\n- P (27): P14.1..P14.9, P32.1..P32.18\n- A (13): A58, A64..A65, A70..A73, A75..A80\n- K (3): K-SLICE-local-persistence, K-GATE-persistence, K-STOP-05\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:never-cut"
+      ],
+      "priority": "high",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:15.877Z",
+      "updatedAt": "2026-10-21T16:27:16.326Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "kickoff/indy-init.kickoff.json#prioritySlices/local-persistence"
+    },
+    {
+      "id": "SLICE-GITHUB-PROVIDER",
+      "title": "Slice 07 github-provider: provider-independent remote persistence with optimistic concurrency",
+      "description": "provider-independent remote persistence with optimistic concurrency\n\nSlice 7 of 23 in the indy-init requirements queue; cut policy cut-last. Depends on SLICE-LOCAL-PERSISTENCE.\nBasis: kickoff prioritySlices order 6.\n\nSource requirements (20), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- R (7): R10.1..R10.4, R11.1..R11.3\n- P (6): P15.1..P15.6\n- A (4): A25, A68..A69, A74\n- S (1): S23\n- K (2): K-SLICE-github-provider, K-STOP-03\n\nAcceptance criteria (factory decisions):\n- Persistence authentication (RQR-004, OQ-009, D-210; DF-CON-2026-A002): the competition profile uses a fine-grained personal access token scoped to one investigation data repository, contents read and write only, with a short expiry. It is entered at runtime, held in memory for the session only and never stored in localStorage. Document it as the temporary developer-mode deviation SECURITY-THREAT-MODEL sections 4 and 6 permit, and record GitHub App with token exchange as the production target (P35.2, R11.1).\n- Investigation data lives in a separate data repository, never in the application repository, so the token cannot change application code (R11.2). The person creates that repository and token; until they exist the app works local-only, and the UI says so honestly (R10.6).\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:cut-last"
+      ],
+      "priority": "medium",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:16.742Z",
+      "updatedAt": "2026-10-21T16:27:17.243Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "kickoff/indy-init.kickoff.json#prioritySlices/github-provider"
+    },
+    {
+      "id": "SLICE-AI-PROPOSALS",
+      "title": "Slice 08 ai-proposals: bounded context and proof-carrying structured AI proposals",
+      "description": "bounded context and proof-carrying structured AI proposals\n\nSlice 8 of 23 in the indy-init requirements queue; cut policy never-cut. Depends on SLICE-LOCAL-PERSISTENCE.\nBasis: kickoff prioritySlices order 7.\n\nSource requirements (47), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- R (6): R11.4, R15.1..R15.5\n- P (24): P16.1..P16.8, P33.1..P33.16\n- A (14): A18..A19, A26, A50, A81..A90\n- K (3): K-SLICE-ai-proposals, K-GATE-ai, K-STOP-02\n\nAcceptance criteria (factory decisions):\n- AI transport (RQR-003, OQ-010, D-212 ReversibleChoice; DF-CON-2026-A002): the browser calls the AI provider directly with a key the user enters at runtime. The key is held in memory for the session only: never committed, bundled, stored in localStorage, logged, or sent in prompts or reports (P35.3). Keep it behind a provider interface so a small proxy can replace it without domain changes (P16.1).\n- Without a key or a network the investigation stays fully usable by hand, and a clearly labelled recorded proposal is available as the demo fallback (P16.7, P33.13, P38.38). Record the transport choice as a ReversibleChoice decision in this repository.\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:never-cut"
+      ],
+      "priority": "high",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:17.670Z",
+      "updatedAt": "2026-10-21T16:27:18.152Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "kickoff/indy-init.kickoff.json#prioritySlices/ai-proposals"
+    },
+    {
+      "id": "SLICE-INVESTIGATION-LOOP",
+      "title": "Slice 09 investigation-loop: prediction, action, finding, cause, correction, verification, resolution",
+      "description": "prediction, action, finding, cause, correction, verification, resolution\n\nSlice 9 of 23 in the indy-init requirements queue; cut policy never-cut. Depends on SLICE-AI-PROPOSALS.\nBasis: kickoff prioritySlices order 8.\n\nSource requirements (57), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- R (12): R4.1..R4.4, R6.1..R6.4, R7.1..R7.4\n- P (27): P6.1..P6.8, P7.1..P7.8, P8.1..P8.6, P9.1..P9.5\n- A (9): A20..A23, A32, A34..A36, A40\n- S (5): S09..S13\n- K (4): K-SLICE-investigation-loop, K-GATE-causality, K-GATE-verification, K-STOP-08\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:never-cut"
+      ],
+      "priority": "high",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:18.624Z",
+      "updatedAt": "2026-10-21T16:27:19.137Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "kickoff/indy-init.kickoff.json#prioritySlices/investigation-loop"
+    },
+    {
+      "id": "SLICE-REPORTING",
+      "title": "Slice 10 reporting: interim and final Folio reports with snapshot semantics and evidence traceability",
+      "description": "interim and final Folio reports with snapshot semantics and evidence traceability\n\nSlice 10 of 23 in the indy-init requirements queue; cut policy cut-last. Depends on SLICE-INVESTIGATION-LOOP.\nBasis: IMPLEMENTATION-SLICES Slice 9 (Reporting); REQUIREMENTS R12.\n\nSource requirements (11), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- R (3): R12.1..R12.3\n- P (6): P20.1..P20.6\n- A (1): A31\n- S (1): S22\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:cut-last"
+      ],
+      "priority": "medium",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:19.710Z",
+      "updatedAt": "2026-10-21T16:27:20.238Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "conditor.json#requirementsImport/additionalSlices/reporting"
+    },
+    {
+      "id": "SLICE-TIME-TRAVEL",
+      "title": "Slice 11 time-travel: semantic diff and what-changed-my-mind explanation",
+      "description": "semantic diff and what-changed-my-mind explanation\n\nSlice 11 of 23 in the indy-init requirements queue; cut policy cut-last. Depends on SLICE-INVESTIGATION-LOOP.\nBasis: kickoff prioritySlices order 9.\n\nSource requirements (11), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- P (3): P38.1..P38.3\n- A (5): A136..A139, A198\n- S (2): S14..S15\n- K (1): K-SLICE-time-travel\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:cut-last"
+      ],
+      "priority": "medium",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:20.754Z",
+      "updatedAt": "2026-10-21T16:27:21.239Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "kickoff/indy-init.kickoff.json#prioritySlices/time-travel"
+    },
+    {
+      "id": "SLICE-MULTI-AGENT",
+      "title": "Slice 12 multi-agent: blind Generator, Skeptic, and Evidence Auditor panel",
+      "description": "blind Generator, Skeptic, and Evidence Auditor panel\n\nSlice 12 of 23 in the indy-init requirements queue; cut policy stretch. Depends on SLICE-INVESTIGATION-LOOP.\nBasis: kickoff prioritySlices order 10.\n\nSource requirements (16), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- P (7): P38.11..P38.17\n- A (6): A144..A149\n- S (2): S17..S18\n- K (1): K-SLICE-multi-agent\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:stretch"
+      ],
+      "priority": "low",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:21.739Z",
+      "updatedAt": "2026-10-21T16:27:22.227Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "kickoff/indy-init.kickoff.json#prioritySlices/multi-agent"
+    },
+    {
+      "id": "SLICE-FACTORY-PROOF",
+      "title": "Slice 13 factory-proof: real requirements/test/metrics/commit/proof view",
+      "description": "real requirements/test/metrics/commit/proof view\n\nSlice 13 of 23 in the indy-init requirements queue; cut policy never-cut. Depends on SLICE-INVESTIGATION-LOOP.\nBasis: kickoff prioritySlices order 11.\n\nSource requirements (39), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- R (3): R14.1..R14.3\n- P (20): P21.1..P21.6, P38.26..P38.30, P40.1..P40.8, P40.12\n- A (11): A162..A167, A193..A196, A200\n- S (3): S19..S21\n- K (2): K-SLICE-factory-proof, K-GATE-factory\n\nAcceptance criteria (factory decisions):\n- Publish a generated, read-only requirements trace view in the Factory View (S20, S21; DF-CON-2026-A002). Build it at build time from the requirements-trace.json attachment of COND-MISSION-001 plus Praxis completion state. List every source requirement with its slice, status and evidence, and stamp the view with its build commit. It never edits Praxis state (P38.29, A166, A200).\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:never-cut"
+      ],
+      "priority": "high",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:22.682Z",
+      "updatedAt": "2026-10-21T16:27:23.329Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "kickoff/indy-init.kickoff.json#prioritySlices/factory-proof"
+    },
+    {
+      "id": "SLICE-SECURITY-HARDENING",
+      "title": "Slice 14 security-hardening: security hardening required for the public demo: trust boundaries, credential exclusion, untrusted evidence, rendering safety",
+      "description": "security hardening required for the public demo: trust boundaries, credential exclusion, untrusted evidence, rendering safety\n\nSlice 14 of 23 in the indy-init requirements queue; cut policy cut-last. Depends on SLICE-FACTORY-PROOF.\nBasis: IMPLEMENTATION-SLICES Slice 10; KICKOFF-EXECUTION-PACKET checkpoint 4:25.\n\nSource requirements (43), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- P (26): P17.1..P17.8, P35.1..P35.18\n- A (15): A101..A115\n- K (2): K-GATE-security, K-STOP-11\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:cut-last"
+      ],
+      "priority": "medium",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:23.765Z",
+      "updatedAt": "2026-10-21T16:27:24.227Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "conditor.json#requirementsImport/additionalSlices/security-hardening"
+    },
+    {
+      "id": "SLICE-DEMO-READINESS",
+      "title": "Slice 15 demo-readiness: hackathon demonstration: understandable in seconds, demo health, graceful degradation, deployment and performance",
+      "description": "hackathon demonstration: understandable in seconds, demo health, graceful degradation, deployment and performance\n\nSlice 15 of 23 in the indy-init requirements queue; cut policy never-cut. Depends on SLICE-FACTORY-PROOF.\nBasis: IMPLEMENTATION-SLICES Slice 11; REQUIREMENTS R16; SCREEN-CONTRACTS S25; never-cut because a working demo is required to compete (DF-CON-2026-A002).\n\nSource requirements (20), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- R (5): R16.1..R16.5\n- P (12): P22.1..P22.5, P26.1..P26.4, P38.37..P38.39\n- A (1): A170\n- S (1): S25\n- K (1): K-GATE-competition\n\nAcceptance criteria (factory decisions):\n- Deploy to GitHub Pages (RQR-005, D-203; DF-CON-2026-A002): add `npm run build` writing the complete site, including dist/index.html, to dist/, so .github/workflows/deploy-pages.yml publishes it; verify the deployed URL before the final freeze (P26.1).\n- Demo scenario (RQR-008, OQ-042): the DEMO-PLAN order-delivery case. The order never arrived; the system and the carrier both say delivered; the shipping address may have changed after the order. Seed it as ordinary investigation data through normal commands, with at least one falsified hypothesis, one blocking unknown and one contradiction. The product must not special-case it.\n- Demo health (S25) shows the AI key, persistence and deployment state honestly, and the demo still works without the AI key or the data repository.\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:never-cut"
+      ],
+      "priority": "high",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:24.636Z",
+      "updatedAt": "2026-10-21T16:27:25.157Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "conditor.json#requirementsImport/additionalSlices/demo-readiness"
+    },
+    {
+      "id": "SLICE-COUNTERFACTUAL",
+      "title": "Slice 16 counterfactual: sandbox branch without source mutation",
+      "description": "sandbox branch without source mutation\n\nSlice 16 of 23 in the indy-init requirements queue; cut policy stretch. Depends on SLICE-DEMO-READINESS.\nBasis: kickoff prioritySlices order 12.\n\nSource requirements (10), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- P (3): P38.4..P38.6\n- A (5): A140..A143, A199\n- S (1): S16\n- K (1): K-SLICE-counterfactual\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:stretch"
+      ],
+      "priority": "low",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:25.569Z",
+      "updatedAt": "2026-10-21T16:27:26.028Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "kickoff/indy-init.kickoff.json#prioritySlices/counterfactual"
+    },
+    {
+      "id": "SLICE-ADVANCED-VIEWS",
+      "title": "Slice 17 advanced-views: advanced reasoning views and diagnostics: dependency and causal-set visualizations, uncertainty map, miners, search",
+      "description": "advanced reasoning views and diagnostics: dependency and causal-set visualizations, uncertainty map, miners, search\n\nSlice 17 of 23 in the indy-init requirements queue; cut policy stretch. Depends on SLICE-DEMO-READINESS.\nBasis: IMPLEMENTATION-SLICES Slices 9C and 9E; PRODUCT-REQUIREMENTS P38.\n\nSource requirements (32), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- P (18): P38.7..P38.10, P38.18..P38.25, P38.31..P38.36\n- A (14): A150..A161, A168..A169\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:stretch"
+      ],
+      "priority": "low",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:26.458Z",
+      "updatedAt": "2026-10-21T16:27:26.945Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "conditor.json#requirementsImport/additionalSlices/advanced-views"
+    },
+    {
+      "id": "SLICE-TOOL-ANALYTICS",
+      "title": "Slice 18 tool-analytics: governed tool execution gateway, local WASM analytics and the evidence ingestion pipeline",
+      "description": "governed tool execution gateway, local WASM analytics and the evidence ingestion pipeline\n\nSlice 18 of 23 in the indy-init requirements queue; cut policy stretch. Depends on SLICE-DEMO-READINESS.\nBasis: IMPLEMENTATION-SLICES Slice 6A; PRODUCT-REQUIREMENTS P43, P44.\n\nSource requirements (43), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- P (24): P43.1..P43.8, P43.17, P44.1..P44.15\n- A (19): A226..A231, A237..A249\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:stretch"
+      ],
+      "priority": "low",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:27.392Z",
+      "updatedAt": "2026-10-21T16:27:27.856Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "conditor.json#requirementsImport/additionalSlices/tool-analytics"
+    },
+    {
+      "id": "SLICE-BOUNDED-AUTONOMY",
+      "title": "Slice 19 bounded-autonomy: bounded autonomous investigation sessions with budgets, stop conditions and human checkpoints",
+      "description": "bounded autonomous investigation sessions with budgets, stop conditions and human checkpoints\n\nSlice 19 of 23 in the indy-init requirements queue; cut policy stretch. Depends on SLICE-DEMO-READINESS.\nBasis: IMPLEMENTATION-SLICES Slice 6B; PRODUCT-REQUIREMENTS P43.\n\nSource requirements (15), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- P (9): P43.9..P43.16, P43.18\n- A (6): A232..A236, A250\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:stretch"
+      ],
+      "priority": "low",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:28.260Z",
+      "updatedAt": "2026-10-21T16:27:28.801Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "conditor.json#requirementsImport/additionalSlices/bounded-autonomy"
+    },
+    {
+      "id": "SLICE-PROOF-CARRYING-PLANNER",
+      "title": "Slice 20 proof-carrying-planner: proof-carrying proposals and the investigation planner",
+      "description": "proof-carrying proposals and the investigation planner\n\nSlice 20 of 23 in the indy-init requirements queue; cut policy stretch. Depends on SLICE-DEMO-READINESS.\nBasis: IMPLEMENTATION-SLICES Slice 7A; PRODUCT-REQUIREMENTS P41.\n\nSource requirements (27), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- P (14): P41.1..P41.14\n- A (13): A201..A213\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:stretch"
+      ],
+      "priority": "low",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:29.277Z",
+      "updatedAt": "2026-10-21T16:27:29.789Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "conditor.json#requirementsImport/additionalSlices/proof-carrying-planner"
+    },
+    {
+      "id": "SLICE-CROSS-INVESTIGATION",
+      "title": "Slice 21 cross-investigation: cross-investigation intelligence: prior cases, similarity retrieval, reusable experiments",
+      "description": "cross-investigation intelligence: prior cases, similarity retrieval, reusable experiments\n\nSlice 21 of 23 in the indy-init requirements queue; cut policy stretch. Depends on SLICE-DEMO-READINESS.\nBasis: IMPLEMENTATION-SLICES Slice 7B; PRODUCT-REQUIREMENTS P42.\n\nSource requirements (14), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- P (7): P42.1..P42.6, P42.16\n- A (7): A39, A214..A219\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:stretch"
+      ],
+      "priority": "low",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:30.356Z",
+      "updatedAt": "2026-10-21T16:27:30.835Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "conditor.json#requirementsImport/additionalSlices/cross-investigation"
+    },
+    {
+      "id": "SLICE-DECISION-REGISTER",
+      "title": "Slice 22 decision-register: record every open question and reversible or experimental choice as an explicit decision; never settle Deferred or Experimental research silently",
+      "description": "record every open question and reversible or experimental choice as an explicit decision; never settle Deferred or Experimental research silently\n\nSlice 22 of 23 in the indy-init requirements queue; cut policy cut-last. Depends on SLICE-DEMO-READINESS.\nBasis: OPEN-QUESTIONS; DESIGN-DECISION-BOUNDARIES sections 3, 4 and 8; PRODUCT-REQUIREMENTS P30, P36.\n\nSource requirements (87), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- P (14): P30.1..P30.7, P36.1..P36.7\n- A (1): A59\n- D (24): D-201..D-212, D-301..D-312\n- OQ (48): OQ-001..OQ-048\n\nAcceptance criteria (factory decisions):\n- Record the competition defaults of DF-CON-2026-A002 as ReversibleChoice decisions in this repository: AI transport (OQ-010), persistence authentication (OQ-009), deployment (D-203) and demo scenario (OQ-042), each with its rationale and the condition that would change it.\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:cut-last"
+      ],
+      "priority": "medium",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:31.276Z",
+      "updatedAt": "2026-10-21T16:27:31.789Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "conditor.json#requirementsImport/additionalSlices/decision-register"
+    },
+    {
+      "id": "SLICE-POST-HACKATHON",
+      "title": "Slice 23 post-hackathon: post-hackathon product growth: domain packs, templates, portfolio, collaboration, research harness, deferred decisions",
+      "description": "post-hackathon product growth: domain packs, templates, portfolio, collaboration, research harness, deferred decisions\n\nSlice 23 of 23 in the indy-init requirements queue; cut policy deferred. Depends on SLICE-DEMO-READINESS.\nBasis: IMPLEMENTATION-SLICES Slices 12 to 14; DESIGN-DECISION-BOUNDARIES section 5.\n\nSource requirements (54), each traced to this item in the requirements-trace.json attachment of COND-MISSION-001:\n- P (35): P10.1..P10.8, P11.1..P11.4, P12.1..P12.7, P13.1..P13.6, P42.7..P42.15, P42.17\n- A (7): A60, A220..A225\n- D (12): D-401..D-412\n\nComplete only when the kickoff completionRule holds for every source requirement above: requirement, implementation, tests, runtime or verification evidence, and Praxis and Aegis obligations.",
+      "tags": [
+        "indy-init",
+        "slice",
+        "cut:deferred"
+      ],
+      "priority": "low",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-10-21T16:27:32.306Z",
+      "updatedAt": "2026-10-21T16:27:32.804Z",
+      "createdBy": "conditor",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "conditor",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "indy-init",
+      "sourceReference": "conditor.json#requirementsImport/additionalSlices/post-hackathon"
     }
   ]
 }

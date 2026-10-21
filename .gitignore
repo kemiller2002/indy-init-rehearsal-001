@@ -44,3 +44,7 @@ node_modules/
 test-results/
 playwright-report/
 # conditor:build-outputs:end
+
+# agent worktrees (EX-INDY-INIT-2026-R001 R-03)
+.claude/worktrees/
+verification/

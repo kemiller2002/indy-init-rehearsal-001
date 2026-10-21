@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
+    "build": "node scripts/build-site.mjs",
     "test:browser": "playwright test"
   },
   "dependencies": {
@@ -12,6 +13,7 @@
     "@echelon-foundry/print-components": "https://github.com/kemiller2002/folio/releases/download/v0.3.0/echelon-foundry-print-components-0.3.0.tgz"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.63.0",
     "typescript": "5.9.3"
   }
