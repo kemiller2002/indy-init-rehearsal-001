@@ -4,7 +4,7 @@
   "repository": "indy-init-rehearsal-001",
   "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-10-21T16:57:23.249Z",
+  "updatedAt": "2026-10-21T17:38:34.255Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -115,6 +115,50 @@
       "updatedAt": "2026-10-21T16:57:23.249Z",
       "telemetryExecutionIds": [
         "EXE-20261021T165723963Z-4eb86ecb"
+      ]
+    },
+    {
+      "id": "SLICE-WORKSPACE",
+      "type": "task",
+      "state": "active",
+      "semanticState": "active",
+      "evidence": [],
+      "updatedAt": "2026-10-21T17:38:31.963Z",
+      "telemetryExecutionIds": [
+        "EXE-20261021T173832495Z-26f28bd5"
+      ]
+    },
+    {
+      "id": "SLICE-INVESTIGATION-LOOP",
+      "type": "task",
+      "state": "active",
+      "semanticState": "active",
+      "evidence": [],
+      "updatedAt": "2026-10-21T17:38:32.707Z",
+      "telemetryExecutionIds": [
+        "EXE-20261021T173833240Z-72ceb5cf"
+      ]
+    },
+    {
+      "id": "SLICE-AI-PROPOSALS",
+      "type": "task",
+      "state": "active",
+      "semanticState": "active",
+      "evidence": [],
+      "updatedAt": "2026-10-21T17:38:33.489Z",
+      "telemetryExecutionIds": [
+        "EXE-20261021T173834022Z-495f9aaa"
+      ]
+    },
+    {
+      "id": "SLICE-DEMO-READINESS",
+      "type": "task",
+      "state": "active",
+      "semanticState": "active",
+      "evidence": [],
+      "updatedAt": "2026-10-21T17:38:34.255Z",
+      "telemetryExecutionIds": [
+        "EXE-20261021T173834828Z-ee9e650c"
       ]
     }
   ]

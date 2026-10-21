@@ -19,7 +19,7 @@ test("the site loads every resource and the engine renders the home view @ipad",
   await expect(page.getByText(/^Build [0-9a-f]{7}|Build unknown/)).toBeVisible();
 });
 
-test("the workspace fits a 375px phone screen without sideways scrolling", async ({ page }) => {
+test("[R9.2] the workspace fits a 375px phone screen without sideways scrolling", async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto("./#/");
   await expect(page.locator("html")).toHaveAttribute("data-kernel", "running");
@@ -30,7 +30,7 @@ test("the workspace fits a 375px phone screen without sideways scrolling", async
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
-test("build-info.json names the commit", async ({ request, baseURL }) => {
+test("[AC-13] build-info.json names the commit", async ({ request, baseURL }) => {
   const response = await request.get(new URL("build-info.json", baseURL).href);
   expect(response.ok()).toBe(true);
   const info = await response.json();

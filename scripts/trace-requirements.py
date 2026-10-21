@@ -8,7 +8,20 @@ Verified is decided by the caller from --source (only CI results on the release 
 import json, re, sys, xml.etree.ElementTree as ET
 from collections import defaultdict
 
-TAG = re.compile(r'\[(R\d+\.\d+|A\d+|AC-\d+|D-\d+)\]')
+TAG = re.compile(r'\[(R\d+\.\d+|A\d+|AC-\d+|D-\d+)\]|\b(AC-\d+|R\d+\.\d+)\b')
+
+# Frozen acceptance plan (baseline/acceptance-plan.md): which requirements each AC proves.
+AC_REQUIREMENTS = {
+    'AC-01': ['R1.1', 'R1.2', 'R1.3'], 'AC-02': ['R3.1', 'R3.2'],
+    'AC-03': ['R2.1', 'R2.2', 'R2.3', 'R2.4', 'R16.4'], 'AC-04': ['R3.3', 'R3.4'],
+    'AC-05': ['R6.3'], 'AC-06': ['R8.1'], 'AC-07': ['R6.1', 'R8.2', 'R8.3', 'R16.3'],
+    'AC-08': ['R10.5', 'R10.7'], 'AC-09': ['R10.5', 'R10.6'], 'AC-10': ['R12.1', 'R12.2', 'R12.3'],
+    'AC-11': ['R7.3', 'R7.4'], 'AC-14': ['R9.3'],
+}
+
+def tags_of(name):
+    found = {a or b for a, b in TAG.findall(name)}
+    return found | {r for t in found for r in AC_REQUIREMENTS.get(t, [])}
 
 def args(argv):
     opts = defaultdict(list); it = iter(argv)
@@ -39,7 +52,7 @@ def main(argv):
     results = [r for p in o['trx'] for r in trx_results(p)] + [r for p in o['pw'] for r in pw_results(p)]
     cites = defaultdict(list)
     for name, ok in results:
-        for tag in set(TAG.findall(name)): cites[tag].append({'test': name, 'passed': ok})
+        for tag in tags_of(name): cites[tag].append({'test': name, 'passed': ok})
     scoped = [r for r in inv['requirements'] if r['scope'] in ('scoped', 'scoped-factory', 'process')]
     def status(sid):
         ts = cites.get(sid, [])

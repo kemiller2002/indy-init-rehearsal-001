@@ -117,7 +117,7 @@ test("AC-07 an illegal action is refused with its reason and Aegis fault code", 
   await expect(stateOf(page, "Mail queue worker")).toHaveText("Proposed");
 });
 
-test("AC-08 reload preserves the full investigation state; the deep link opens it", async ({ page }) => {
+test("AC-08 [R9.6][R9.7] reload preserves the full investigation state; the deep link opens it", async ({ page }) => {
   await supportedAndFalsified(page);
   await proposeCause(page);
   const url = page.url();
@@ -133,7 +133,7 @@ test("AC-08 reload preserves the full investigation state; the deep link opens i
   await expect(page.getByTestId("history-item")).toHaveCount(historyCount);
 });
 
-test("deep link to an unknown investigation id shows not found with a way home", async ({ page }) => {
+test("[R9.8] deep link to an unknown investigation id shows not found with a way home", async ({ page }) => {
   await open(page, "#/i/0b0e8d7c-1111-4222-8333-944455556666");
   await expect(page.getByRole("heading", { level: 1, name: "Not found" })).toBeVisible();
   await expect(page.getByText("This investigation is not on this device.")).toBeVisible();
@@ -200,7 +200,7 @@ test("AC-11 resolve is blocked until the correction has verification evidence; A
   await expect(page.locator("ef-print-document")).toContainText("Renew the certificate and add expiry monitoring");
 });
 
-test("AI-suggested hypothesis is recorded as the AI's and accepted only by the person", async ({ page }) => {
+test("[R15.2][R15.5] AI-suggested hypothesis is recorded as the AI's and accepted only by the person", async ({ page }) => {
   await startInvestigation(page, "Search results are stale.", "Stale search");
   await fill(page, "Add AI-suggested hypothesis", "The indexer job stopped after the last deploy");
   await page.getByRole("button", { name: "Record AI suggestion" }).click();

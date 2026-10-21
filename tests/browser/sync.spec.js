@@ -92,7 +92,7 @@ test("AC-09 (GitHub API mocked) a 409 from GitHub is shown as a conflict, not as
   await expect(page.getByRole("button", { name: "Check GitHub again" })).toBeVisible();
 });
 
-test("without GitHub settings the workspace says it is local only", async ({ page }) => {
+test("[R10.6] without GitHub settings the workspace says it is local only", async ({ page }) => {
   await startInvestigation(page, "Report generation is slow.", "Slow reports");
   await expect(remote(page)).toHaveText("Local only — not synced to GitHub");
 });
