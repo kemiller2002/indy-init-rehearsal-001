@@ -1,0 +1,5 @@
+Conditor plan for 'indy-init-root-cause-investigator'
+ 1. praxis@3.16.0: praxis verify --strict
+ 2. ordo@1.5.0: ordo verify --integrity-only --json
+ 3. percepta@0.1.0: percepta-repo verify --strict
+Conditor completed successfully.
