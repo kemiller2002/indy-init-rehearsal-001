@@ -299,6 +299,8 @@ type Conclusion =
       Strength: ConclusionStrength
       Causes: CausalAssertionId list
       ResidualUncertainty: NonEmptyText option
+      /// Event sequence that recorded it; "latest conclusion" means highest sequence.
+      Sequence: int64
       Provenance: Provenance }
 
 type Proposal =

@@ -1980,7 +1980,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
         inv.Conclusions
         |> Map.toList
         |> List.map snd
-        |> List.sortBy (fun c -> c.Provenance.RecordedAt)
+        |> List.sortBy (fun c -> c.Sequence)
         |> List.map (fun c ->
             item
                 [ "id", s (Id.text c.Id)
