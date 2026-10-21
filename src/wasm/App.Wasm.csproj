@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.WebAssembly">
+  <!-- .NET WebAssembly host for the F# engine (Limen guest pattern,
+       guests/minimal/fsharp/Limen.Minimal.Wasm). One [JSExport] method that
+       forwards one serialized Limen message to Shell; no decision is made here.
+       AllowUnsafeBlocks is required by the JSExport source generator. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>IndyInitRootCauseInvestigator.Wasm</RootNamespace>
+    <AssemblyName>IndyInitRootCauseInvestigator.Wasm</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- Trimming is off: a full-mode trimmed publish fails with IL2104
+         (FSharp.Core produced trim warnings) because the kernel engine uses
+         union ToString/string interpolation of unions (reflection printf) and
+         is not compiled with reflection-free formatting, plus FSharp.Core's
+         own IL2040. Warnings stay errors; the untrimmed bundle is larger. -->
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../engine/App.Engine.fsproj" />
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+</Project>
