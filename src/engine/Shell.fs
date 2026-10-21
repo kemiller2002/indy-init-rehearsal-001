@@ -1459,7 +1459,11 @@ let private onStorage (op: PendingOp) (result: Result<string option, string>) (s
     | LoadInvestigation iid, Ok(Some text) ->
         match EventCodec.decode text with
         | Ok(id, events) when id = iid && not events.IsEmpty ->
-            finishLoading { st with Investigations = st.Investigations |> Map.add iid events; Local = st.Local |> Map.add iid SavedLocally }
+            // m4: a history is adopted only if the kernel can verify it; the stored data is left untouched.
+            match Evolve.validateHistory events with
+            | [] -> finishLoading { st with Investigations = st.Investigations |> Map.add iid events; Local = st.Local |> Map.add iid SavedLocally }
+            | errors ->
+                finishLoading { st with Unreadable = st.Unreadable |> Map.add iid ("it could not be verified (" + Words.join ", " (errors |> List.map (fun e -> e.Code) |> List.distinct) + ")") }
         | Ok _ -> finishLoading { st with Unreadable = st.Unreadable |> Map.add iid "the stored document names a different investigation" }
         | Error e -> finishLoading { st with Unreadable = st.Unreadable |> Map.add iid e }
     | LoadInvestigation iid, Ok None -> finishLoading { st with Unreadable = st.Unreadable |> Map.add iid "its stored document is missing" }
@@ -1486,6 +1490,9 @@ let private onRemoteRead (iid: InvestigationId) (outcome: HttpOutcome) (st: AppS
                     match Reconcile.plan local remote with
                     | Reconcile.UpToDate -> { st with Sync = st.Sync |> Map.add iid Synced; SyncDetail = st.SyncDetail |> Map.remove iid }, []
                     | Reconcile.PushLocal -> put iid (Some sha) st
+                    | Reconcile.AdoptRemote when not (Evolve.validateHistory remote).IsEmpty ->
+                        let codes = Evolve.validateHistory remote |> List.map (fun e -> e.Code) |> List.distinct
+                        { st with Sync = st.Sync |> Map.add iid (Conflicted("the copy on GitHub could not be verified (" + Words.join ", " codes + ") and was not adopted")) }, []
                     | Reconcile.AdoptRemote ->
                         let st = { st with Investigations = st.Investigations |> Map.add iid remote; Sync = st.Sync |> Map.add iid Synced; Notice = "Newer history from GitHub was loaded." }
                         let st, a = storageSet (SaveInvestigation iid) (Storage.investigationKey iid) (EventCodec.encode iid remote) st
@@ -1828,6 +1835,12 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
             item
                 [ "id", s (Id.text p.Id)
                   "text", s (hypName p.Hypothesis + " predicts: " + p.Statement.Value + " (" + Words.strength p.Strength + ")")
+                  "timing",
+                  s (
+                      match p.Timing with
+                      | Prospective -> "Made before the result was known"
+                      | Retrospective -> "Made after a relevant finding (retrospective: weaker test)"
+                  )
                   // R4.3: checks that tell hypotheses apart are preferred.
                   "isDiscriminating", b (p.Strength = DiscriminatingPrediction) ])
     let negativeItems =
@@ -1857,7 +1870,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "mechanism", s (c.Mechanism |> Option.map (fun x -> x.Value) |> Option.defaultValue "not stated")
                   "state", s (Words.cause c.State)
                   "isConfirmed", b (c.State = CauseConfirmed)
-                  "hideConfirm", b (not real || not (confirmable (gate |> List.find (fun (x, _) -> x.Id = c.Id) |> snd)))
+                  "hideConfirm", b (not real || not (Policy.canConfirm inv c.Id))
                   "blockerCount", n blockers.Length
                   "isBlocked", b (not blockers.IsEmpty)
                   "readiness",

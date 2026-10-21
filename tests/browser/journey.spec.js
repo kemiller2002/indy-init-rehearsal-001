@@ -93,9 +93,8 @@ test("AC-07 confirming a cause is blocked with reasons while a blocking unknown 
   await proposeCause(page);
   await expect(page.getByTestId("cause-readiness")).toContainText("Cannot be confirmed yet");
   await expect(page.getByTestId("cause-blocker").filter({ hasText: "CAUSE.OPEN_UNKNOWN" })).toContainText("Was the certificate renewed");
-  await page.getByRole("button", { name: "Confirm root cause" }).click();
-  await expect(refusal(page).first()).toContainText("CAUSE.OPEN_UNKNOWN");
-  await expect(refusal(page).first()).toContainText("Aegis fault CAUSE.OPEN_UNKNOWN");
+  // Policy.canConfirm is false: the action is not offered, and the reasons are listed.
+  await expect(page.getByRole("button", { name: "Confirm root cause" })).toBeHidden();
   await fill(page, "Answer, or why it is accepted as remaining uncertainty", "All three load balancers carry the same expired certificate");
   await page.getByTestId("unknown").getByRole("button", { name: "Mark answered" }).click();
   await expect(page.getByTestId("unknown")).toContainText("Answered");

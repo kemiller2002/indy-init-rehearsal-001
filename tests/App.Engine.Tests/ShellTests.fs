@@ -722,3 +722,38 @@ let ``[R8.1] the Confirm action follows the policy gate: a confirmed cause offer
     Assert.Equal("Confirmed", cause.GetProperty("state").GetString())
     Assert.True(cause.GetProperty("hideConfirm").GetBoolean())
     Assert.Equal(0, (view doc).GetProperty("causeBlockers").GetArrayLength())
+
+[<Fact>]
+let ``[R10.7] a stored history that fails Evolve.validateHistory is not adopted, stays listed and is left untouched`` () =
+    let st, doc = send initial (initialize "#/")
+    let gets = storageGets doc
+    let forged = Id.create<InvestigationTag> (Guid("0b0e8d7c-1111-4222-8333-944455556666"))
+    let started =
+        let env =
+            { CommandId = Guid("3a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d"); Investigation = forged; ExpectedVersion = None; Actor = Actor.human "u"
+              RequestedAt = DateTimeOffset.UnixEpoch
+              Command = StartInvestigation(forged, "Forged", Id.create (Guid("2a2b3c4d-5e6f-4a1b-8c2d-3e4f5a6b7c8d")), "Hand-edited file") }
+        match Decide.execute None env with
+        | Ok e -> e
+        | Error _ -> failwith "start"
+    let resolvedWithoutGate =
+        { (List.head started) with Sequence = 2L; Body = LifecycleChanged(Draft, Resolved, "ResolveInvestigation", None) }
+    let history = started @ [ resolvedWithoutGate ]
+    Assert.NotEmpty(Evolve.validateHistory history)
+    let index = IndexCodec.encode [ { Id = forged; Title = "Forged"; Lifecycle = "Resolved"; Version = 2L; UpdatedAt = DateTimeOffset.UnixEpoch } ]
+    let st, _ = send st (storageResult gets["rci:settings"] None)
+    let st, _ = send st (storageResult gets["rci:sync"] None)
+    let st, doc = send st (storageResult gets["rci:index"] (Some index))
+    let invGets = storageGets doc
+    let st, doc = send st (storageResult invGets["rci:inv:" + Id.text forged] (Some(EventCodec.encode forged history)))
+    Assert.False(st.Investigations.ContainsKey forged)
+    Assert.Contains("HISTORY.UNGATED_RESOLUTION", st.Unreadable[forged])
+    Assert.Empty(effects doc |> List.filter (fun e -> kindOf e = "Storage" && e.GetProperty("operation").GetString() <> "get"))
+    let reason = (first ((view doc).GetProperty("unreadable"))).GetProperty("reason").GetString()
+    Assert.Contains("could not be verified", reason)
+    // A new investigation keeps the forged one's index entry.
+    let _, doc = start st
+    let indexWrite = effects doc |> List.find (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString() = "rci:index")
+    match IndexCodec.decode (indexWrite.GetProperty("value").GetString()) with
+    | Ok entries -> Assert.Contains(forged, entries |> List.map (fun e -> e.Id))
+    | Error e -> failwith e

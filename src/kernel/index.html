@@ -589,7 +589,7 @@
               </div>
               <div class="ef-actions"><button type="submit">Add prediction</button></div>
             </form>
-            <ul class="plain-list"><template data-each="predictions" data-key="id"><li data-testid="prediction" data-bind-data-preferred="isDiscriminating"><template data-if="isDiscriminating"><span class="ef-badge" data-ef-status="success">Preferred: tells hypotheses apart</span></template> <span data-text="text"></span></li></template></ul>
+            <ul class="plain-list"><template data-each="predictions" data-key="id"><li data-testid="prediction" data-bind-data-preferred="isDiscriminating"><template data-if="isDiscriminating"><span class="ef-badge" data-ef-status="success">Preferred: tells hypotheses apart</span></template> <span data-text="text"></span> <small class="muted" data-testid="prediction-timing" data-text="timing"></small></li></template></ul>
 
             <form data-event="act.add" class="form">
               <div class="ef-select-field">
