@@ -1,10 +1,14 @@
 name: Deploy to GitHub Pages
 
-# The deployment target is not decided yet (Indy-init RQR-005; D-203 prefers
-# GitHub Pages "where practical"). This workflow is wired but inert: it runs
-# only when the repository variable DEPLOY_TARGET is `github-pages` and Pages
-# is enabled with source "GitHub Actions". It deploys what `npm run build`
-# writes to dist/. See DEPLOYMENT.md.
+# EX-INDY-INIT-2026-R001 deviation from the scaffold: the scaffold gated this
+# workflow on the repository variable DEPLOY_TARGET, which this session cannot
+# set (no repository-settings API). Pages is enabled on the repository, so the
+# gate is removed. Every push to main:
+#   1. verify  - builds and runs the engine tests on the exact commit;
+#   2. build   - builds dist/ stamped with that commit (build-info.json);
+#   3. deploy  - publishes dist/ to Pages;
+#   4. accept  - checks the served build-info.json equals the commit and runs
+#                the end-to-end acceptance suite against the live URL.
 
 on:
   push:
@@ -19,41 +23,48 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    if: vars.DEPLOY_TARGET == 'github-pages'
+  verify-and-build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Install the .NET WebAssembly workload
+        timeout-minutes: 8
+        run: dotnet workload install wasm-tools
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
       - name: Install npm dependencies
         shell: bash
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci
-          else
-            echo "::warning::package-lock.json is not committed; installing without a lockfile. Commit it so every run installs the same tree."
-            npm install --no-audit --no-fund
-          fi
-
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+      - name: Build
+        run: dotnet build App.slnx -c Release
+      - name: Engine tests on the release commit
+        run: dotnet test App.slnx -c Release --no-build --logger "trx;LogFileName=engine.trx" --results-directory test-results
       - name: Build the site
+        env:
+          GITHUB_SHA: ${{ github.sha }}
         run: npm run build
-
-      - name: Require the site bundle
+      - name: Require the site bundle and its build identity
         run: |
-          if [ ! -f dist/index.html ]; then
-            echo "::error::npm run build must write the deployable site, including dist/index.html. See DEPLOYMENT.md."
-            exit 1
-          fi
-
+          test -f dist/index.html
+          test -f dist/build-info.json
+          grep -F "${GITHUB_SHA}" dist/build-info.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: engine-test-results
+          path: test-results/
+          retention-days: 30
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
-    needs: build
+    needs: verify-and-build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -62,6 +73,53 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  accept:
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install npm dependencies
+        shell: bash
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
+      - name: Deployed artifact corresponds to this commit
+        shell: bash
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            served="$(curl -fsSL "${PAGE_URL%/}/build-info.json?nocache=$attempt" || true)"
+            echo "attempt $attempt: $served"
+            if echo "$served" | grep -qF "${GITHUB_SHA}"; then echo "deployed commit matches ${GITHUB_SHA}"; exit 0; fi
+            sleep 15
+          done
+          echo "::error::served build-info.json does not report ${GITHUB_SHA}"; exit 1
+      - name: Install browsers
+        timeout-minutes: 8
+        run: |
+          npx playwright install chromium
+          npx playwright install webkit || echo "::warning::WebKit unavailable"
+          timeout 300 sudo env "PATH=$PATH" npx playwright install-deps chromium webkit || echo "::warning::browser OS dependencies incomplete"
+      - name: End-to-end acceptance against the deployed site
+        env:
+          E2E_BASE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deployed-acceptance
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 30
