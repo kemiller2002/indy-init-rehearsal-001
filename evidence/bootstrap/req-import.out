@@ -1,0 +1,73 @@
+Requirements import plan sha256:5d65d10e494465dbc038fb991ff0dd5f82bca7cb92eabc7756815112748e8009: 23 slice work items, 992 source requirements traced to COND-MISSION-001 (requirements-trace.json).
+   1. SLICE-BOOTSTRAP                high     34 requirements
+   2. SLICE-SEMANTIC-KERNEL          high    222 requirements after SLICE-BOOTSTRAP
+   3. SLICE-POLICY-CAPABILITIES      high     28 requirements after SLICE-SEMANTIC-KERNEL
+   4. SLICE-SEMANTIC-COMPILER        medium   47 requirements after SLICE-POLICY-CAPABILITIES
+   5. SLICE-WORKSPACE                high     69 requirements after SLICE-POLICY-CAPABILITIES
+   6. SLICE-LOCAL-PERSISTENCE        high     46 requirements after SLICE-WORKSPACE
+   7. SLICE-GITHUB-PROVIDER          medium   20 requirements after SLICE-LOCAL-PERSISTENCE
+   8. SLICE-AI-PROPOSALS             high     47 requirements after SLICE-LOCAL-PERSISTENCE
+   9. SLICE-INVESTIGATION-LOOP       high     57 requirements after SLICE-AI-PROPOSALS
+  10. SLICE-REPORTING                medium   11 requirements after SLICE-INVESTIGATION-LOOP
+  11. SLICE-TIME-TRAVEL              medium   11 requirements after SLICE-INVESTIGATION-LOOP
+  12. SLICE-MULTI-AGENT              low      16 requirements after SLICE-INVESTIGATION-LOOP
+  13. SLICE-FACTORY-PROOF            high     39 requirements after SLICE-INVESTIGATION-LOOP
+  14. SLICE-SECURITY-HARDENING       medium   43 requirements after SLICE-FACTORY-PROOF
+  15. SLICE-DEMO-READINESS           high     20 requirements after SLICE-FACTORY-PROOF
+  16. SLICE-COUNTERFACTUAL           low      10 requirements after SLICE-DEMO-READINESS
+  17. SLICE-ADVANCED-VIEWS           low      32 requirements after SLICE-DEMO-READINESS
+  18. SLICE-TOOL-ANALYTICS           low      43 requirements after SLICE-DEMO-READINESS
+  19. SLICE-BOUNDED-AUTONOMY         low      15 requirements after SLICE-DEMO-READINESS
+  20. SLICE-PROOF-CARRYING-PLANNER   low      27 requirements after SLICE-DEMO-READINESS
+  21. SLICE-CROSS-INVESTIGATION      low      14 requirements after SLICE-DEMO-READINESS
+  22. SLICE-DECISION-REGISTER        medium   87 requirements after SLICE-DEMO-READINESS
+  23. SLICE-POST-HACKATHON           low      54 requirements after SLICE-DEMO-READINESS
+  done     capture SLICE-BOOTSTRAP (high, 34 source requirements)
+  done     mark SLICE-BOOTSTRAP ready
+  done     capture SLICE-SEMANTIC-KERNEL (high, 222 source requirements)
+  done     mark SLICE-SEMANTIC-KERNEL ready
+  done     capture SLICE-POLICY-CAPABILITIES (high, 28 source requirements)
+  done     mark SLICE-POLICY-CAPABILITIES ready
+  done     capture SLICE-SEMANTIC-COMPILER (medium, 47 source requirements)
+  done     mark SLICE-SEMANTIC-COMPILER ready
+  done     capture SLICE-WORKSPACE (high, 69 source requirements)
+  done     mark SLICE-WORKSPACE ready
+  done     capture SLICE-LOCAL-PERSISTENCE (high, 46 source requirements)
+  done     mark SLICE-LOCAL-PERSISTENCE ready
+  done     capture SLICE-GITHUB-PROVIDER (medium, 20 source requirements)
+  done     mark SLICE-GITHUB-PROVIDER ready
+  done     capture SLICE-AI-PROPOSALS (high, 47 source requirements)
+  done     mark SLICE-AI-PROPOSALS ready
+  done     capture SLICE-INVESTIGATION-LOOP (high, 57 source requirements)
+  done     mark SLICE-INVESTIGATION-LOOP ready
+  done     capture SLICE-REPORTING (medium, 11 source requirements)
+  done     mark SLICE-REPORTING ready
+  done     capture SLICE-TIME-TRAVEL (medium, 11 source requirements)
+  done     mark SLICE-TIME-TRAVEL ready
+  done     capture SLICE-MULTI-AGENT (low, 16 source requirements)
+  done     mark SLICE-MULTI-AGENT ready
+  done     capture SLICE-FACTORY-PROOF (high, 39 source requirements)
+  done     mark SLICE-FACTORY-PROOF ready
+  done     capture SLICE-SECURITY-HARDENING (medium, 43 source requirements)
+  done     mark SLICE-SECURITY-HARDENING ready
+  done     capture SLICE-DEMO-READINESS (high, 20 source requirements)
+  done     mark SLICE-DEMO-READINESS ready
+  done     capture SLICE-COUNTERFACTUAL (low, 10 source requirements)
+  done     mark SLICE-COUNTERFACTUAL ready
+  done     capture SLICE-ADVANCED-VIEWS (low, 32 source requirements)
+  done     mark SLICE-ADVANCED-VIEWS ready
+  done     capture SLICE-TOOL-ANALYTICS (low, 43 source requirements)
+  done     mark SLICE-TOOL-ANALYTICS ready
+  done     capture SLICE-BOUNDED-AUTONOMY (low, 15 source requirements)
+  done     mark SLICE-BOUNDED-AUTONOMY ready
+  done     capture SLICE-PROOF-CARRYING-PLANNER (low, 27 source requirements)
+  done     mark SLICE-PROOF-CARRYING-PLANNER ready
+  done     capture SLICE-CROSS-INVESTIGATION (low, 14 source requirements)
+  done     mark SLICE-CROSS-INVESTIGATION ready
+  done     capture SLICE-DECISION-REGISTER (medium, 87 source requirements)
+  done     mark SLICE-DECISION-REGISTER ready
+  done     capture SLICE-POST-HACKATHON (low, 54 source requirements)
+  done     mark SLICE-POST-HACKATHON ready
+  done     attach requirements-trace.json to COND-MISSION-001
+  done     attach ecir-source-manifest.json to COND-MISSION-001
+Recorded the Praxis state as commit a8581b4e99a26e9ddf11be1409c64ab0fee17018.
