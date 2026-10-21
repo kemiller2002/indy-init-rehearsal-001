@@ -112,6 +112,11 @@ module Policy =
         inv.Unknowns |> Map.toList |> List.map snd
         |> List.filter (fun u -> isOpenUnknown u && u.Materiality = Blocking)
 
+    /// Open unknowns that are Blocking or Material (R6.4: unresolved uncertainty).
+    let unresolvedMaterialUnknowns (inv: Investigation) =
+        inv.Unknowns |> Map.toList |> List.map snd
+        |> List.filter (fun u -> isOpenUnknown u && isMaterial u.Materiality)
+
     /// Cause Confirmation Gate (INVESTIGATION-SEMANTICS §15, POLICY-ENGINE §24).
     /// Returns every material blocker, not only the first.
     let causeBlockers (inv: Investigation) (cid: CausalAssertionId) : DomainError list =
@@ -326,7 +331,8 @@ module Decide =
                 match command with
                 | Reopen ->
                     let falsifiedAt =
-                        h.History |> List.tryFind (fun c -> c.To = Falsified) |> Option.map (fun c -> c.Sequence) |> Option.defaultValue 0L
+                        // The latest falsification: evidence must postdate it, not an earlier one.
+                        h.History |> List.tryFindBack (fun c -> c.To = Falsified) |> Option.map (fun c -> c.Sequence) |> Option.defaultValue 0L
                     let isNew = evidence |> List.exists (fun e -> inv.Evidence |> Map.tryFind e |> Option.exists (fun ev -> ev.AdmittedAt > falsifiedAt))
                     if isNew then Ok() else fail "HYPOTHESIS.REOPEN_NEEDS_NEW_EVIDENCE" "R2.5" "Reopening needs evidence admitted after the hypothesis was falsified."
                 | _ -> Ok()
@@ -474,7 +480,7 @@ module Decide =
                 match strength with
                 | ConfirmedCause when not confirmed ->
                     fail "CONCLUSION.UNSUPPORTED" "R6.1" "A conclusion cannot claim a confirmed cause before the cause is confirmed."
-                | _ when residual |> Option.forall String.IsNullOrWhiteSpace && (not (Policy.blockingUnknowns inv).IsEmpty || inv.Unknowns |> Map.exists (fun _ u -> u.State = AcceptedResidual)) ->
+                | _ when residual |> Option.forall String.IsNullOrWhiteSpace && (not (Policy.unresolvedMaterialUnknowns inv).IsEmpty || inv.Unknowns |> Map.exists (fun _ u -> u.State = AcceptedResidual)) ->
                     fail "CONCLUSION.RESIDUAL_REQUIRED" "R6.4" "State the residual uncertainty: unknowns remain open or accepted as residual."
                 | _ -> ok [ ConclusionRecorded(cid, s, strength, causes, optText residual) ])
         | RecordProposal(pid, kind, proposalText, rationale) ->
@@ -539,6 +545,11 @@ module Decide =
     /// The single decision path (STATE-TRANSITION-TABLES §16 order: schema,
     /// version, invariants, structure, policy). Pure.
     let decide (state: Investigation option) (env: CommandEnvelope) : R<EventBody list> =
+        match env.Actor.Kind, env.Command with
+        // D-004 / R15.2: an AI agent proposes; it never writes authoritative state directly.
+        | Agent _, cmd when (match cmd with RecordProposal _ -> false | _ -> true) ->
+            fail "AGENT.PROPOSAL_ONLY" "D-004" "An AI agent may only record proposals; a human must accept them."
+        | _ ->
         match state, env.Command with
         | None, StartInvestigation(iid, title, oid, original) ->
             if iid <> env.Investigation then fail "ENVELOPE.MISMATCH" "schema" "Investigation id does not match the envelope."

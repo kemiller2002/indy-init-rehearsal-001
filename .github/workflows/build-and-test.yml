@@ -27,6 +27,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
+      # The browser host is a .NET WebAssembly project (src/wasm).
+      - name: Install the .NET WebAssembly workload
+        timeout-minutes: 8
+        run: dotnet workload install wasm-tools
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -118,6 +122,21 @@ jobs:
             exit 1
           fi
           echo "Every shared library Chromium links against is present."
+
+      # WebKit is the closest available engine to iPad Safari (it is NOT iPad
+      # Safari). Its install is bounded; if it fails the WebKit project skips
+      # and the run says so rather than hanging (EX-INDY-INIT-2026-R001).
+      - name: Download WebKit (bounded)
+        timeout-minutes: 8
+        continue-on-error: true
+        run: |
+          npx playwright install webkit
+          timeout 300 sudo env "PATH=$PATH" npx playwright install-deps webkit || echo "::warning::WebKit OS dependencies not installed"
+
+      - name: Build the deployable site
+        env:
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: npm run build
 
       - name: Verify the pages in a real browser
         run: npx playwright test

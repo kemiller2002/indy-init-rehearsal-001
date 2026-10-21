@@ -56,10 +56,10 @@
         "cut:never-cut"
       ],
       "priority": "high",
-      "status": "ready",
+      "status": "complete",
       "attachments": [],
       "createdAt": "2026-10-21T16:27:11.206Z",
-      "updatedAt": "2026-10-21T16:27:11.767Z",
+      "updatedAt": "2026-10-21T16:46:19.914Z",
       "createdBy": "conditor",
       "createdByActor": {
         "kind": "agent",
