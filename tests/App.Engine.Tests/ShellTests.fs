@@ -724,7 +724,7 @@ let ``[R8.1] the Confirm action follows the policy gate: a confirmed cause offer
     Assert.Equal(0, (view doc).GetProperty("causeBlockers").GetArrayLength())
 
 [<Fact>]
-let ``[R10.7] a stored history that fails Evolve.validateHistory is not adopted, stays listed and is left untouched`` () =
+let ``[R10.7] a stored history that fails History.validate is not adopted, stays listed and is left untouched`` () =
     let st, doc = send initial (initialize "#/")
     let gets = storageGets doc
     let forged = Id.create<InvestigationTag> (Guid("0b0e8d7c-1111-4222-8333-944455556666"))
@@ -739,7 +739,7 @@ let ``[R10.7] a stored history that fails Evolve.validateHistory is not adopted,
     let resolvedWithoutGate =
         { (List.head started) with Sequence = 2L; Body = LifecycleChanged(Draft, Resolved, "ResolveInvestigation", None) }
     let history = started @ [ resolvedWithoutGate ]
-    Assert.NotEmpty(Evolve.validateHistory history)
+    Assert.NotEmpty(History.validate history)
     let index = IndexCodec.encode [ { Id = forged; Title = "Forged"; Lifecycle = "Resolved"; Version = 2L; UpdatedAt = DateTimeOffset.UnixEpoch } ]
     let st, _ = send st (storageResult gets["rci:settings"] None)
     let st, _ = send st (storageResult gets["rci:sync"] None)
@@ -747,7 +747,7 @@ let ``[R10.7] a stored history that fails Evolve.validateHistory is not adopted,
     let invGets = storageGets doc
     let st, doc = send st (storageResult invGets["rci:inv:" + Id.text forged] (Some(EventCodec.encode forged history)))
     Assert.False(st.Investigations.ContainsKey forged)
-    Assert.Contains("HISTORY.UNGATED_RESOLUTION", st.Unreadable[forged])
+    Assert.Contains("HISTORY.INADMISSIBLE_EVENT", st.Unreadable[forged])
     Assert.Empty(effects doc |> List.filter (fun e -> kindOf e = "Storage" && e.GetProperty("operation").GetString() <> "get"))
     let reason = (first ((view doc).GetProperty("unreadable"))).GetProperty("reason").GetString()
     Assert.Contains("could not be verified", reason)

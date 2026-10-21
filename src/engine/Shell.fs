@@ -699,7 +699,9 @@ type FactoryTests =
       Failed: int
       Tested: int
       Untested: int
-      Failing: int }
+      Failing: int
+      /// Which suites the recorded run covers (e.g. "engine"); "" when unknown.
+      Suites: string }
 
 type FactoryInfo =
     { Label: string
@@ -1425,7 +1427,8 @@ let decodeFactory (text: string) : Result<FactoryInfo, string> =
                           Failed = count "failed"
                           Tested = count "tested"
                           Untested = count "untested"
-                          Failing = count "failing" }
+                          Failing = count "failing"
+                          Suites = field "suites" t }
                 | _ -> None
             Ok
                 { Label = field "label" (Some root)
@@ -1493,7 +1496,7 @@ let private onStorage (op: PendingOp) (result: Result<string option, string>) (s
         match EventCodec.decode text with
         | Ok(id, events) when id = iid && not events.IsEmpty ->
             // m4: a history is adopted only if the kernel can verify it; the stored data is left untouched.
-            match Evolve.validateHistory events with
+            match History.validate events with
             | [] -> finishLoading { st with Investigations = st.Investigations |> Map.add iid events; Local = st.Local |> Map.add iid SavedLocally }
             | errors ->
                 finishLoading { st with Unreadable = st.Unreadable |> Map.add iid ("it could not be verified (" + Words.join ", " (errors |> List.map (fun e -> e.Code) |> List.distinct) + ")") }
@@ -1523,8 +1526,8 @@ let private onRemoteRead (iid: InvestigationId) (outcome: HttpOutcome) (st: AppS
                     match Reconcile.plan local remote with
                     | Reconcile.UpToDate -> { st with Sync = st.Sync |> Map.add iid Synced; SyncDetail = st.SyncDetail |> Map.remove iid }, []
                     | Reconcile.PushLocal -> put iid (Some sha) st
-                    | Reconcile.AdoptRemote when not (Evolve.validateHistory remote).IsEmpty ->
-                        let codes = Evolve.validateHistory remote |> List.map (fun e -> e.Code) |> List.distinct
+                    | Reconcile.AdoptRemote when not (History.validate remote).IsEmpty ->
+                        let codes = History.validate remote |> List.map (fun e -> e.Code) |> List.distinct
                         { st with Sync = st.Sync |> Map.add iid (Conflicted("the copy on GitHub could not be verified (" + Words.join ", " codes + ") and was not adopted")) }, []
                     | Reconcile.AdoptRemote ->
                         let st = { st with Investigations = st.Investigations |> Map.add iid remote; Sync = st.Sync |> Map.add iid Synced; Notice = "Newer history from GitHub was loaded." }
@@ -2222,12 +2225,13 @@ let private factoryKeys (st: AppState) : (string * J) list =
               string t.Total + " tests recorded, " + string t.Passed + " passed, " + string t.Failed + " failed"
               + (if t.RunCommit <> "" then " (run on commit " + (if t.RunCommit.Length > 7 then t.RunCommit.Substring(0, 7) else t.RunCommit) + ")" else "")
               + ". Requirements: " + string t.Tested + " tested, " + string t.Untested + " untested, " + string t.Failing + " failing."
+              + (if t.Suites = "engine" then " Covers the engine (xUnit) tests only; the browser end-to-end suite runs in CI and in the deploy acceptance job and is not included here." else "")
           | None -> "Test results were not available when this site was built."
       )
       "factoryBuildStatus",
       s (
           match info |> Option.map (fun f -> f.BuildStatus) with
-          | Some "passed" -> "Build status: every recorded test passed"
+          | Some "passed" -> "Build status: every recorded test passed (see the suites covered above)"
           | Some "failing" -> "Build status: some recorded tests failed"
           | _ -> "Build status: unknown (no test run was recorded for this build)"
       )

@@ -99,6 +99,8 @@ const sliceOf = new Map((trace?.requirements ?? []).map((r) => [r.id, r.workItem
 // test-results/traceability.json (scripts/trace-requirements.py): totals and
 // per-requirement coverage, when the workflow wrote it before this build.
 const coverageOf = new Map((traceability?.requirements ?? []).map((r) => [r.sourceId, r.status]));
+const scopedStatuses = (t) =>
+  (t.requirements ?? []).filter((r) => r.scope === "scoped" || r.scope === "scoped-factory").map((r) => r.status);
 const testsOf = (t) => {
   if (t === null || typeof t !== "object" || t.totals === undefined) return null;
   const total = Number(t.totals.tests ?? 0);
@@ -109,9 +111,11 @@ const testsOf = (t) => {
     tests: total,
     passed,
     failed: total - passed,
-    tested: Number(summary.tested ?? 0),
-    untested: Number(summary.untested ?? 0),
-    failing: Number(summary.failing ?? 0)
+    // Counted over the scoped requirements the view lists, so totals match the table.
+    tested: scopedStatuses(t).filter((x) => x === "tested").length,
+    untested: scopedStatuses(t).filter((x) => x === "untested").length,
+    failing: scopedStatuses(t).filter((x) => x === "failing").length,
+    suites: t.source === "ci-engine" ? "engine" : (typeof t.source === "string" ? t.source : "")
   };
 };
 const tests = testsOf(traceability);

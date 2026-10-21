@@ -1102,8 +1102,8 @@ let ``[I-19][I-20] m4 validateHistory rejects a forged history that confirms a c
     let genuine = opened |> script [ RecordHypothesis(hyp 1, "h", Some "m"); RecordCausalAssertion(cause 1, "o", [ memberOf RootCause 1 ], Some "m") ]
     let last = List.last genuine
     let forged = genuine @ [ { last with Sequence = last.Sequence + 1L; Body = CausalAssertionConfirmed(cause 1, "forged") } ]
-    Assert.Empty(Evolve.validateHistory resolvable)
-    Assert.Contains("HISTORY.UNGATED_CONFIRMATION", Evolve.validateHistory forged |> List.map (fun e -> e.Code))
+    Assert.Empty(History.validate resolvable)
+    Assert.Contains(History.validate forged, fun e -> e.Code = "HISTORY.UNGATED_CONFIRMATION" || e.Code = "HISTORY.INADMISSIBLE_EVENT")
 
 // ---------------------------------------------------------------------------
 // Regression tests for the RC2 adversarial review (run/adversarial-review-rc2.md).
@@ -1167,18 +1167,18 @@ let ``[I-13][D-004] N1 validateHistory rejects planted verification, unearned Ve
             at 2 (VerificationRecorded(ver 1, crit 1, Satisfied, [ ev 90 ]))
             at 3 (CorrectiveActionTransitioned(corr 1, VerifiedEffective)) ]
     let agentWrite = genuine @ [ { at 1 (EvidenceAdmitted(ev 91, TextEvidence(NonEmptyText.create "inferred" |> Result.toOption |> Option.get), Log, NonEmptyText.create "model" |> Result.toOption |> Option.get, None)) with Actor = bot } ]
-    Assert.Empty(Evolve.validateHistory genuine)
-    Assert.Empty(Evolve.validateHistory resolvable)
-    Assert.Contains("HISTORY.INADMISSIBLE_EVENT", Evolve.validateHistory planted |> List.map (fun e -> e.Code))
-    Assert.Contains("HISTORY.INADMISSIBLE_EVENT", Evolve.validateHistory agentWrite |> List.map (fun e -> e.Code))
+    Assert.Empty(History.validate genuine)
+    Assert.Empty(History.validate resolvable)
+    Assert.Contains("HISTORY.INADMISSIBLE_EVENT", History.validate planted |> List.map (fun e -> e.Code))
+    Assert.Contains("HISTORY.INADMISSIBLE_EVENT", History.validate agentWrite |> List.map (fun e -> e.Code))
 
 [<Fact>]
 let ``[I-13][R7.4] N1 validateHistory rejects VerifiedEffective planted without any satisfied verification`` () =
     let genuine = confirmed |> script (implementedCorrection Correction @ [ TransitionCorrection(corr 1, StartVerificationOfEffect) ])
     let last = List.last genuine
     let planted = genuine @ [ { last with Sequence = last.Sequence + 1L; Body = CorrectiveActionTransitioned(corr 1, VerifiedEffective) } ]
-    Assert.Empty(Evolve.validateHistory genuine)
-    Assert.Contains("HISTORY.INADMISSIBLE_EVENT", Evolve.validateHistory planted |> List.map (fun e -> e.Code))
+    Assert.Empty(History.validate genuine)
+    Assert.Contains("HISTORY.INADMISSIBLE_EVENT", History.validate planted |> List.map (fun e -> e.Code))
 
 [<Fact>]
 let ``[R8.1] probe reports a command's legality without emitting events`` () =
@@ -1186,6 +1186,26 @@ let ``[R8.1] probe reports a command's legality without emitting events`` () =
     Assert.True(Result.isOk (Decide.probe inv alice t0 (RecordCorrectiveAction(corr 1, Correction, "fix", [ cause 1 ]))))
     let withCa = stateOf (confirmed |> script [ RecordCorrectiveAction(corr 1, Correction, "fix", [ cause 1 ]); TransitionCorrection(corr 1, ApproveCorrection); TransitionCorrection(corr 1, StartCorrection); TransitionCorrection(corr 1, MarkImplemented) ])
     Assert.True(Result.isError (Decide.probe withCa alice t0 (TransitionCorrection(corr 1, StartVerificationOfEffect))))
+
+[<Fact>]
+let ``[I-19][I-20][D-005] C-R3-1 every RC3-review forgery shape is rejected by replay`` () =
+    let nt s = NonEmptyText.create s |> Result.toOption |> Option.get
+    let ext (h: Event list) bodies =
+        let last = List.last h
+        h @ (bodies |> List.mapi (fun i b -> { last with Sequence = last.Sequence + int64 (i + 1); CommandId = Guid.NewGuid(); Body = b }))
+    let resolved = resolvable |> script [ ResolveInvestigation ]
+    Assert.Empty(History.validate resolved)
+    let shapes =
+        [ "P1a relationship rewrite after resolution", ext resolved [ EvidenceRelated(rel 1, ev 1, hyp 1, Contradicts, None) ]
+          "P1c duplicate relationship id", ext confirmed [ EvidenceRelated(rel 1, ev 1, hyp 1, Supports, None) ]
+          "P2a support removed after resolution", ext resolved [ EvidenceSuperseded(ev 1, ev 60, nt "wrong") ]
+          "P2c cause re-recorded", ext confirmed [ CausalAssertionRecorded(cause 1, nt "x", [], None) ]
+          "P2d evidence content rewrite", ext resolved [ EvidenceAdmitted(ev 1, TextEvidence(nt "rewritten"), Log, nt "forger", None) ]
+          "P3a lying from", ext resolvable [ LifecycleChanged(AwaitingVerification, Resolved, "ResolveInvestigation", None) ]
+          "P3b lying command", ext resolvable [ LifecycleChanged(Active, Resolved, "VerificationFailed", None) ]
+          "P3c Active to Closed", ext resolvable [ LifecycleChanged(Active, Closed, "CloseInvestigation", None) ] ]
+    let accepted = shapes |> List.filter (fun (_, h) -> List.isEmpty (History.validate h)) |> List.map fst
+    Assert.Empty(accepted)
 
 module AgentAuthorityBoundary =
     open System
@@ -1204,3 +1224,47 @@ module AgentAuthorityBoundary =
         Assert.Contains("AGENT.PROPOSAL_ONLY", refusedCode (Decide.decide state (envelope (AdmitEvidence(Id.create (Guid.NewGuid()), TextInput "inferred", Log, "model", None)))))
         Assert.Contains("AGENT.PROPOSAL_ONLY", refusedCode (Decide.decide state (envelope (RecordHypothesis(Id.create (Guid.NewGuid()), "h", None)))))
         Assert.True(Result.isOk (Decide.decide state (envelope (RecordProposal(Id.create (Guid.NewGuid()), ProposedHypothesis, "h", None)))))
+
+module HistoryReplay =
+    open System
+    open IndyInitRootCauseInvestigator.Engine
+
+    let private gid (n: int) = Guid.Parse(sprintf "00000000-0000-0000-0000-%012d" n)
+    let private human = Actor.human "alice"
+    let private at = DateTimeOffset(2026, 10, 21, 9, 0, 0, TimeSpan.Zero)
+    let private iid : InvestigationId = Id.create (gid 1)
+    let private run (commands: Command list) =
+        commands
+        |> List.fold (fun (events: Event list) c ->
+            let env = { CommandId = Guid.NewGuid(); Investigation = iid; ExpectedVersion = None; Actor = human; RequestedAt = at; Command = c }
+            match Decide.execute (Evolve.replay events) env with
+            | Ok es -> events @ es
+            | Error e -> failwithf "%A" e) []
+    let private h1 : HypothesisId = Id.create (gid 10)
+    let private e1 : EvidenceId = Id.create (gid 20)
+    let private r1 : RelationshipId = Id.create (gid 30)
+    let private nt s = NonEmptyText.create s |> Result.toOption |> Option.get
+    let private genuine =
+        run [ StartInvestigation(iid, "t", Id.create (gid 2), "obs"); ActivateInvestigation
+              RecordHypothesis(h1, "h", Some "m"); AdmitEvidence(e1, TextInput "log", Log, "src", None)
+              RelateEvidence(r1, e1, h1, Supports, None) ]
+    let private append (body: EventBody) =
+        let last = List.last genuine
+        genuine @ [ { last with Sequence = last.Sequence + 1L; CommandId = Guid.NewGuid(); Body = body } ]
+
+    [<Fact>]
+    let ``[I-19][D-005] C-R3-1 replay accepts a genuine history and rejects id reuse and content rewrites`` () =
+        Assert.Empty(History.validate genuine)
+        // relationship id reused to flip Supports -> Contradicts
+        Assert.NotEmpty(History.validate (append (EvidenceRelated(r1, e1, h1, Contradicts, None))))
+        // evidence id reused with different content
+        Assert.NotEmpty(History.validate (append (EvidenceAdmitted(e1, TextEvidence(nt "rewritten"), Log, nt "src", None))))
+        // hypothesis re-recorded (resets state)
+        Assert.NotEmpty(History.validate (append (HypothesisRecorded(h1, nt "h", None))))
+        // follow-on event without its command (VerifiedEffective / Completed) is not emittable alone
+        Assert.NotEmpty(History.validate (append (LifecycleChanged(Active, Resolved, "ResolveInvestigation", None))))
+
+    [<Fact>]
+    let ``[D-005] C-R3-1 content events after resolution are rejected on replay`` () =
+        let resolvedish = append (LifecycleChanged(Active, Resolved, "ResolveInvestigation", None))
+        Assert.NotEmpty(History.validate resolvedish)
