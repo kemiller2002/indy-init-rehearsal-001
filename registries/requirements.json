@@ -1,0 +1,3200 @@
+[
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0001",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0001--r0-1-blank-application-implementation.md",
+    "priority": "medium",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:06.056Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r0"
+    ],
+    "title": "R0.1 Blank application implementation",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0002",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0002--r0-2-pre-event-preparation.md",
+    "priority": "medium",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:07.095Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r0"
+    ],
+    "title": "R0.2 Pre-event preparation",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0003",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0003--r0-3-no-hidden-prebuilt-application.md",
+    "priority": "medium",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:08.225Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r0"
+    ],
+    "title": "R0.3 No hidden prebuilt application",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0004",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0004--r0-4-provenance.md",
+    "priority": "medium",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:09.364Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r0"
+    ],
+    "title": "R0.4 Provenance",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0101",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0101--r1-1-initial-observation.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:10.550Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r1"
+    ],
+    "title": "R1.1 Initial observation",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0102",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0102--r1-2-structured-projection.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:11.754Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r1"
+    ],
+    "title": "R1.2 Structured projection",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0103",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0103--r1-3-investigation-identity.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:12.823Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r1"
+    ],
+    "title": "R1.3 Investigation identity",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0201",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0201--r2-1-multiple-hypotheses.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:13.823Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r2"
+    ],
+    "title": "R2.1 Multiple hypotheses",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0202",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0202--r2-2-explicit-lifecycle.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:14.926Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r2"
+    ],
+    "title": "R2.2 Explicit lifecycle",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0203",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0203--r2-3-transition-evidence.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:15.961Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r2"
+    ],
+    "title": "R2.3 Transition evidence",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0204",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0204--r2-4-no-silent-deletion.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:16.993Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r2"
+    ],
+    "title": "R2.4 No silent deletion",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0205",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0205--r2-5-reopening.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:18.041Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r2"
+    ],
+    "title": "R2.5 Reopening",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0301",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0301--r3-1-evidence-records.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:19.280Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r3"
+    ],
+    "title": "R3.1 Evidence records",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0302",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0302--r3-2-provenance.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:20.354Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r3"
+    ],
+    "title": "R3.2 Provenance",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0303",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0303--r3-3-relationships.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:21.426Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r3"
+    ],
+    "title": "R3.3 Relationships",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0304",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0304--r3-4-conflicting-evidence.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:22.471Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r3"
+    ],
+    "title": "R3.4 Conflicting evidence",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0305",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0305--r3-5-attachments.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:23.517Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r3"
+    ],
+    "title": "R3.5 Attachments",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0401",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0401--r4-1-proposed-experiment.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:24.583Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r4"
+    ],
+    "title": "R4.1 Proposed experiment",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0402",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0402--r4-2-prediction-before-result.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:25.541Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r4"
+    ],
+    "title": "R4.2 Prediction before result",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0403",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0403--r4-3-discriminating-evidence.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:26.578Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r4"
+    ],
+    "title": "R4.3 Discriminating evidence",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0404",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0404--r4-4-result-preservation.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:27.519Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r4"
+    ],
+    "title": "R4.4 Result preservation",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0501",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0501--r5-1-unknown-is-first-class.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:28.591Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r5"
+    ],
+    "title": "R5.1 Unknown is first-class",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0502",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0502--r5-2-unknown-obligations.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:29.820Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r5"
+    ],
+    "title": "R5.2 Unknown obligations",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0503",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0503--r5-3-negative-knowledge.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:30.996Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r5"
+    ],
+    "title": "R5.3 Negative knowledge",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0504",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0504--r5-4-repetition-prevention.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:32.231Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r5"
+    ],
+    "title": "R5.4 Repetition prevention",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0601",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0601--r6-1-no-unsupported-completion.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:33.381Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r6"
+    ],
+    "title": "R6.1 No unsupported completion",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0602",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0602--r6-2-confidence-is-evidence-linked.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:34.415Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r6"
+    ],
+    "title": "R6.2 Confidence is evidence-linked",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0603",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0603--r6-3-contributing-factors.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:35.482Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r6"
+    ],
+    "title": "R6.3 Contributing factors",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0604",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0604--r6-4-residual-uncertainty.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:36.495Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r6"
+    ],
+    "title": "R6.4 Residual uncertainty",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0701",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0701--r7-1-corrective-actions.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:37.807Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r7"
+    ],
+    "title": "R7.1 Corrective actions",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0702",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0702--r7-2-mitigation-distinction.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:39.015Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r7"
+    ],
+    "title": "R7.2 Mitigation distinction",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0703",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0703--r7-3-verification-criteria.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:40.369Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r7"
+    ],
+    "title": "R7.3 Verification criteria",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0704",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0704--r7-4-verified-outcome.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:41.611Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r7"
+    ],
+    "title": "R7.4 Verified outcome",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0801",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0801--r8-1-legal-actions.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:42.679Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r8"
+    ],
+    "title": "R8.1 Legal actions",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0802",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0802--r8-2-illegal-actions.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:43.834Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r8"
+    ],
+    "title": "R8.2 Illegal actions",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0803",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0803--r8-3-aegis-integration.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:45.074Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r8"
+    ],
+    "title": "R8.3 Aegis integration",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0804",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0804--r8-4-obligations.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:46.158Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r8"
+    ],
+    "title": "R8.4 Obligations",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0901",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0901--r9-1-ipad-first.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:47.332Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r9"
+    ],
+    "title": "R9.1 iPad first",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0902",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0902--r9-2-mobile-compatibility.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:48.342Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r9"
+    ],
+    "title": "R9.2 Mobile compatibility",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0903",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0903--r9-3-accessibility.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:49.368Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r9"
+    ],
+    "title": "R9.3 Accessibility",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0904",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0904--r9-4-investigation-visualization.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:50.317Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r9"
+    ],
+    "title": "R9.4 Investigation visualization",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0905",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0905--r9-5-conversation-plus-state.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:51.359Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r9"
+    ],
+    "title": "R9.5 Conversation plus state",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0906",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0906--r9-6-url-addressable-views.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:52.422Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r9"
+    ],
+    "title": "R9.6 URL-addressable views",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0907",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0907--r9-7-deep-links-survive-reload-sign-in-and-offline.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:53.494Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r9"
+    ],
+    "title": "R9.7 Deep links survive reload, sign-in and offline",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0908",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0908--r9-8-missing-superseded-or-forbidden-targets.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:54.572Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r9"
+    ],
+    "title": "R9.8 Missing, superseded or forbidden targets",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0909",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0909--r9-9-no-secrets-or-evidence-content-in-urls.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:55.582Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r9"
+    ],
+    "title": "R9.9 No secrets or evidence content in URLs",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-0910",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-0910--r9-10-route-inventory-codec-and-sharing.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:56.681Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r9"
+    ],
+    "title": "R9.10 Route inventory, codec and sharing",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1001",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1001--r10-1-repository-backed-persistence.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:57.725Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r10"
+    ],
+    "title": "R10.1 Repository-backed persistence",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1002",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1002--r10-2-human-readable-artifacts.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:58.712Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r10"
+    ],
+    "title": "R10.2 Human-readable artifacts",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1003",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1003--r10-3-commit-provenance.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:32:59.670Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r10"
+    ],
+    "title": "R10.3 Commit provenance",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1004",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1004--r10-4-conflict-detection.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:00.736Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r10"
+    ],
+    "title": "R10.4 Conflict detection",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1005",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1005--r10-5-offline-tolerance.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:01.777Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r10"
+    ],
+    "title": "R10.5 Offline tolerance",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1006",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1006--r10-6-pending-remote-state.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:02.876Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r10"
+    ],
+    "title": "R10.6 Pending remote state",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1007",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1007--r10-7-recovery.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:03.878Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r10"
+    ],
+    "title": "R10.7 Recovery",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1101",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1101--r11-1-github-authentication.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:04.896Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r11"
+    ],
+    "title": "R11.1 GitHub authentication",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1102",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1102--r11-2-least-privilege.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:06.020Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r11"
+    ],
+    "title": "R11.2 Least privilege",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1103",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1103--r11-3-token-handling.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:06.991Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r11"
+    ],
+    "title": "R11.3 Token handling",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1104",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1104--r11-4-prompt-data-boundaries.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:07.961Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r11"
+    ],
+    "title": "R11.4 Prompt/data boundaries",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1201",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1201--r12-1-folio-output.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:09.018Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r12"
+    ],
+    "title": "R12.1 Folio output",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1202",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1202--r12-2-report-contents.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:10.264Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r12"
+    ],
+    "title": "R12.2 Report contents",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1203",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1203--r12-3-incomplete-report.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:11.323Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r12"
+    ],
+    "title": "R12.3 Incomplete report",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1301",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1301--r13-1-ordo.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:12.443Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r13"
+    ],
+    "title": "R13.1 Ordo",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1302",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1302--r13-2-ros.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:13.583Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r13"
+    ],
+    "title": "R13.2 ROS",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1303",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1303--r13-3-limen.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:14.668Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r13"
+    ],
+    "title": "R13.3 Limen",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1304",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1304--r13-4-forma.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:15.628Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r13"
+    ],
+    "title": "R13.4 Forma",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1305",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1305--r13-5-folio.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:16.629Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r13"
+    ],
+    "title": "R13.5 Folio",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1306",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1306--r13-6-aegis.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:17.629Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r13"
+    ],
+    "title": "R13.6 Aegis",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1307",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1307--r13-7-praxis.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:18.746Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r13"
+    ],
+    "title": "R13.7 Praxis",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1308",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1308--r13-8-evidence-of-completion.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:19.876Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r13"
+    ],
+    "title": "R13.8 Evidence of completion",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1401",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1401--r14-1-state-history.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:20.827Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r14"
+    ],
+    "title": "R14.1 State history",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1402",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1402--r14-2-engineering-history.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:21.890Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r14"
+    ],
+    "title": "R14.2 Engineering history",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1403",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1403--r14-3-metrics.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:22.875Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r14"
+    ],
+    "title": "R14.3 Metrics",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1501",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1501--r15-1-questions-before-conclusions.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:23.928Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r15"
+    ],
+    "title": "R15.1 Questions before conclusions",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1502",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1502--r15-2-separate-observation-from-inference.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:24.953Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r15"
+    ],
+    "title": "R15.2 Separate observation from inference",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1503",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1503--r15-3-challenge-preferred-explanation.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:26.013Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r15"
+    ],
+    "title": "R15.3 Challenge preferred explanation",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1504",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1504--r15-4-no-history-rewriting.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:27.143Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r15"
+    ],
+    "title": "R15.4 No history rewriting",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1505",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1505--r15-5-human-control.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:28.308Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r15"
+    ],
+    "title": "R15.5 Human control",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1601",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1601--r16-1-understandable-in-seconds.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:29.377Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r16"
+    ],
+    "title": "R16.1 Understandable in seconds",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1602",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1602--r16-2-visible-state-change.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:30.688Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r16"
+    ],
+    "title": "R16.2 Visible state change",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1603",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1603--r16-3-visible-constraint.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:31.766Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r16"
+    ],
+    "title": "R16.3 Visible constraint",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1604",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1604--r16-4-visible-falsification.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:32.862Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r16"
+    ],
+    "title": "R16.4 Visible falsification",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  },
+  {
+    "created": "2026-10-21",
+    "derived_from": [
+      "INPUT-dc272c415fadff47"
+    ],
+    "id": "RQ-IIR-2026-1605",
+    "owners": [
+      "indy-init-rehearsal-001"
+    ],
+    "path": "research/requirements/RQ-IIR-2026-1605--r16-5-factory-reveal.md",
+    "priority": "high",
+    "provenance": {
+      "contributions": {
+        "EXE-20261021T163205535Z-ca660a1d": {
+          "actor": {
+            "id": "anthropic/claude-code",
+            "kind": "agent",
+            "model": "claude-opus-5-5",
+            "provider": "anthropic",
+            "runtime": "claude-code"
+          },
+          "at": "2026-10-21T16:33:33.869Z",
+          "operations": [
+            "created"
+          ],
+          "reason": "Derived from frozen Indy Init release-profile requirements (Indy-init@b4c0994)"
+        }
+      }
+    },
+    "status": "accepted",
+    "tags": [
+      "indy-init",
+      "release-profile",
+      "r16"
+    ],
+    "title": "R16.5 Factory reveal",
+    "updated": "2026-10-21",
+    "version": "1.0.0"
+  }
+]
