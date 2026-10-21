@@ -59,7 +59,9 @@ copyTree(framework, join(dist, "wasm", "_framework"), (name) => !name.endsWith("
 
 // 2. Vendor copies.
 copyTree(join(modules, "limen", "dist"), join(dist, "vendor", "limen"), (name) => name.endsWith(".js"));
-cpSync(join(modules, "design-system", "dist", "all.css"), join(dist, "vendor", "forma", "all.css"));
+// Forma is consumed by its canonical package name (the foundations verifier looks for it).
+const formaPackage = "@echelon-foundry/design-system";
+cpSync(join(root, "node_modules", formaPackage, "dist", "all.css"), join(dist, "vendor", "forma", "all.css"));
 copyTree(join(modules, "print-components", "src", "components"), join(dist, "vendor", "folio", "components"), (name) => name.endsWith(".js"));
 cpSync(join(modules, "print-components", "src", "styles", "print.css"), join(dist, "vendor", "folio", "print.css"));
 
