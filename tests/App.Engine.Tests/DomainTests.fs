@@ -1055,7 +1055,7 @@ let ``[R4.2] M1 a prediction before any finding keeps its prospective timing`` (
     Assert.Equal(Prospective, inv.Predictions[pred 1].Timing)
 
 [<Fact>]
-let ``[R7.4] M2 a verification citing superseded evidence does not make a correction effective`` () =
+let ``[R7.4] M2 a verification citing superseded evidence is refused`` () =
     let inv =
         confirmed
         |> script (implementedCorrection Correction
@@ -1064,8 +1064,8 @@ let ``[R7.4] M2 a verification citing superseded evidence does not make a correc
                        admit 61 "Corrected export"
                        SupersedeEvidence(ev 60, ev 61, "wrong time window") ])
         |> attempt (RecordVerification(ver 1, crit 1, Satisfied, [ ev 60 ]))
-        |> stateAfter
-    Assert.Equal(AwaitingVerificationOfEffect, inv.CorrectiveActions[corr 1].State)
+        |> refused "VERIFICATION.EVIDENCE_PREDATES_ROUND"
+    ignore inv
 
 [<Fact>]
 let ``[R7.4][A21] M2 satisfied verifications from before rework do not count in the next round`` () =
@@ -1104,6 +1104,88 @@ let ``[I-19][I-20] m4 validateHistory rejects a forged history that confirms a c
     let forged = genuine @ [ { last with Sequence = last.Sequence + 1L; Body = CausalAssertionConfirmed(cause 1, "forged") } ]
     Assert.Empty(Evolve.validateHistory resolvable)
     Assert.Contains("HISTORY.UNGATED_CONFIRMATION", Evolve.validateHistory forged |> List.map (fun e -> e.Code))
+
+// ---------------------------------------------------------------------------
+// Regression tests for the RC2 adversarial review (run/adversarial-review-rc2.md).
+// ---------------------------------------------------------------------------
+
+[<Fact>]
+let ``[R7.4][I-13] N2 evidence admitted before verification started cannot verify the fix`` () =
+    confirmed
+    |> script (implementedCorrection Correction @ [ TransitionCorrection(corr 1, StartVerificationOfEffect) ])
+    |> attempt (RecordVerification(ver 1, crit 1, Satisfied, [ ev 1 ]))
+    |> refused "VERIFICATION.EVIDENCE_PREDATES_ROUND"
+
+[<Fact>]
+let ``[R3.4][R6.1] N3 contradicting evidence on a cause member blocks confirmation until addressed`` () =
+    let prior =
+        opened
+        |> script (supportedHypothesis 1
+                   @ [ admit 80 "Trace shows the field present"
+                       RelateEvidence(rel 80, ev 80, hyp 1, Contradicts, None)
+                       RecordCausalAssertion(cause 1, "Checkout fails", [ memberOf RootCause 1 ], Some "serializer drops a field") ])
+    prior |> attempt (ConfirmCause(cause 1)) |> refused "CAUSE.CONTRADICTING_EVIDENCE"
+    prior
+    |> script [ RecordContradiction(con 1, "Trace vs log", [ ev 80 ], Material)
+                TransitionContradiction(con 1, ResolveContradiction, "The trace came from the old build") ]
+    |> attempt (ConfirmCause(cause 1)) |> accepted |> ignore
+
+[<Fact>]
+let ``[R6.4] N5 residual uncertainty accepted after the conclusion blocks resolution until stated`` () =
+    resolvable
+    |> script [ IdentifyUnknown(unk 1, "Why was the flag on?", Material); TransitionUnknown(unk 1, AcceptUnknownAsResidual, "not knowable now") ]
+    |> attempt ResolveInvestigation
+    |> refused "RESOLVE.RESIDUAL_NOT_STATED"
+
+[<Fact>]
+let ``[R6.1] N7 a conclusion naming a reopened cause blocks resolution`` () =
+    resolvable
+    |> script [ ReopenCause(cause 1, "New data") ]
+    |> attempt ResolveInvestigation
+    |> refused "RESOLVE.CONCLUSION_STALE"
+
+[<Fact>]
+let ``[R4.2][A11] M1 a finding on an untargeted action makes later predictions retrospective`` () =
+    let inv =
+        opened
+        |> script [ RecordHypothesis(hyp 1, "Cache stampede", None)
+                    RecordAction(act 1, Test, "Disable the cache", [])
+                    TransitionAction(act 1, ApproveAction)
+                    RecordFinding(fnd 1, act 1, "Errors stopped", None) ]
+        |> attempt (RecordPrediction(pred 1, hyp 1, "Errors stop when the cache is off", Expected, Prospective))
+        |> stateAfter
+    Assert.Equal(Retrospective, inv.Predictions[pred 1].Timing)
+
+[<Fact>]
+let ``[I-13][D-004] N1 validateHistory rejects planted verification, unearned VerifiedEffective and agent writes`` () =
+    let genuine = confirmed |> script (implementedCorrection Correction)
+    let last = List.last genuine
+    let at n body = { last with Sequence = last.Sequence + int64 n; Body = body }
+    let planted =
+        genuine
+        @ [ at 1 (EvidenceAdmitted(ev 90, TextEvidence(NonEmptyText.create "fine" |> Result.toOption |> Option.get), Log, NonEmptyText.create "x" |> Result.toOption |> Option.get, None))
+            at 2 (VerificationRecorded(ver 1, crit 1, Satisfied, [ ev 90 ]))
+            at 3 (CorrectiveActionTransitioned(corr 1, VerifiedEffective)) ]
+    let agentWrite = genuine @ [ { at 1 (EvidenceAdmitted(ev 91, TextEvidence(NonEmptyText.create "inferred" |> Result.toOption |> Option.get), Log, NonEmptyText.create "model" |> Result.toOption |> Option.get, None)) with Actor = bot } ]
+    Assert.Empty(Evolve.validateHistory genuine)
+    Assert.Empty(Evolve.validateHistory resolvable)
+    Assert.Contains("HISTORY.INADMISSIBLE_EVENT", Evolve.validateHistory planted |> List.map (fun e -> e.Code))
+    Assert.Contains("HISTORY.INADMISSIBLE_EVENT", Evolve.validateHistory agentWrite |> List.map (fun e -> e.Code))
+
+[<Fact>]
+let ``[I-13][R7.4] N1 validateHistory rejects VerifiedEffective planted without any satisfied verification`` () =
+    let genuine = confirmed |> script (implementedCorrection Correction @ [ TransitionCorrection(corr 1, StartVerificationOfEffect) ])
+    let last = List.last genuine
+    let planted = genuine @ [ { last with Sequence = last.Sequence + 1L; Body = CorrectiveActionTransitioned(corr 1, VerifiedEffective) } ]
+    Assert.Empty(Evolve.validateHistory genuine)
+    Assert.Contains("HISTORY.INADMISSIBLE_EVENT", Evolve.validateHistory planted |> List.map (fun e -> e.Code))
+
+[<Fact>]
+let ``[R8.1] probe reports a command's legality without emitting events`` () =
+    let inv = stateOf confirmed
+    Assert.True(Result.isOk (Decide.probe inv alice t0 (RecordCorrectiveAction(corr 1, Correction, "fix", [ cause 1 ]))))
+    let withCa = stateOf (confirmed |> script [ RecordCorrectiveAction(corr 1, Correction, "fix", [ cause 1 ]); TransitionCorrection(corr 1, ApproveCorrection); TransitionCorrection(corr 1, StartCorrection); TransitionCorrection(corr 1, MarkImplemented) ])
+    Assert.True(Result.isError (Decide.probe withCa alice t0 (TransitionCorrection(corr 1, StartVerificationOfEffect))))
 
 module AgentAuthorityBoundary =
     open System
