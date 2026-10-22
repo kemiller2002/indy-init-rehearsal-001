@@ -4,7 +4,7 @@
   "repository": "indy-init-rehearsal-001",
   "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-10-22T11:00:52.248Z",
+  "updatedAt": "2026-10-22T11:08:37.624Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -524,6 +524,17 @@
           "mechanism": "git-remote-observation"
         }
       }
+    },
+    {
+      "id": "EXP-FORMA-C",
+      "type": "task",
+      "state": "active",
+      "semanticState": "active",
+      "evidence": [],
+      "updatedAt": "2026-10-22T11:08:37.624Z",
+      "telemetryExecutionIds": [
+        "EXE-20261022T110838122Z-01151f76"
+      ]
     }
   ]
 }
