@@ -50,6 +50,8 @@ const perBrowser = (browser) => {
   const kb = jsonl(join(dir, browser, "keyboard.jsonl")) ?? [];
   return {
     captures: caps.length, failedCaptures: caps.filter((c) => !c.ok).map((c) => `${c.state}/${c.width}/${c.variant}: ${c.error}`),
+    screenshotErrors: caps.filter((c) => c.screenshotError).map((c) => `${c.state}/${c.width}/${c.variant}: ${c.screenshotError}`),
+    screenshotsClipped: caps.filter((c) => c.screenshotClippedTo).map((c) => `${c.state}/${c.width}/${c.variant}`),
     byVariant,
     overflowing: ok.filter((c) => c.pageOverflowX > 0).map((c) => `${c.state}/${c.width}/${c.variant}:+${c.pageOverflowX}px`),
     axe: { pagesScanned: axe.length, violationNodesByImpact: impacts, violationNodesByRule: rules },

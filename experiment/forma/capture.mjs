@@ -29,6 +29,8 @@ const STATES = [
   { name: "settings", hash: "#/settings", target: null, ready: "form" }
 ];
 
+const ONLY = process.env.EX_STATES ? process.env.EX_STATES.split(",") : null;
+const ACTIVE = ONLY ? STATES.filter((s) => ONLY.includes(s.name)) : STATES;
 const preinstalled = "/opt/pw-browsers/chromium";
 const launcher = browserName === "webkit" ? webkit : chromium;
 const browser = await launcher.launch(browserName === "chromium" && existsSync(preinstalled) ? { executablePath: preinstalled } : {});
@@ -137,7 +139,7 @@ const measure = (targetSelector) => {
 const started = Date.now();
 for (const width of VIEWPORTS) for (const variant of VARIANTS) {
   const { context, page } = await contextFor(width, variant);
-  for (const state of STATES) {
+  for (const state of ACTIVE) {
     const key = `${state.name}__${width}__${variant}`;
     try {
       await settle(page, state);
@@ -145,9 +147,19 @@ for (const width of VIEWPORTS) for (const variant of VARIANTS) {
       const shot = join(out, "shots", key + ".png");
       // The footer prints the arm's own build SHA; it is masked so arms differ only by treatment.
       const mask = [page.locator("[data-build]")];
-      if (state.target) await page.locator(state.target).first().screenshot({ path: shot, animations: "disabled", caret: "hide", mask, maskColor: "#ff00ff" });
-      else await page.screenshot({ path: shot, fullPage: true, animations: "disabled", caret: "hide", mask, maskColor: "#ff00ff" });
-      log("captures.jsonl", { browser: browserName, state: state.name, width, variant, ok: true, ...m });
+      // WebKit cannot capture images taller than 32767px; such pages are clipped to that height
+      // (same rule in every arm) and the clip is recorded. Geometry is measured on the whole page.
+      const MAX = 32000;
+      const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+      const clippedShot = !state.target && pageHeight > MAX;
+      let screenshotError = null;
+      try {
+        if (state.target) await page.locator(state.target).first().screenshot({ path: shot, animations: "disabled", caret: "hide", mask, maskColor: "#ff00ff" });
+        else await page.screenshot({ path: shot, fullPage: true, animations: "disabled", caret: "hide", mask, maskColor: "#ff00ff", ...(clippedShot ? { clip: { x: 0, y: 0, width, height: MAX } } : {}) });
+      } catch (error) {
+        screenshotError = String(error).split("\n")[0].slice(0, 200);
+      }
+      log("captures.jsonl", { browser: browserName, state: state.name, width, variant, ok: true, pageHeight, screenshotClippedTo: clippedShot ? MAX : null, screenshotError, ...m });
       if (variant === "default" && AXE_VIEWPORTS.includes(width)) {
         const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
         log("axe.jsonl", { browser: browserName, state: state.name, width, violations: axe.violations.map((v) => ({ id: v.id, impact: v.impact, nodes: v.nodes.length, targets: v.nodes.slice(0, 5).map((n) => n.target.join(" ")) })), passes: axe.passes.length, incomplete: axe.incomplete.length });
@@ -156,7 +168,7 @@ for (const width of VIEWPORTS) for (const variant of VARIANTS) {
       log("captures.jsonl", { browser: browserName, state: state.name, width, variant, ok: false, error: String(error).slice(0, 400) });
     }
   }
-  if (variant === "default" && KEYBOARD_VIEWPORTS.includes(width)) {
+  if (variant === "default" && KEYBOARD_VIEWPORTS.includes(width) && !ONLY) {
     for (const state of [STATES[0], STATES[1]]) {
       await settle(page, state);
       await page.evaluate(() => window.scrollTo(0, 0));
