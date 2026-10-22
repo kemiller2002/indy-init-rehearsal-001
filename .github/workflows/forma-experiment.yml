@@ -139,7 +139,7 @@ jobs:
           npm ci --no-audit --no-fund --ignore-scripts
           mkdir -p "$GITHUB_WORKSPACE/comparison"
           pair() { [ -d "$GITHUB_WORKSPACE/arms/arm-$1" ] && [ -d "$GITHUB_WORKSPACE/arms/arm-$2" ] && node compare.mjs "$GITHUB_WORKSPACE/arms/arm-$1" "$GITHUB_WORKSPACE/arms/arm-$2" "$1-$2" "$GITHUB_WORKSPACE/comparison" || echo "skip $1-$2"; }
-          pair A A2; pair A B; pair B C; pair A C
+          pair A A2; pair A B; pair B Bp; pair Bp C; pair B C; pair A C
       - uses: actions/upload-artifact@v4
         with:
           name: comparison

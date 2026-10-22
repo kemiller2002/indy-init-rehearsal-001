@@ -83,10 +83,14 @@ const measure = (targetSelector) => {
   const inScroller = (el) => { for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) { const o = getComputedStyle(p).overflowX; if (o === "auto" || o === "scroll" || o === "hidden" || o === "clip") return true; } return false; };
   const all = [...root.querySelectorAll("*")].filter(visible);
   const beyond = all.filter((el) => el.getBoundingClientRect().right > vw + 1 && !inScroller(el));
-  const clipped = all.filter((el) => {
-    const cs = getComputedStyle(el);
-    return cs.display !== "inline" && cs.overflowX === "visible" && el.clientWidth > 0 && el.scrollWidth > el.clientWidth + 1 && !["svg", "path", "g"].includes(el.tagName.toLowerCase());
-  });
+  const skip = (el) => ["svg", "path", "g"].includes(el.tagName.toLowerCase());
+  const wider = (el) => el.clientWidth > 1 && el.scrollWidth > el.clientWidth + 1;
+  // Content visibly spilling out of its box (overflow-x: visible); innermost box only, so one
+  // overflow is not counted once per ancestor.
+  const spilling = all.filter((el) => !skip(el) && getComputedStyle(el).display !== "inline" && getComputedStyle(el).overflowX === "visible" && wider(el));
+  const overflowingBoxes = spilling.filter((el) => !spilling.some((d) => d !== el && el.contains(d)));
+  // Content actually cut off: overflow-x hidden or clip, wider content, not a 1px visually-hidden helper.
+  const clippedBoxes = all.filter((el) => !skip(el) && ["hidden", "clip"].includes(getComputedStyle(el).overflowX) && wider(el) && el.getBoundingClientRect().width > 1);
   const singleLine = all.filter((el) => el.matches("input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]), select:not([multiple]):not([size])"));
   const heights = singleLine.map((el) => Math.round(el.getBoundingClientRect().height * 100) / 100);
   // Side-by-side peer controls: overlapping vertical ranges, distinct columns, same group.
@@ -120,9 +124,12 @@ const measure = (targetSelector) => {
   const forcedInvisible = all.filter((el) => el.matches("input:not([type=hidden]), select, textarea, button") && (() => { const cs = getComputedStyle(el); return cs.borderTopStyle === "none" && cs.outlineStyle === "none"; })()).length;
   const rect = root.getBoundingClientRect();
   return {
-    pageOverflowX: document.documentElement.scrollWidth - vw,
-    beyondViewport: beyond.length, beyondSamples: beyond.slice(0, 8).map(describe),
-    clipped: clipped.length, clippedSamples: clipped.slice(0, 8).map(describe),
+    pageLevel: !targetSelector,
+    // Page overflow is a property of the whole document; it is reported only for full-page states.
+    pageOverflowX: targetSelector ? null : document.documentElement.scrollWidth - vw,
+    beyondViewport: beyond.length, beyondSamples: beyond.slice(0, 20).map(describe),
+    overflowingBoxes: overflowingBoxes.length, overflowingSamples: overflowingBoxes.slice(0, 20).map(describe),
+    clippedBoxes: clippedBoxes.length, clippedSamples: clippedBoxes.slice(0, 20).map(describe),
     controlHeights: { n: heights.length, min: heights.length ? Math.min(...heights) : null, max: heights.length ? Math.max(...heights) : null, distinct: [...new Set(heights)].length },
     peers: { pairs: peerPairs, misalignedOver2px: misalignedPairs, maxTopDelta: Math.round(maxMisalign * 100) / 100 },
     efClasses: [...classes.keys()].filter((c) => c.startsWith("ef-")).sort(),
@@ -160,40 +167,56 @@ for (const width of VIEWPORTS) for (const variant of VARIANTS) {
         screenshotError = String(error).split("\n")[0].slice(0, 200);
       }
       log("captures.jsonl", { browser: browserName, state: state.name, width, variant, ok: true, pageHeight, screenshotClippedTo: clippedShot ? MAX : null, screenshotError, ...m });
-      if (variant === "default" && AXE_VIEWPORTS.includes(width)) {
+      const axeHere = (variant === "default" && [320, 375, 1440].includes(width)) || (["text200", "forced"].includes(variant) && width === 375);
+      if (axeHere) {
         const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
-        log("axe.jsonl", { browser: browserName, state: state.name, width, violations: axe.violations.map((v) => ({ id: v.id, impact: v.impact, nodes: v.nodes.length, targets: v.nodes.slice(0, 5).map((n) => n.target.join(" ")) })), passes: axe.passes.length, incomplete: axe.incomplete.length });
+        log("axe.jsonl", { browser: browserName, state: state.name, width, variant, incompleteRules: axe.incomplete.map((v) => v.id), violations: axe.violations.map((v) => ({ id: v.id, impact: v.impact, nodes: v.nodes.length, targets: v.nodes.slice(0, 5).map((n) => n.target.join(" ")) })), passes: axe.passes.length, incomplete: axe.incomplete.length });
       }
     } catch (error) {
       log("captures.jsonl", { browser: browserName, state: state.name, width, variant, ok: false, error: String(error).slice(0, 400) });
     }
   }
-  if (variant === "default" && KEYBOARD_VIEWPORTS.includes(width) && !ONLY) {
+  if (["default", "forced"].includes(variant) && KEYBOARD_VIEWPORTS.includes(width) && !ONLY) {
     for (const state of [STATES[0], STATES[1]]) {
       await settle(page, state);
-      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.evaluate(() => {
+        window.scrollTo(0, 0);
+        // Unfocused appearance of every element, to judge whether focus changes it.
+        const look = (el) => { const cs = getComputedStyle(el); return [cs.outlineStyle, cs.outlineWidth, cs.outlineColor, cs.boxShadow, cs.borderColor, cs.backgroundColor, cs.transform, cs.clipPath, cs.clip, cs.top, cs.left, cs.opacity, cs.position].join("|"); };
+        window.__exLook = look;
+        window.__exBase = new Map([...document.querySelectorAll("a[href], button, input, select, textarea, summary, [tabindex]")].map((el) => [el, look(el)]));
+      });
       const stops = [];
-      for (let i = 0; i < 80; i++) {
+      for (let i = 0; i < 300; i++) {
         await page.keyboard.press("Tab");
+        // Let focus transitions (Forma animates the ring and the skip link) settle before reading styles.
+        await page.waitForTimeout(250);
         const s = await page.evaluate(() => {
           const el = document.activeElement;
-          if (!el || el === document.body) return { tag: "body" };
-          const cs = getComputedStyle(el);
+          if (!el || el === document.body) return { key: "body", tag: "body" };
           const r = el.getBoundingClientRect();
-          const indicator = (cs.outlineStyle !== "none" && parseFloat(cs.outlineWidth) > 0) || cs.boxShadow !== "none";
-          return { tag: el.tagName.toLowerCase(), name: (el.getAttribute("aria-label") || el.textContent || el.getAttribute("name") || "").trim().slice(0, 40), indicator, inViewport: r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth, focusVisible: el.matches(":focus-visible") };
+          const base = window.__exBase.get(el);
+          const name = (el.id ? "#" + el.id : "") + " " + (el.getAttribute("aria-label") || el.textContent || el.getAttribute("name") || "").replace(/\s+/g, " ").trim().slice(0, 40);
+          if (!el.dataset.exKb) el.dataset.exKb = String(document.querySelectorAll("[data-ex-kb]").length);
+          return { key: el.tagName.toLowerCase() + ":" + el.dataset.exKb, tag: el.tagName.toLowerCase(), name: name.trim(), indicatorChanged: base === undefined ? null : window.__exLook(el) !== base, inViewport: r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth };
         });
         stops.push(s);
+        if (stops.length > 1 && s.key === stops[0].key) break;
       }
-      const sequence = stops.map((s) => `${s.tag}:${s.name ?? ""}`);
-      const firstRepeat = sequence.findIndex((s, i) => i > 0 && s === sequence[0]);
+      const tabbable = await page.evaluate(() => [...document.querySelectorAll("a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex='-1'])")].filter((el) => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== "hidden"; }).length);
+      const cycled = stops.length > 1 && stops[stops.length - 1].key === stops[0].key;
+      const unique = new Set(stops.map((s) => s.key));
+      // Consecutive repeats are native multi-segment controls (date/time); a trap is a walk that never cycles.
+      let maxRepeat = 1, run = 1, repeatAt = null;
+      for (let i = 1; i < stops.length; i++) { run = stops[i].key === stops[i - 1].key ? run + 1 : 1; if (run > maxRepeat) { maxRepeat = run; repeatAt = `${stops[i].tag} ${stops[i].name}`; } }
       log("keyboard.jsonl", {
-        browser: browserName, state: state.name, width,
-        stops: stops.length, distinct: new Set(sequence).size,
-        withoutIndicator: stops.filter((s) => s.tag !== "body" && !s.indicator).length,
+        browser: browserName, state: state.name, width, variant,
+        presses: stops.length, cycled, distinct: unique.size, tabbableVisible: tabbable,
+        possibleTrap: !cycled, maxConsecutiveRepeat: maxRepeat, repeatAt,
+        // The cycle-closing stop repeats stop 0 after focus re-enters the document, so it is not scored again.
+        withoutIndicator: (cycled ? stops.slice(0, -1) : stops).map((s, i) => ({ ...s, i })).filter((s) => s.tag !== "body" && s.indicatorChanged === false).map((s) => `#${s.i} ${s.tag} ${s.name}`),
         offscreen: stops.filter((s) => s.tag !== "body" && !s.inViewport).length,
-        cycleLength: firstRepeat > 0 ? firstRepeat : null,
-        sample: stops.slice(0, 12)
+        sequence: stops.map((s) => `${s.tag} ${s.name}`)
       });
     }
   }

@@ -30,32 +30,44 @@ const perBrowser = (browser) => {
   const ok = caps.filter((c) => c.ok);
   const byVariant = {};
   for (const c of ok) {
-    const v = (byVariant[c.variant] ??= { captures: 0, pagesOverflowing: 0, overflowPxTotal: 0, beyondViewport: 0, clipped: 0, peerPairs: 0, misalignedPairs: 0, maxPeerTopDelta: 0, controlHeightSpreadMax: 0, animatingOver10ms: 0, controlsWithoutBorderOrOutline: 0 });
+    const v = (byVariant[c.variant] ??= { captures: 0, fullPageCaptures: 0, pagesOverflowing: 0, overflowPxTotal: 0, beyondViewportFullPage: 0, overflowingBoxes: 0, clippedBoxes: 0, peerPairs: 0, misalignedPairs: 0, maxPeerTopDelta: 0, controlHeightSpreadMax: 0, animatingOver10ms: 0, controlsWithoutBorderOrOutline: 0 });
     v.captures++;
-    if (c.pageOverflowX > 0) v.pagesOverflowing++;
-    v.overflowPxTotal += Math.max(0, c.pageOverflowX);
-    v.beyondViewport += c.beyondViewport;
-    v.clipped += c.clipped;
+    // Page-level measures count each URL x width once (full-page states only).
+    if (c.pageLevel) {
+      v.fullPageCaptures++;
+      if (c.pageOverflowX > 0) v.pagesOverflowing++;
+      v.overflowPxTotal += Math.max(0, c.pageOverflowX);
+      v.beyondViewportFullPage += c.beyondViewport;
+      v.overflowingBoxes += c.overflowingBoxes;
+      v.clippedBoxes += c.clippedBoxes;
+      v.animatingOver10ms += c.animatingOver10ms;
+      v.controlsWithoutBorderOrOutline += c.controlsWithoutBorderOrOutline;
+    }
     v.peerPairs += c.peers.pairs;
     v.misalignedPairs += c.peers.misalignedOver2px;
     v.maxPeerTopDelta = Math.max(v.maxPeerTopDelta, c.peers.maxTopDelta);
     if (c.controlHeights.n) v.controlHeightSpreadMax = Math.max(v.controlHeightSpreadMax, Math.round((c.controlHeights.max - c.controlHeights.min) * 100) / 100);
-    v.animatingOver10ms += c.animatingOver10ms;
-    v.controlsWithoutBorderOrOutline += c.controlsWithoutBorderOrOutline;
   }
+  const sections = ok.filter((c) => !c.pageLevel).map((c) => ({ state: c.state, width: c.width, variant: c.variant, overflowingBoxes: c.overflowingBoxes, clippedBoxes: c.clippedBoxes, beyondViewport: c.beyondViewport }));
   const axe = jsonl(join(dir, browser, "axe.jsonl")) ?? [];
   const impacts = {};
   const rules = {};
-  for (const a of axe) for (const v of a.violations) { impacts[v.impact] = (impacts[v.impact] ?? 0) + v.nodes; rules[v.id] = (rules[v.id] ?? 0) + v.nodes; }
+  const incomplete = {};
+  for (const a of axe) {
+    for (const v of a.violations) { impacts[v.impact] = (impacts[v.impact] ?? 0) + v.nodes; rules[v.id] = (rules[v.id] ?? 0) + v.nodes; }
+    for (const r of a.incompleteRules ?? []) incomplete[r] = (incomplete[r] ?? 0) + 1;
+  }
   const kb = jsonl(join(dir, browser, "keyboard.jsonl")) ?? [];
   return {
     captures: caps.length, failedCaptures: caps.filter((c) => !c.ok).map((c) => `${c.state}/${c.width}/${c.variant}: ${c.error}`),
     screenshotErrors: caps.filter((c) => c.screenshotError).map((c) => `${c.state}/${c.width}/${c.variant}: ${c.screenshotError}`),
     screenshotsClipped: caps.filter((c) => c.screenshotClippedTo).map((c) => `${c.state}/${c.width}/${c.variant}`),
     byVariant,
-    overflowing: ok.filter((c) => c.pageOverflowX > 0).map((c) => `${c.state}/${c.width}/${c.variant}:+${c.pageOverflowX}px`),
-    axe: { pagesScanned: axe.length, violationNodesByImpact: impacts, violationNodesByRule: rules },
-    keyboard: kb.map((k) => ({ state: k.state, width: k.width, distinctStops: k.distinct, withoutIndicator: k.withoutIndicator, offscreen: k.offscreen })),
+    overflowing: ok.filter((c) => c.pageLevel && c.pageOverflowX > 0).map((c) => `${c.state}/${c.width}/${c.variant}:+${c.pageOverflowX}px`),
+    sections,
+    axe: { scans: axe.length, scansByVariant: axe.reduce((m, a) => ({ ...m, [a.variant]: (m[a.variant] ?? 0) + 1 }), {}), violationNodesByImpact: impacts, violationNodesByRule: rules, incompleteRuleScans: incomplete },
+    keyboard: kb.map((k) => ({ state: k.state, width: k.width, variant: k.variant, presses: k.presses, cycled: k.cycled, distinct: k.distinct, tabbableVisible: k.tabbableVisible, possibleTrap: k.possibleTrap, withoutIndicator: k.withoutIndicator, offscreen: k.offscreen })),
+    elementsByState: ok.filter((c) => c.variant === "default" && c.width === 1440).map((c) => ({ state: c.state, efElements: c.efElements, appOnlyElements: c.appOnlyElements })),
     efClassesRendered: [...new Set(ok.flatMap((c) => c.efClasses))].length,
     appClassesRendered: [...new Set(ok.flatMap((c) => c.appClasses))].length,
     captureSeconds: json(join(dir, browser, "timing.json"))?.seconds ?? UNKNOWN
