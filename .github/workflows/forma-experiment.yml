@@ -82,7 +82,13 @@ jobs:
         timeout-minutes: 10
         run: |
           npx playwright install chromium webkit
-          timeout 300 sudo env "PATH=$PATH" npx playwright install-deps chromium webkit || echo "::warning::browser OS dependencies incomplete"
+          printf '%s\n' 'Acquire::Retries "3";' 'Acquire::http::Timeout "30";' 'Acquire::https::Timeout "30";' | sudo tee /etc/apt/apt.conf.d/99-bounded-network > /dev/null
+          for attempt in 1 2 3; do
+            timeout 300 sudo env "PATH=$PATH" npx playwright install-deps chromium webkit && break
+            echo "::warning::install-deps attempt $attempt failed"; sleep 10
+          done
+          # Both engines must launch; a run with a missing browser is not comparable evidence.
+          node -e "const {chromium,webkit}=require('@playwright/test');(async()=>{for(const b of [chromium,webkit]){const x=await b.launch();console.log(b.name(),'launches');await x.close()}})().catch(e=>{console.error(e.message.split('\\n')[0]);process.exit(1)})"
       - name: Existing R001 browser suite (all projects)
         working-directory: app
         env:
@@ -92,7 +98,9 @@ jobs:
           tail -6 "$OUT/tests/playwright.log"
       - name: Harness install
         working-directory: harness/experiment/forma
-        run: npm ci --no-audit --no-fund --ignore-scripts && npx playwright install chromium webkit
+        run: |
+          npm ci --no-audit --no-fund --ignore-scripts && npx playwright install chromium webkit
+          node -e "const {chromium,webkit}=require('@playwright/test');(async()=>{for(const b of [chromium,webkit]){const x=await b.launch();console.log(b.name(),'launches');await x.close()}})().catch(e=>{console.error(e.message.split('\\n')[0]);process.exit(1)})"
       - name: Captures (Chromium, WebKit)
         working-directory: harness/experiment/forma
         run: |
