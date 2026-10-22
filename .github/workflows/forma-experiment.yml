@@ -79,7 +79,7 @@ jobs:
           test -f dist/index.html
       - name: Install Playwright browsers for the app suite
         working-directory: app
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: |
           npx playwright install chromium webkit
           # One bounded attempt that waits for the dpkg lock. Short killed attempts left apt-get
@@ -120,6 +120,7 @@ jobs:
           name: arm-${{ matrix.arm }}
           path: out/${{ matrix.arm }}
           retention-days: 90
+          overwrite: true
 
   compare:
     needs: arm
@@ -145,3 +146,4 @@ jobs:
           name: comparison
           path: comparison
           retention-days: 90
+          overwrite: true
