@@ -143,8 +143,10 @@ for (const width of VIEWPORTS) for (const variant of VARIANTS) {
       await settle(page, state);
       const m = await page.evaluate(measure, state.target);
       const shot = join(out, "shots", key + ".png");
-      if (state.target) await page.locator(state.target).first().screenshot({ path: shot, animations: "disabled", caret: "hide" });
-      else await page.screenshot({ path: shot, fullPage: true, animations: "disabled", caret: "hide" });
+      // The footer prints the arm's own build SHA; it is masked so arms differ only by treatment.
+      const mask = [page.locator("[data-build]")];
+      if (state.target) await page.locator(state.target).first().screenshot({ path: shot, animations: "disabled", caret: "hide", mask, maskColor: "#ff00ff" });
+      else await page.screenshot({ path: shot, fullPage: true, animations: "disabled", caret: "hide", mask, maskColor: "#ff00ff" });
       log("captures.jsonl", { browser: browserName, state: state.name, width, variant, ok: true, ...m });
       if (variant === "default" && AXE_VIEWPORTS.includes(width)) {
         const axe = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();

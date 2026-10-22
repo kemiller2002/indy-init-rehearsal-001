@@ -1,3 +1,4 @@
 {
-  "A": { "branch": "forma-experiment-control", "sha": "dffaf082ca6b475231d7b21198876bf0c43fc3df", "forma": "0.5.0" }
+  "A": { "branch": "forma-experiment-control", "sha": "dffaf082ca6b475231d7b21198876bf0c43fc3df", "forma": "0.5.0" },
+  "B": { "branch": "forma-experiment-upgrade", "sha": "19890807b7069d5b257df5ae3be280b77b0f2a77", "forma": "0.9.0" }
 }
