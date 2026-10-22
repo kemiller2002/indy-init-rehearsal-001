@@ -249,33 +249,37 @@
 
           <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="hyp-title">
             <h2 id="hyp-title">Possible explanations (hypotheses)</h2>
-            <form data-event="hyp.add" class="form form--inline">
-              <div class="ef-field">
-                <label class="ef-field__label" for="hyp-statement">New hypothesis</label>
-                <input id="hyp-statement" type="text" data-event="f.hypStatement" data-bind-value="draft_hypStatement">
-              </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="hyp-mechanism">How it would cause the problem (optional)</label>
-                <input id="hyp-mechanism" type="text" data-event="f.hypMechanism" data-bind-value="draft_hypMechanism">
+            <form data-event="hyp.add" class="form">
+              <div class="ef-form-row">
+                <div class="ef-field">
+                  <label class="ef-field__label" for="hyp-statement">New hypothesis</label>
+                  <input id="hyp-statement" type="text" data-event="f.hypStatement" data-bind-value="draft_hypStatement">
+                </div>
+                <div class="ef-field">
+                  <label class="ef-field__label" for="hyp-mechanism">How it would cause the problem (optional)</label>
+                  <input id="hyp-mechanism" type="text" data-event="f.hypMechanism" data-bind-value="draft_hypMechanism">
+                </div>
               </div>
               <div class="ef-actions"><button type="submit">Add hypothesis</button></div>
             </form>
 
             <fieldset class="change-box">
               <legend>To change a hypothesis: give the reason and the evidence, then press an action on it</legend>
-              <div class="ef-field">
-                <label class="ef-field__label" for="hyp-reason">Reason for the change</label>
-                <input id="hyp-reason" type="text" data-event="f.hypReason" data-bind-value="draft_hypReason">
-              </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="hyp-evidence">Evidence that caused it</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="hyp-evidence" data-event="f.hypEvidence" data-bind-value="draft_hypEvidence">
-                    <option value="">No evidence</option>
-                    <template data-each="evidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
-                  </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
-                </span>
+              <div class="ef-form-row">
+                <div class="ef-field">
+                  <label class="ef-field__label" for="hyp-reason">Reason for the change</label>
+                  <input id="hyp-reason" type="text" data-event="f.hypReason" data-bind-value="draft_hypReason">
+                </div>
+                <div class="ef-field ef-select-field">
+                  <label class="ef-field__label" for="hyp-evidence">Evidence that caused it</label>
+                  <span class="ef-select">
+                    <select class="ef-select__input" id="hyp-evidence" data-event="f.hypEvidence" data-bind-value="draft_hypEvidence">
+                      <option value="">No evidence</option>
+                      <template data-each="evidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
+                    </select>
+                    <span class="ef-select__indicator" aria-hidden="true"></span>
+                  </span>
+                </div>
               </div>
             </fieldset>
 
@@ -719,34 +723,36 @@
 
           <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="cause-title">
             <h2 id="cause-title">Cause</h2>
-            <form data-event="cause.add" class="form form--inline">
-              <div class="ef-field">
-                <label class="ef-field__label" for="cause-outcome">Problem being explained</label>
-                <input id="cause-outcome" type="text" data-event="f.causeOutcome" data-bind-value="draft_causeOutcome">
-              </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="cause-root">Root cause</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="cause-root" data-event="f.causeRoot" data-bind-value="draft_causeRoot">
-                    <option value="">Choose hypothesis</option>
-                    <template data-each="hypothesisOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
-                  </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
-                </span>
-              </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="cause-factor">Contributing factor (optional)</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="cause-factor" data-event="f.causeFactor" data-bind-value="draft_causeFactor">
-                    <option value="">None</option>
-                    <template data-each="hypothesisOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
-                  </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
-                </span>
-              </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="cause-mechanism">How it causes the problem (mechanism)</label>
-                <input id="cause-mechanism" type="text" data-event="f.causeMechanism" data-bind-value="draft_causeMechanism">
+            <form data-event="cause.add" class="form">
+              <div class="ef-form-row">
+                <div class="ef-field">
+                  <label class="ef-field__label" for="cause-outcome">Problem being explained</label>
+                  <input id="cause-outcome" type="text" data-event="f.causeOutcome" data-bind-value="draft_causeOutcome">
+                </div>
+                <div class="ef-field ef-select-field">
+                  <label class="ef-field__label" for="cause-root">Root cause</label>
+                  <span class="ef-select">
+                    <select class="ef-select__input" id="cause-root" data-event="f.causeRoot" data-bind-value="draft_causeRoot">
+                      <option value="">Choose hypothesis</option>
+                      <template data-each="hypothesisOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
+                    </select>
+                    <span class="ef-select__indicator" aria-hidden="true"></span>
+                  </span>
+                </div>
+                <div class="ef-field ef-select-field">
+                  <label class="ef-field__label" for="cause-factor">Contributing factor (optional)</label>
+                  <span class="ef-select">
+                    <select class="ef-select__input" id="cause-factor" data-event="f.causeFactor" data-bind-value="draft_causeFactor">
+                      <option value="">None</option>
+                      <template data-each="hypothesisOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
+                    </select>
+                    <span class="ef-select__indicator" aria-hidden="true"></span>
+                  </span>
+                </div>
+                <div class="ef-field">
+                  <label class="ef-field__label" for="cause-mechanism">How it causes the problem (mechanism)</label>
+                  <input id="cause-mechanism" type="text" data-event="f.causeMechanism" data-bind-value="draft_causeMechanism">
+                </div>
               </div>
               <div class="ef-actions"><button type="submit">Propose cause</button></div>
             </form>
@@ -776,32 +782,34 @@
 
           <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="corr-title">
             <h2 id="corr-title">Fix and verification</h2>
-            <form data-event="corr.add" class="form form--inline">
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="corr-kind">Kind of fix</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="corr-kind" data-event="f.corrKind" data-bind-value="draft_corrKind">
-                    <option value="Correction">Root-cause correction</option>
-                    <option value="Mitigation">Temporary mitigation</option>
-                    <option value="Workaround">Workaround</option>
-                    <option value="Prevention">Prevention</option>
-                  </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
-                </span>
-              </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="corr-description">What will be done</label>
-                <input id="corr-description" type="text" data-event="f.corrDescription" data-bind-value="draft_corrDescription">
-              </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="corr-cause">Cause it addresses</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="corr-cause" data-event="f.corrCause" data-bind-value="draft_corrCause">
-                    <option value="">Choose cause</option>
-                    <template data-each="causeOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
-                  </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
-                </span>
+            <form data-event="corr.add" class="form">
+              <div class="ef-form-row">
+                <div class="ef-field ef-select-field">
+                  <label class="ef-field__label" for="corr-kind">Kind of fix</label>
+                  <span class="ef-select">
+                    <select class="ef-select__input" id="corr-kind" data-event="f.corrKind" data-bind-value="draft_corrKind">
+                      <option value="Correction">Root-cause correction</option>
+                      <option value="Mitigation">Temporary mitigation</option>
+                      <option value="Workaround">Workaround</option>
+                      <option value="Prevention">Prevention</option>
+                    </select>
+                    <span class="ef-select__indicator" aria-hidden="true"></span>
+                  </span>
+                </div>
+                <div class="ef-field">
+                  <label class="ef-field__label" for="corr-description">What will be done</label>
+                  <input id="corr-description" type="text" data-event="f.corrDescription" data-bind-value="draft_corrDescription">
+                </div>
+                <div class="ef-field ef-select-field">
+                  <label class="ef-field__label" for="corr-cause">Cause it addresses</label>
+                  <span class="ef-select">
+                    <select class="ef-select__input" id="corr-cause" data-event="f.corrCause" data-bind-value="draft_corrCause">
+                      <option value="">Choose cause</option>
+                      <template data-each="causeOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
+                    </select>
+                    <span class="ef-select__indicator" aria-hidden="true"></span>
+                  </span>
+                </div>
               </div>
               <div class="ef-actions"><button type="submit">Add fix</button></div>
             </form>
@@ -821,58 +829,62 @@
                 </li>
               </template>
             </ul>
-            <form data-event="crit.add" class="form form--inline">
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="crit-correction">Fix to check</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="crit-correction" data-event="f.critCorrection" data-bind-value="draft_critCorrection">
-                    <option value="">Choose fix</option>
-                    <template data-each="correctionOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
-                  </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
-                </span>
-              </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="crit-expected">Success looks like</label>
-                <input id="crit-expected" type="text" data-event="f.critExpected" data-bind-value="draft_critExpected">
+            <form data-event="crit.add" class="form">
+              <div class="ef-form-row">
+                <div class="ef-field ef-select-field">
+                  <label class="ef-field__label" for="crit-correction">Fix to check</label>
+                  <span class="ef-select">
+                    <select class="ef-select__input" id="crit-correction" data-event="f.critCorrection" data-bind-value="draft_critCorrection">
+                      <option value="">Choose fix</option>
+                      <template data-each="correctionOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
+                    </select>
+                    <span class="ef-select__indicator" aria-hidden="true"></span>
+                  </span>
+                </div>
+                <div class="ef-field">
+                  <label class="ef-field__label" for="crit-expected">Success looks like</label>
+                  <input id="crit-expected" type="text" data-event="f.critExpected" data-bind-value="draft_critExpected">
+                </div>
               </div>
               <div class="ef-actions"><button type="submit">Add success criterion</button></div>
             </form>
             <ul class="plain-list">
               <template data-each="criteria" data-key="id"><li data-testid="criterion" data-bind-data-met="isMet"><strong data-text="label"></strong> (fix <span data-text="correction"></span>): <span data-text="expected"></span> — <span data-text="status"></span></li></template>
             </ul>
-            <form data-event="ver.add" class="form form--inline">
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="ver-criterion">Criterion verified</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="ver-criterion" data-event="f.verCriterion" data-bind-value="draft_verCriterion">
-                    <option value="">Choose criterion</option>
-                    <template data-each="criterionOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
-                  </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
-                </span>
-              </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="ver-outcome">Result</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="ver-outcome" data-event="f.verOutcome" data-bind-value="draft_verOutcome">
-                    <option value="Satisfied">Criterion met</option>
-                    <option value="Failed">Criterion not met</option>
-                    <option value="Inconclusive">Inconclusive</option>
-                  </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
-                </span>
-              </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="ver-evidence">Verification evidence</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="ver-evidence" data-event="f.verEvidence" data-bind-value="draft_verEvidence" aria-describedby="ver-evidence-note">
-                    <option value="">No evidence</option>
-                    <template data-each="verEvidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
-                  </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
-                </span>
-                <span class="ef-field__description" id="ver-evidence-note" data-testid="ver-evidence-note" data-text="verEvidenceNote"></span>
+            <form data-event="ver.add" class="form">
+              <div class="ef-form-row">
+                <div class="ef-field ef-select-field">
+                  <label class="ef-field__label" for="ver-criterion">Criterion verified</label>
+                  <span class="ef-select">
+                    <select class="ef-select__input" id="ver-criterion" data-event="f.verCriterion" data-bind-value="draft_verCriterion">
+                      <option value="">Choose criterion</option>
+                      <template data-each="criterionOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
+                    </select>
+                    <span class="ef-select__indicator" aria-hidden="true"></span>
+                  </span>
+                </div>
+                <div class="ef-field ef-select-field">
+                  <label class="ef-field__label" for="ver-outcome">Result</label>
+                  <span class="ef-select">
+                    <select class="ef-select__input" id="ver-outcome" data-event="f.verOutcome" data-bind-value="draft_verOutcome">
+                      <option value="Satisfied">Criterion met</option>
+                      <option value="Failed">Criterion not met</option>
+                      <option value="Inconclusive">Inconclusive</option>
+                    </select>
+                    <span class="ef-select__indicator" aria-hidden="true"></span>
+                  </span>
+                </div>
+                <div class="ef-field ef-select-field">
+                  <label class="ef-field__label" for="ver-evidence">Verification evidence</label>
+                  <span class="ef-select">
+                    <select class="ef-select__input" id="ver-evidence" data-event="f.verEvidence" data-bind-value="draft_verEvidence" aria-describedby="ver-evidence-note">
+                      <option value="">No evidence</option>
+                      <template data-each="verEvidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
+                    </select>
+                    <span class="ef-select__indicator" aria-hidden="true"></span>
+                  </span>
+                  <span class="ef-field__description" id="ver-evidence-note" data-testid="ver-evidence-note" data-text="verEvidenceNote"></span>
+                </div>
               </div>
               <div class="ef-actions"><button type="submit">Record verification</button></div>
             </form>
@@ -881,37 +893,39 @@
 
           <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="concl-title">
             <h2 id="concl-title">Conclusion and resolution</h2>
-            <form data-event="concl.add" class="form form--inline">
-              <div class="ef-field">
-                <label class="ef-field__label" for="concl-statement">Conclusion</label>
-                <input id="concl-statement" type="text" data-event="f.conclStatement" data-bind-value="draft_conclStatement">
-              </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="concl-strength">How strong</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="concl-strength" data-event="f.conclStrength" data-bind-value="draft_conclStrength">
-                    <option value="ConfirmedCause">Confirmed cause</option>
-                    <option value="SupportedCause">Supported cause</option>
-                    <option value="LeadingExplanation">Leading explanation</option>
-                    <option value="PlausibleExplanation">Plausible explanation</option>
-                    <option value="AcceptedWithResidualUncertainty">Accepted with remaining uncertainty</option>
-                  </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
-                </span>
-              </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="concl-cause">Cause concluded</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="concl-cause" data-event="f.conclCause" data-bind-value="draft_conclCause">
-                    <option value="">None</option>
-                    <template data-each="causeOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
-                  </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
-                </span>
-              </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="concl-residual">Remaining uncertainty</label>
-                <input id="concl-residual" type="text" data-event="f.conclResidual" data-bind-value="draft_conclResidual">
+            <form data-event="concl.add" class="form">
+              <div class="ef-form-row">
+                <div class="ef-field">
+                  <label class="ef-field__label" for="concl-statement">Conclusion</label>
+                  <input id="concl-statement" type="text" data-event="f.conclStatement" data-bind-value="draft_conclStatement">
+                </div>
+                <div class="ef-field ef-select-field">
+                  <label class="ef-field__label" for="concl-strength">How strong</label>
+                  <span class="ef-select">
+                    <select class="ef-select__input" id="concl-strength" data-event="f.conclStrength" data-bind-value="draft_conclStrength">
+                      <option value="ConfirmedCause">Confirmed cause</option>
+                      <option value="SupportedCause">Supported cause</option>
+                      <option value="LeadingExplanation">Leading explanation</option>
+                      <option value="PlausibleExplanation">Plausible explanation</option>
+                      <option value="AcceptedWithResidualUncertainty">Accepted with remaining uncertainty</option>
+                    </select>
+                    <span class="ef-select__indicator" aria-hidden="true"></span>
+                  </span>
+                </div>
+                <div class="ef-field ef-select-field">
+                  <label class="ef-field__label" for="concl-cause">Cause concluded</label>
+                  <span class="ef-select">
+                    <select class="ef-select__input" id="concl-cause" data-event="f.conclCause" data-bind-value="draft_conclCause">
+                      <option value="">None</option>
+                      <template data-each="causeOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
+                    </select>
+                    <span class="ef-select__indicator" aria-hidden="true"></span>
+                  </span>
+                </div>
+                <div class="ef-field">
+                  <label class="ef-field__label" for="concl-residual">Remaining uncertainty</label>
+                  <input id="concl-residual" type="text" data-event="f.conclResidual" data-bind-value="draft_conclResidual">
+                </div>
               </div>
               <div class="ef-actions"><button type="submit">Record conclusion</button></div>
             </form>
