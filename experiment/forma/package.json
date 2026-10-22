@@ -1,0 +1,14 @@
+{
+  "name": "ex-forma-indy-2026-001-harness",
+  "private": true,
+  "type": "module",
+  "description": "Measurement instrument for EX-FORMA-INDY-2026-001. Identical for every arm; never merged into an arm.",
+  "dependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@echelon-foundry/design-system": "0.9.0",
+    "@playwright/test": "1.63.0",
+    "pixelmatch": "7.1.0",
+    "pngjs": "7.0.0",
+    "postcss": "8.5.6"
+  }
+}

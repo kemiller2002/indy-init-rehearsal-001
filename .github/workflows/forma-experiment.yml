@@ -1,0 +1,140 @@
+name: EX-FORMA-INDY-2026-001 harness
+
+# Measurement instrument for the controlled Forma upgrade experiment. Every arm
+# listed in experiment/forma/arms.json is checked out by exact SHA, installed
+# clean, built, tested and captured by the same harness code on the same runner
+# image. Arms never share generated artifacts.
+
+on:
+  push:
+    branches: [forma-experiment-harness]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  arms:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: m
+        run: |
+          echo "matrix=$(jq -c '[to_entries[] | {arm: .key, sha: .value.sha, branch: .value.branch}]' experiment/forma/arms.json)" >> "$GITHUB_OUTPUT"
+
+  arm:
+    needs: arms
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.arms.outputs.matrix) }}
+    env:
+      OUT: ${{ github.workspace }}/out/${{ matrix.arm }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: harness
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.sha }}
+          path: app
+      - name: Record arm identity
+        run: |
+          mkdir -p "$OUT/tests"
+          cd app
+          test "$(git rev-parse HEAD)" = "${{ matrix.sha }}"
+          jq -n --arg arm "${{ matrix.arm }}" --arg sha "$(git rev-parse HEAD)" --arg tree "$(git rev-parse HEAD^{tree})" \
+            --arg branch "${{ matrix.branch }}" --arg harness "${{ github.sha }}" --arg image "${ImageOS:-unknown}-${ImageVersion:-unknown}" \
+            '{arm:$arm, sha:$sha, tree:$tree, branch:$branch, harnessSha:$harness, runnerImage:$image}' > "$OUT/arm.json"
+          cat "$OUT/arm.json"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Install the .NET WebAssembly workload
+        timeout-minutes: 8
+        run: dotnet workload install wasm-tools
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Clean install, type-check, build, engine tests (timed)
+        working-directory: app
+        env:
+          GITHUB_SHA: ${{ matrix.sha }}
+        run: |
+          T="$GITHUB_WORKSPACE/harness/experiment/forma/timed.sh"; S="$OUT/tests/steps.tsv"
+          "$T" "$S" npmCi "$OUT/tests/npm-ci.log" -- npm ci --no-audit --no-fund || true
+          "$T" "$S" typecheck "$OUT/tests/typecheck.log" -- npm run check || true
+          "$T" "$S" dotnetBuild "$OUT/tests/dotnet-build.log" -- dotnet build App.slnx -c Release || true
+          "$T" "$S" engineTests "$OUT/tests/engine.log" -- dotnet test App.slnx -c Release --no-build --logger "trx;LogFileName=engine.trx" --results-directory "$OUT/tests" || true
+          "$T" "$S" build "$OUT/tests/site-build.log" -- npm run build || true
+          cat "$S"
+          test -f dist/index.html
+      - name: Install Playwright browsers for the app suite
+        working-directory: app
+        timeout-minutes: 10
+        run: |
+          npx playwright install chromium webkit
+          timeout 300 sudo env "PATH=$PATH" npx playwright install-deps chromium webkit || echo "::warning::browser OS dependencies incomplete"
+      - name: Existing R001 browser suite (all projects)
+        working-directory: app
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ env.OUT }}/tests/playwright.json
+        run: |
+          "$GITHUB_WORKSPACE/harness/experiment/forma/timed.sh" "$OUT/tests/steps.tsv" browserSuite "$OUT/tests/playwright.log" -- npx playwright test --reporter=list,json || true
+          tail -6 "$OUT/tests/playwright.log"
+      - name: Harness install
+        working-directory: harness/experiment/forma
+        run: npm ci --no-audit --no-fund --ignore-scripts && npx playwright install chromium webkit
+      - name: Captures (Chromium, WebKit)
+        working-directory: harness/experiment/forma
+        run: |
+          node serve.mjs "$GITHUB_WORKSPACE/app/dist" 4400 > "$OUT/serve.log" 2>&1 &
+          sleep 1
+          ./timed.sh "$OUT/tests/steps.tsv" captureChromium "$OUT/capture-chromium.log" -- node capture.mjs http://127.0.0.1:4400/indy-init-rehearsal-001/ chromium fixture/snapshot.json "$OUT" || true
+          ./timed.sh "$OUT/tests/steps.tsv" captureWebkit "$OUT/capture-webkit.log" -- node capture.mjs http://127.0.0.1:4400/indy-init-rehearsal-001/ webkit fixture/snapshot.json "$OUT" || true
+          sha256sum fixture/snapshot.json > "$OUT/fixture.sha256"
+      - name: CSS and design-system metrics, summary
+        working-directory: harness/experiment/forma
+        run: |
+          node css-metrics.mjs "$GITHUB_WORKSPACE/app" "$OUT"/chromium/captures.jsonl "$OUT"/webkit/captures.jsonl > "$OUT/css.json"
+          node steps-json.mjs "$OUT/tests/steps.tsv" "$OUT/tests/steps.json"
+          node summarize.mjs "$OUT"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: arm-${{ matrix.arm }}
+          path: out/${{ matrix.arm }}
+          retention-days: 90
+
+  compare:
+    needs: arm
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          path: arms
+      - name: Pixel comparison
+        working-directory: experiment/forma
+        run: |
+          npm ci --no-audit --no-fund --ignore-scripts
+          mkdir -p "$GITHUB_WORKSPACE/comparison"
+          pair() { [ -d "$GITHUB_WORKSPACE/arms/arm-$1" ] && [ -d "$GITHUB_WORKSPACE/arms/arm-$2" ] && node compare.mjs "$GITHUB_WORKSPACE/arms/arm-$1" "$GITHUB_WORKSPACE/arms/arm-$2" "$1-$2" "$GITHUB_WORKSPACE/comparison" || echo "skip $1-$2"; }
+          pair A B; pair B C; pair A C; pair B Bp; pair Bp C
+      - uses: actions/upload-artifact@v4
+        with:
+          name: comparison
+          path: comparison
+          retention-days: 90
