@@ -503,7 +503,27 @@
       "updatedAt": "2026-10-22T11:00:15.613Z",
       "telemetryExecutionIds": [
         "EXE-20261022T110019647Z-a1c52767"
-      ]
+      ],
+      "latestCheckpoint": {
+        "id": "90524ce80a15ab012eb9b60a",
+        "recordedAt": "2026-10-22T11:00:29.987Z",
+        "executionId": "EXE-20261022T110019647Z-a1c52767",
+        "repository": "indy-init-rehearsal-001",
+        "branch": "forma-experiment-harness",
+        "commit": "5b176c59acc9ef4dde8a979c3f7957b5524d246a",
+        "remote": {
+          "name": "origin",
+          "url": "https://github.com/kemiller2002/indy-init-rehearsal-001"
+        },
+        "remoteBranch": "forma-experiment-harness",
+        "remoteCommit": "5b176c59acc9ef4dde8a979c3f7957b5524d246a",
+        "summary": "Harness committed; first CI run (arm A)",
+        "nextAction": "Add arms B and C",
+        "verification": {
+          "status": "verified",
+          "mechanism": "git-remote-observation"
+        }
+      }
     }
   ]
 }
