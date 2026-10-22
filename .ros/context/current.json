@@ -534,7 +534,27 @@
       "updatedAt": "2026-10-22T12:35:51.065Z",
       "telemetryExecutionIds": [
         "EXE-20261022T123551589Z-04680ee6"
-      ]
+      ],
+      "latestCheckpoint": {
+        "id": "0139a0163388a002e3acf7cb",
+        "recordedAt": "2026-10-22T12:36:15.561Z",
+        "executionId": "EXE-20261022T123551589Z-04680ee6",
+        "repository": "indy-init-rehearsal-001",
+        "branch": "forma-experiment-upgrade-patched",
+        "commit": "4a37eaf3863510476c87b6618e86059cbb94b119",
+        "remote": {
+          "name": "origin",
+          "url": "https://github.com/kemiller2002/indy-init-rehearsal-001"
+        },
+        "remoteBranch": "forma-experiment-upgrade-patched",
+        "remoteCommit": "4a37eaf3863510476c87b6618e86059cbb94b119",
+        "summary": "foundations pin",
+        "nextAction": "Measure",
+        "verification": {
+          "status": "verified",
+          "mechanism": "git-remote-observation"
+        }
+      }
     }
   ]
 }
