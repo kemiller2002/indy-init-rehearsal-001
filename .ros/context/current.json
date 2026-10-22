@@ -4,7 +4,7 @@
   "repository": "indy-init-rehearsal-001",
   "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-10-22T11:00:15.613Z",
+  "updatedAt": "2026-10-22T13:55:49.298Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -497,33 +497,43 @@
     {
       "id": "EXP-FORMA-HARNESS",
       "type": "task",
-      "state": "active",
-      "semanticState": "active",
-      "evidence": [],
-      "updatedAt": "2026-10-22T11:00:15.613Z",
+      "state": "complete",
+      "semanticState": "complete",
+      "evidence": [
+        {
+          "type": "implementation",
+          "path": "experiment/forma/capture.mjs"
+        },
+        {
+          "type": "tests",
+          "path": "experiment/forma/arms.json"
+        }
+      ],
+      "updatedAt": "2026-10-22T13:55:49.298Z",
       "telemetryExecutionIds": [
         "EXE-20261022T110019647Z-a1c52767"
       ],
       "latestCheckpoint": {
-        "id": "90524ce80a15ab012eb9b60a",
-        "recordedAt": "2026-10-22T11:00:29.987Z",
+        "id": "e58f742d876f2cb3369d7c42",
+        "recordedAt": "2026-10-22T13:55:47.905Z",
         "executionId": "EXE-20261022T110019647Z-a1c52767",
         "repository": "indy-init-rehearsal-001",
         "branch": "forma-experiment-harness",
-        "commit": "5b176c59acc9ef4dde8a979c3f7957b5524d246a",
+        "commit": "aab1e2a6fbe81b0fea7ba96d1dd08b00835f1c75",
         "remote": {
           "name": "origin",
           "url": "https://github.com/kemiller2002/indy-init-rehearsal-001"
         },
         "remoteBranch": "forma-experiment-harness",
-        "remoteCommit": "5b176c59acc9ef4dde8a979c3f7957b5524d246a",
-        "summary": "Harness committed; first CI run (arm A)",
-        "nextAction": "Add arms B and C",
+        "remoteCommit": "aab1e2a6fbe81b0fea7ba96d1dd08b00835f1c75",
+        "summary": "Harness v2 measured A, B, B-patched, C (run 39783467103)",
+        "nextAction": "Complete",
         "verification": {
           "status": "verified",
           "mechanism": "git-remote-observation"
         }
-      }
+      },
+      "completedAt": "2026-10-22T13:55:49.298Z"
     }
   ]
 }

@@ -3,6 +3,7 @@
 | ID | Work | Status | Tags | Priority |
 |---|---|---|---|---|
 | COND-MISSION-001 | Build indy-init-root-cause-investigator from the Conditor execution contract | active | conditor, mission | high |
+| EXP-FORMA-HARNESS | EXP-FORMA-HARNESS | active |  |  |
 | ROS-INSTALL-3-16-0 | ROS-INSTALL-3-16-0 | complete |  |  |
 | SLICE-ADVANCED-VIEWS | Slice 17 advanced-views: advanced reasoning views and diagnostics: dependency and causal-set visualizations, uncertainty map, miners, search | ready | indy-init, slice, cut:stretch | low |
 | SLICE-AI-PROPOSALS | Slice 08 ai-proposals: bounded context and proof-carrying structured AI proposals | complete | indy-init, slice, cut:never-cut | high |
