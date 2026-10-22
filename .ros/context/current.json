@@ -534,7 +534,27 @@
       "updatedAt": "2026-10-22T11:08:37.624Z",
       "telemetryExecutionIds": [
         "EXE-20261022T110838122Z-01151f76"
-      ]
+      ],
+      "latestCheckpoint": {
+        "id": "2b98bb8ba596965109152241",
+        "recordedAt": "2026-10-22T11:27:15.224Z",
+        "executionId": "EXE-20261022T110838122Z-01151f76",
+        "repository": "indy-init-rehearsal-001",
+        "branch": "forma-experiment-adoption",
+        "commit": "50c78fbe33ac893efdfdb80ec30b0ef6241c3b57",
+        "remote": {
+          "name": "origin",
+          "url": "https://github.com/kemiller2002/indy-init-rehearsal-001"
+        },
+        "remoteBranch": "forma-experiment-adoption",
+        "remoteCommit": "50c78fbe33ac893efdfdb80ec30b0ef6241c3b57",
+        "summary": "C1,C3,C4,C5 adopted; C2 rejected",
+        "nextAction": "Measure C in harness",
+        "verification": {
+          "status": "verified",
+          "mechanism": "git-remote-observation"
+        }
+      }
     }
   ]
 }
