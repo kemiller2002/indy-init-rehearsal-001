@@ -13,7 +13,7 @@
 import { existsSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { chromium, defineConfig, devices, webkit } from "@playwright/test";
+import { chromium, defineConfig, devices, firefox, webkit } from "@playwright/test";
 
 const subPath = "indy-init-rehearsal-001";
 const port = Number(process.env.E2E_PORT ?? 4387);
@@ -32,6 +32,7 @@ const installed = (browserType) => {
   }
 };
 const hasWebkit = installed(webkit);
+const hasFirefox = installed(firefox);
 const hasChromium = existsSync(preinstalledChromium) || installed(chromium);
 
 // The served root holds one entry, the sub-path, linked to dist/.
@@ -73,8 +74,14 @@ export default defineConfig({
       name: "webkit-ipad",
       use: { ...ipad, browserName: "webkit" },
       grep: hasWebkit ? /.*/ : /$^/
+    },
+    // Firefox desktop: selected only where Playwright's Firefox is installed (CI); otherwise it selects nothing.
+    {
+      name: "firefox-desktop",
+      use: { ...devices["Desktop Firefox"], browserName: "firefox" },
+      grep: hasFirefox ? /.*/ : /$^/
     }
-  ].filter((project) => project.name.startsWith("webkit") || hasChromium),
+  ].filter((project) => project.name.startsWith("webkit") || project.name.startsWith("firefox") || hasChromium),
   webServer: remote
     ? undefined
     : {

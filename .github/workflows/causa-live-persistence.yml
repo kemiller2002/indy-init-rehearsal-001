@@ -1,0 +1,89 @@
+name: Causa live GitHub persistence
+
+# CAUSA-REHEARSAL-INTEGRATION-001 Phase 5: the real app, in Chromium, publishes Causa working copies to the real
+# api.github.com through the conforming Git Data API provider, using this job's short-lived GITHUB_TOKEN (contents:
+# write on this repository only). Data goes to the dedicated branch `causa-workspace`, never to main and never to the
+# frozen dataset. Traces, screenshots and videos are off so the token is never recorded; GitHub masks it in logs.
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches-ignore: [main, causa-workspace]
+    paths:
+      - "src/**"
+      - "tests/live/**"
+      - "playwright.live.config.js"
+      - ".github/workflows/causa-live-persistence.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: causa-live-persistence
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Install the .NET WebAssembly workload
+        timeout-minutes: 8
+        run: dotnet workload install wasm-tools
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - name: Download Chromium
+        timeout-minutes: 8
+        run: npx playwright install --with-deps chromium
+      - name: Build the site
+        run: npm run build
+
+      # Operator setup (CAUSA-PROV-04): a dedicated data branch with no application code and a root
+      # .gitattributes of `* -text`. The adapter never creates refs; this step does, once.
+      - name: Ensure the causa-workspace data branch exists
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          remote="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads "$remote" causa-workspace > /dev/null; then
+            echo "causa-workspace exists"
+          else
+            dir="$(mktemp -d)"
+            git -C "$dir" init -q
+            git -C "$dir" checkout -q --orphan causa-workspace
+            printf '* -text\n' > "$dir/.gitattributes"
+            git -C "$dir" add .gitattributes
+            git -C "$dir" -c user.name=causa-operator -c user.email=causa-operator@example.invalid commit -qm "operator: Causa data branch (CAUSA-PROV-04)"
+            git -C "$dir" push -q "$remote" causa-workspace
+            echo "causa-workspace created"
+          fi
+
+      - name: Live persistence against api.github.com
+        env:
+          CAUSA_LIVE_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CAUSA_LIVE_OWNER: ${{ github.repository_owner }}
+          CAUSA_LIVE_REPO: ${{ github.event.repository.name }}
+          CAUSA_LIVE_BRANCH: causa-workspace
+        run: npx playwright test -c playwright.live.config.js
+
+      - name: Live evidence (contains no token)
+        if: always()
+        run: |
+          if [ -f live-evidence/persistence.json ]; then cat live-evidence/persistence.json; else echo "no evidence written"; fi
+      - name: Upload live evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: causa-live-persistence
+          path: live-evidence/
+          if-no-files-found: warn
+          retention-days: 90
