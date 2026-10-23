@@ -119,6 +119,8 @@ type Screen =
     /// One addressable thing inside an investigation (R9.6): #/i/{id}/{kind}/{entity}.
     | EntityScreen of InvestigationId * EntityKind * Guid
     | ReportScreen of InvestigationId
+    /// The frozen original of a demonstration investigation, always read-only: #/demo/{id}.
+    | DemoScreen of InvestigationId
     | SettingsScreen
     | FactoryScreen
     | MissingScreen of path: string
@@ -185,6 +187,10 @@ module ScreenRoute =
             match canonicalId<InvestigationTag> id with
             | Some iid -> WorkspaceScreen iid
             | None -> missing ()
+        | [ "demo"; id ] when exact segments ->
+            match canonicalId<InvestigationTag> id with
+            | Some iid -> DemoScreen iid
+            | None -> missing ()
         | [ "i"; id; "report" ] when exact segments ->
             match canonicalId<InvestigationTag> id with
             | Some iid -> ReportScreen iid
@@ -204,6 +210,7 @@ module ScreenRoute =
             let segment = entitySegments |> List.tryFind (fun (_, k) -> k = kind) |> Option.map fst |> Option.defaultValue "h"
             "#/i/" + Id.text iid + "/" + segment + "/" + eid.ToString("D")
         | ReportScreen iid -> "#/i/" + Id.text iid + "/report"
+        | DemoScreen iid -> "#/demo/" + Id.text iid
         | SettingsScreen -> "#/settings"
         | FactoryScreen -> "#/factory"
         | MissingScreen path -> "#" + path
@@ -214,6 +221,7 @@ module ScreenRoute =
         [ "home", "/", []
           "workspace", "/i/{investigation}", [ "investigation" ]
           "report", "/i/{investigation}/report", [ "investigation" ]
+          "demo", "/demo/{investigation}", [ "investigation" ]
           "entity", "/i/{investigation}/{kind}/{entity}", [ "investigation"; "kind"; "entity" ]
           "settings", "/settings", []
           "factory", "/factory", []
@@ -728,6 +736,13 @@ type PendingOp =
     | LoadSync
     | LoadInvestigation of InvestigationId
     | SaveInvestigation of InvestigationId
+    /// The frozen Causa release bundle (same origin).
+    | LoadDataset
+    /// Read the device copy before writing: refuse if another window changed it (CONTRACT §9.2/§9.3).
+    | CheckBeforeSave of InvestigationId
+    /// Write a Causa v1 file set at this aggregate version.
+    | SaveFileSet of InvestigationId * version: int64
+    | SaveConflictCopy
     | SaveIndex
     | SaveSettings
     | SaveSync
@@ -739,6 +754,20 @@ type PendingOp =
     | NavigationAck
     | CopyLink of url: string
     | FactoryLoad
+
+/// The frozen demonstration dataset (causa-data@causa-storage-v1.0.0), verified on load.
+type DemoState =
+    | DemoLoading
+    | DemoReady of CausaData.Dataset
+    | DemoFailed of reason: string
+
+/// How an investigation is stored on this device.
+type StoredFormat =
+    /// Before Causa storage: the rehearsal's own local codec. Readable, never rewritten or migrated
+    /// silently (Causa RULES §6, CONTRACT §2.9), so it is read-only.
+    | LegacyFormat
+    /// A Causa v1.0.0 file set; `origin` names the frozen demonstration it was copied from, if any.
+    | CausaFormat of origin: string option
 
 type AppState =
     { Investigations: Map<InvestigationId, Event list>
@@ -775,7 +804,15 @@ type AppState =
       /// A change happened before the initial load finished; the index is written once it has.
       IndexDirty: bool
       /// The remote identity the saved sync statuses were confirmed against.
-      SyncRemote: string option }
+      SyncRemote: string option
+      Demo: DemoState
+      Formats: Map<InvestigationId, StoredFormat>
+      /// The aggregate version this window last read from, or wrote to, the device copy.
+      StoredVersion: Map<InvestigationId, int64>
+      /// Stored file sets read before the schemas were available.
+      Deferred: Map<InvestigationId, string>
+      /// Local writes refused because another window changed the device copy.
+      SaveConflicts: Map<InvestigationId, string> }
 
 let initial: AppState =
     { Investigations = Map.empty
@@ -803,11 +840,17 @@ let initial: AppState =
       Unreadable = Map.empty
       IndexUnreadable = false
       IndexDirty = false
-      SyncRemote = None }
+      SyncRemote = None
+      Demo = DemoLoading
+      Formats = Map.empty
+      StoredVersion = Map.empty
+      Deferred = Map.empty
+      SaveConflicts = Map.empty }
 
 /// The boundary supplies entropy and the clock for one message; handle stays pure.
+/// CONTRACT §2.9: the command boundary supplies millisecond-truncated UTC.
 let withContext (entropy: Guid) (now: DateTimeOffset) (state: AppState) : AppState =
-    { state with Entropy = entropy; IdCounter = 0; Now = now }
+    { state with Entropy = entropy; IdCounter = 0; Now = CausaData.truncateToMillisecond now }
 
 [<RequireQualifiedAccess>]
 module private Ids =
@@ -830,6 +873,7 @@ module Storage =
     let settingsKey = "rci:settings"
     let syncKey = "rci:sync"
     let investigationKey (iid: InvestigationId) = "rci:inv:" + Id.text iid
+    let conflictKey (iid: InvestigationId) (version: int64) = "causa:conflict:" + Id.text iid + ":" + string version
 // ---------------------------------------------------------------------------
 // Reading the current investigation and the drafts
 // ---------------------------------------------------------------------------
@@ -846,9 +890,36 @@ let private challenger = Actor.agent "challenge-helper" "none" "deterministic-ru
 let investigationOf (st: AppState) (iid: InvestigationId) : Investigation option =
     st.Investigations |> Map.tryFind iid |> Option.bind Evolve.replay
 
+/// The verified frozen demonstration with this id, if the dataset loaded.
+let demoOf (st: AppState) (iid: InvestigationId) : CausaData.DemoInvestigation option =
+    match st.Demo with
+    | DemoReady d -> d.Valid |> List.tryFind (fun v -> v.Loaded.InvestigationId = iid.Value)
+    | _ -> None
+
+let schemasOf (st: AppState) =
+    match st.Demo with
+    | DemoReady d -> Some d.Schemas
+    | _ -> None
+
+/// Where the investigation shown on a screen comes from.
+type Source =
+    | WorkingSource
+    | FrozenSource of CausaData.DemoInvestigation
+
+/// A working copy (or any investigation on this device) wins; otherwise the frozen original, read-only.
+/// #/demo/{id} always shows the frozen original.
+let sourceOf (st: AppState) (iid: InvestigationId) (preferFrozen: bool) : (Investigation * Event list * Source) option =
+    let frozen () = demoOf st iid |> Option.map (fun d -> d.Loaded.State, d.Loaded.Events, FrozenSource d)
+    if preferFrozen then frozen ()
+    else
+        match Map.tryFind iid st.Investigations with
+        | Some events -> Evolve.replay events |> Option.map (fun inv -> inv, events, WorkingSource)
+        | None -> frozen ()
+
 let currentId (st: AppState) : InvestigationId option =
     match st.Screen with
-    | WorkspaceScreen iid | ReportScreen iid | EntityScreen(iid, _, _) when st.Investigations.ContainsKey iid -> Some iid
+    | WorkspaceScreen iid | ReportScreen iid | EntityScreen(iid, _, _) when (sourceOf st iid false).IsSome -> Some iid
+    | DemoScreen iid when (demoOf st iid).IsSome -> Some iid
     | _ -> None
 
 let private draft (st: AppState) (name: string) = st.Drafts |> Map.tryFind name |> Option.defaultValue ""
@@ -1008,7 +1079,7 @@ let private put (iid: InvestigationId) (sha: string option) (st: AppState) : App
 /// Send a pending investigation when online and configured; otherwise it stays pending.
 let private sendIfReady (iid: InvestigationId) (st: AppState) : AppState * Effect list =
     match st.Remote, Map.tryFind iid st.Sync with
-    | Some config, Some Pending when st.Online && config.Token <> "" ->
+    | Some config, Some Pending when st.Online && config.Token <> "" && Map.tryFind iid st.Formats = Some LegacyFormat ->
         match Map.tryFind iid st.RemoteSha with
         | Some sha -> put iid (Some sha) st
         | None ->
@@ -1037,12 +1108,25 @@ let private saveIndex (st: AppState) : AppState * Effect list =
         let st = { st with StoredIndex = entries; IndexDirty = false }
         storageSet SaveIndex Storage.indexKey (IndexCodec.encode (entries |> Map.toList |> List.map snd)) st
 
+let private formatOf (st: AppState) (iid: InvestigationId) =
+    Map.tryFind iid st.Formats |> Option.defaultValue (CausaFormat None)
+
+/// The Causa v1 file set of an investigation as this window holds it, built and re-verified by the contract
+/// library exactly as a reader would (CONTRACT §9.2): a writer never emits what a reader rejects.
+let private fileSetOf (st: AppState) (iid: InvestigationId) : Result<Causa.Contract.InvestigationFiles * Causa.Contract.Loaded, Causa.Contract.CausaError> =
+    match schemasOf st, Map.tryFind iid st.Investigations with
+    | Some schemas, Some events -> Causa.Contract.Store.build schemas events
+    | None, _ -> Causa.Contract.CausaError.fail Causa.Contract.Codes.schemaViolation "the Causa storage schemas are not loaded, so nothing can be verified or saved"
+    | _, None -> Causa.Contract.CausaError.fail Causa.Contract.Codes.pathInvalid "no such investigation on this device"
+
 let private persistAfterChange (iid: InvestigationId) (st: AppState) : AppState * Effect list =
     match Map.tryFind iid st.Investigations with
     | None -> st, []
-    | Some events ->
+    | Some _ ->
         let st = { st with Local = st.Local |> Map.add iid Saving }
-        let st, saveInv = storageSet (SaveInvestigation iid) (Storage.investigationKey iid) (EventCodec.encode iid events) st
+        // Read the device copy first; the write happens only if no other window changed it meanwhile.
+        let c, st = Ids.correlation st (CheckBeforeSave iid)
+        let saveInv = [ StorageGet(c, Storage.investigationKey iid) ]
         let st, saveIndex = saveIndex st
         match st.Remote with
         | None -> st, saveInv @ saveIndex
@@ -1155,7 +1239,20 @@ module Challenge =
         | "CAUSE.NO_ROOT" -> "Which member is the root cause rather than a contributing factor? (" + e.Message + ")"
         | _ -> "Before concluding: " + e.Message
 
+let private readOnlyRefusal (st: AppState) (iid: InvestigationId) (operation: string) : AppState * Effect list =
+    let code, rule, message =
+        if st.Screen = DemoScreen iid || not (st.Investigations.ContainsKey iid) then
+            "DEMO.READ_ONLY", "Causa CAUSA-INV-13",
+            "This is frozen demonstration data (causa-storage-v1.0.0) and is never changed. Create a working copy to make changes; the original stays as it is."
+        else
+            "STORAGE.LEGACY_READ_ONLY", "Causa RULES §6",
+            "This investigation was saved before Causa storage, in a format that is kept unchanged rather than silently migrated. It can be read but not changed."
+    { st with Refusals = refusalsOf operation [ DomainError.create code rule message ]; Notice = "Not done: read-only." }, []
+
 let private run (operation: string) (actor: Actor) (notice: string) (fields: string list) (command: Command) (iid: InvestigationId) (st: AppState) : AppState * Effect list =
+    match st.Screen, st.Investigations.ContainsKey iid, formatOf st iid with
+    | DemoScreen _, _, _ | _, false, _ | _, _, LegacyFormat -> readOnlyRefusal st iid operation
+    | _ ->
     let state = investigationOf st iid
     let commandId, st = Ids.next st
     let env =
@@ -1169,8 +1266,14 @@ let private run (operation: string) (actor: Actor) (notice: string) (fields: str
     | Error errors -> { st with Refusals = refusalsOf operation errors; Notice = "Not done: " + notice }, []
     | Ok events ->
         let history = (st.Investigations |> Map.tryFind iid |> Option.defaultValue []) @ events
-        let st = { st with Investigations = st.Investigations |> Map.add iid history; Refusals = []; Notice = notice } |> clear fields
-        persistAfterChange iid st
+        let candidate = { st with Investigations = st.Investigations |> Map.add iid history }
+        // The change is applied only if the contract can represent and verify it (CAUSA.UNREPRESENTABLE etc.).
+        match fileSetOf candidate iid with
+        | Error e ->
+            { st with Refusals = refusalsOf operation [ DomainError.create e.Code "Causa storage contract v1.0.0" (CausaData.describe e) ]; Notice = "Not done: " + notice }, []
+        | Ok _ ->
+            let st = { candidate with Refusals = []; Notice = notice } |> clear fields
+            persistAfterChange iid st
 
 /// A form that cannot yet form a command: explained like any refusal, with its Aegis code.
 let private incomplete (st: AppState) (operation: string) (code: string) (rule: string) (message: string) : AppState * Effect list =
@@ -1215,6 +1318,11 @@ let private copyEvent (name: string) (key: string option) (st: AppState) : (AppS
     | _ -> None
 
 let private startInvestigation (st: AppState) : AppState * Effect list =
+    match schemasOf st with
+    | None ->
+        incomplete st "StartInvestigation" "CAUSA.SCHEMA_VIOLATION" "Causa storage contract v1.0.0"
+            "The Causa storage schemas are not loaded yet (or could not be loaded), so a new investigation cannot be verified and saved. Reload the page and try again."
+    | Some _ ->
     let iid, st = newId<InvestigationTag> st
     let oid, st = newId<ObservationTag> st
     let commandId, st = Ids.next st
@@ -1245,6 +1353,26 @@ let private itemCommand (table: (string * 'C * string) list) (name: string) (bui
         | None -> st, []
     | None -> st, []
 
+/// Copy a frozen demonstration into an editable working copy with the same id and the exact frozen history
+/// (PROVIDER-GITHUB CAUSA-PROV-11). The frozen original is never written.
+let private createWorkingCopy (key: string option) (st: AppState) : AppState * Effect list =
+    match parseKey<InvestigationTag> key with
+    | Some iid when st.Investigations.ContainsKey iid -> navigate (WorkspaceScreen iid) { st with Notice = "This device already has a working copy of it." }
+    | Some iid ->
+        match demoOf st iid with
+        | Some demo ->
+            let st =
+                { st with
+                    Investigations = st.Investigations |> Map.add iid demo.Loaded.Events
+                    Formats = st.Formats |> Map.add iid (CausaFormat(Some(CausaData.Pins.tag + "/" + demo.ScenarioKey)))
+                    Refusals = []
+                    Notice = "Working copy created. Changes are saved on this device; the frozen original is unchanged." }
+            let st, save = persistAfterChange iid st
+            let st, nav = navigate (WorkspaceScreen iid) st
+            st, save @ nav
+        | None -> st, []
+    | None -> st, []
+
 let private settingsFromDrafts (st: AppState) : RemoteConfig option =
     match optDraft st "setOwner", optDraft st "setRepo", optDraft st "setToken" with
     | Some owner, Some repo, Some token ->
@@ -1270,6 +1398,7 @@ let private onEvent (name: string) (key: string option) (value: string option) (
         incomplete st "StartInvestigation" "LOAD.IN_PROGRESS" "R10.7" "Investigations saved on this device are still loading; try again in a moment."
     | "start" -> startInvestigation st
     | "dismissRefusals" -> { st with Refusals = [] }, []
+    | "workingCopy.create" -> createWorkingCopy key st
     | "hyp.add" ->
         let hid, st = newId<HypothesisTag> st
         inWorkspace st (run "RecordHypothesis" human "Hypothesis added." [ "hypStatement"; "hypMechanism" ] (RecordHypothesis(hid, draft st "hypStatement", optDraft st "hypMechanism")))
@@ -1456,7 +1585,7 @@ let private ensureFactory (st: AppState) : AppState * Effect list =
 
 let private finishLoading (st: AppState) =
     let loading =
-        st.Pending |> Map.exists (fun _ op -> match op with LoadIndex | LoadInvestigation _ | LoadSync | LoadSettings -> true | _ -> false)
+        st.Pending |> Map.exists (fun _ op -> match op with LoadIndex | LoadInvestigation _ | LoadSync | LoadSettings | LoadDataset -> true | _ -> false)
     if loading || st.Loaded then st, []
     else
         let st = { st with Loaded = true }
@@ -1466,8 +1595,66 @@ let private finishLoading (st: AppState) =
         let st, send = sendAllPending st
         st, index @ send
 
+/// Adopt a stored Causa file set only if every reader stage passes; otherwise it is reported and left untouched.
+let private adoptFileSet (iid: InvestigationId) (text: string) (st: AppState) : AppState =
+    match st.Demo, schemasOf st with
+    | DemoLoading, _ -> { st with Deferred = st.Deferred |> Map.add iid text }
+    | DemoFailed reason, _ ->
+        { st with Unreadable = st.Unreadable |> Map.add iid ("the Causa storage schemas could not be loaded (" + reason + "), so it cannot be verified") }
+    | DemoReady _, None -> { st with Unreadable = st.Unreadable |> Map.add iid "the Causa storage schemas are unavailable, so it cannot be verified" }
+    | _, Some schemas ->
+        let verified =
+            CausaData.decodeFileSet text
+            |> Result.bind (fun (files, origin) ->
+                if files.DirectoryId <> Id.text iid then Causa.Contract.CausaError.fail Causa.Contract.Codes.manifestMismatch "the stored file set names a different investigation"
+                else Causa.Contract.Store.validate schemas files |> Result.map (fun loaded -> loaded, origin))
+        match verified with
+        | Ok(loaded, origin) ->
+            { st with
+                Investigations = st.Investigations |> Map.add iid loaded.Events
+                Formats = st.Formats |> Map.add iid (CausaFormat origin)
+                StoredVersion = st.StoredVersion |> Map.add iid loaded.State.Version
+                Local = st.Local |> Map.add iid SavedLocally }
+        | Error e -> { st with Unreadable = st.Unreadable |> Map.add iid ("it failed Causa verification: " + CausaData.describe e) }
+
+let private adoptDeferred (st: AppState) : AppState =
+    st.Deferred |> Map.fold (fun s iid text -> adoptFileSet iid text s) { st with Deferred = Map.empty }
+
+/// Write this window's file set only as a fast-forward of the device copy: Causa histories are append-only canonical
+/// bytes, so the device copy is safe to replace exactly when its events.ndjson is a byte prefix of this window's. A
+/// copy another window extended differently is never overwritten (lost-update protection across windows), while this
+/// window's own earlier writes, landed or still in flight, always qualify.
+let private onCheckBeforeSave (iid: InvestigationId) (stored: string option) (st: AppState) : AppState * Effect list =
+    match fileSetOf st iid with
+    | Error e -> { st with Local = st.Local |> Map.add iid (SaveFailed(CausaData.describe e)) }, []
+    | Ok(files, loaded) ->
+        let text = CausaData.encodeFileSet (match formatOf st iid with CausaFormat o -> o | LegacyFormat -> None) files
+        let device = stored |> Option.map (fun t -> if CausaData.isFileSet t then CausaData.decodeFileSet t |> Result.toOption |> Option.map fst else None)
+        let isPrefix (older: Causa.Contract.InvestigationFiles) = files.Events.AsSpan().StartsWith(older.Events.AsSpan())
+        match device with
+        | Some None ->
+            { st with Local = st.Local |> Map.add iid (SaveFailed "the device holds an investigation with this id in another format; it was not overwritten") }, []
+        | None -> let c, st = Ids.correlation st (SaveFileSet(iid, loaded.State.Version)) in st, [ StorageSet(c, Storage.investigationKey iid, text) ]
+        | Some(Some older) when isPrefix older ->
+            let c, st = Ids.correlation st (SaveFileSet(iid, loaded.State.Version))
+            st, [ StorageSet(c, Storage.investigationKey iid, text) ]
+        | Some(Some _) ->
+            // Another window wrote a different history: refuse, keep this window's work in memory and as a conflict copy.
+            let reason =
+                "Not saved: another window changed this investigation on this device. Your changes are kept in this window and in a separate conflict copy; reload to see the other version."
+            let st = { st with Local = st.Local |> Map.add iid (SaveFailed reason); SaveConflicts = st.SaveConflicts |> Map.add iid reason }
+            let c, st = Ids.correlation st SaveConflictCopy
+            st, [ StorageSet(c, Storage.conflictKey iid loaded.State.Version, text) ]
+
 let private onStorage (op: PendingOp) (result: Result<string option, string>) (st: AppState) : AppState * Effect list =
     match op, result with
+    | CheckBeforeSave iid, Ok stored -> onCheckBeforeSave iid stored st
+    | CheckBeforeSave iid, Error reason -> { st with Local = st.Local |> Map.add iid (SaveFailed reason) }, []
+    | SaveFileSet(iid, version), Ok _ ->
+        { st with Local = st.Local |> Map.add iid SavedLocally; StoredVersion = st.StoredVersion |> Map.add iid version; SaveConflicts = st.SaveConflicts |> Map.remove iid }, []
+    | SaveFileSet(iid, _), Error reason -> { st with Local = st.Local |> Map.add iid (SaveFailed reason) }, []
+    | SaveConflictCopy, _ -> st, []
+    | LoadInvestigation iid, Ok(Some text) when CausaData.isFileSet text -> finishLoading (adoptFileSet iid text st)
     | LoadSettings, Ok(Some text) ->
         let remote = readSettings text
         // A token persisted by an older build is erased from this device (R11.3).
@@ -1497,7 +1684,7 @@ let private onStorage (op: PendingOp) (result: Result<string option, string>) (s
         | Ok(id, events) when id = iid && not events.IsEmpty ->
             // m4: a history is adopted only if the kernel can verify it; the stored data is left untouched.
             match History.validate events with
-            | [] -> finishLoading { st with Investigations = st.Investigations |> Map.add iid events; Local = st.Local |> Map.add iid SavedLocally }
+            | [] -> finishLoading { st with Investigations = st.Investigations |> Map.add iid events; Local = st.Local |> Map.add iid SavedLocally; Formats = st.Formats |> Map.add iid LegacyFormat }
             | errors ->
                 finishLoading { st with Unreadable = st.Unreadable |> Map.add iid ("it could not be verified (" + Words.join ", " (errors |> List.map (fun e -> e.Code) |> List.distinct) + ")") }
         | Ok _ -> finishLoading { st with Unreadable = st.Unreadable |> Map.add iid "the stored document names a different investigation" }
@@ -2162,6 +2349,85 @@ let private reportKeys (inv: Investigation) (events: Event list) (real: bool) : 
           "reportUnresolved", JArr unresolved
           "hasUnresolved", b (not unresolved.IsEmpty) ]
 
+/// Plain summaries of what the replayed state already records; they describe, they never decide.
+let private verificationSummary (inv: Investigation) =
+    let corrections = inv.CorrectiveActions |> Map.toList |> List.map snd
+    if corrections |> List.exists (fun c -> c.State = VerifiedEffective) then "Fix verified effective", "success"
+    elif corrections |> List.exists (fun c -> c.State = AwaitingVerificationOfEffect) then "Awaiting verification of the fix", "info"
+    elif corrections |> List.exists (fun c -> c.State = VerificationFailed || c.State = ReworkRequired) then "Verification failed; rework needed", "danger"
+    elif not corrections.IsEmpty then "Fix recorded, not yet verified", "warning"
+    else "No fix recorded yet", "neutral"
+
+let private causeSummary (inv: Investigation) =
+    let causes = inv.Causes |> Map.toList |> List.map snd
+    if causes |> List.exists (fun c -> c.State = CauseConfirmed) then "Cause confirmed"
+    elif causes |> List.exists (fun c -> c.State = CauseReopened) then "Cause reopened"
+    elif not causes.IsEmpty then "Cause proposed, not confirmed"
+    else "No cause asserted yet"
+
+let private openHypotheses (inv: Investigation) =
+    inv.Hypotheses |> Map.filter (fun _ h -> h.State <> Falsified && h.State <> Superseded) |> Map.count
+
+let private demoKeys (st: AppState) : (string * J) list =
+    let rows =
+        match st.Demo with
+        | DemoReady d ->
+            d.Valid
+            |> List.sortBy (fun v -> v.Loaded.State.Title.Value)
+            |> List.map (fun v ->
+                let inv = v.Loaded.State
+                let iid = inv.Id
+                let events = v.Loaded.Events
+                let last = List.last events
+                let l = labelsOf events
+                let first = inv.Observations |> Map.toList |> List.map snd |> List.sortBy (fun o -> o.Provenance.RecordedAt) |> List.tryHead
+                let verification, tone = verificationSummary inv
+                let openUnknowns = inv.Unknowns |> Map.filter (fun _ u -> u.State = Identified || u.State = Investigating) |> Map.count
+                item
+                    [ "id", s (Id.text iid)
+                      "key", s v.ScenarioKey
+                      "title", s inv.Title.Value
+                      "lifecycle", s (Words.lifecycle inv.Lifecycle)
+                      "problem", s (first |> Option.map (fun o -> Words.clip 180 o.Original.Value) |> Option.defaultValue "")
+                      "hypotheses", n inv.Hypotheses.Count
+                      "openHypotheses", n (openHypotheses inv)
+                      "evidenceCount", n inv.Evidence.Count
+                      "contradictions", n inv.Contradictions.Count
+                      "unknowns", n openUnknowns
+                      "cause", s (causeSummary inv)
+                      "verification", s verification
+                      "verificationTone", s tone
+                      "lastActivity", s (Words.date last.At + " · " + Words.clip 110 (describe inv l last.Body))
+                      "version", n (int inv.Version)
+                      "href", s (ScreenRoute.format (WorkspaceScreen iid))
+                      "frozenHref", s (ScreenRoute.format (DemoScreen iid))
+                      "hasWorkingCopy", b (st.Investigations.ContainsKey iid)
+                      "noWorkingCopy", b (not (st.Investigations.ContainsKey iid))
+                      "stateDigest", s v.Loaded.StateSha256 ])
+        | _ -> []
+    let rejected =
+        match st.Demo with
+        | DemoReady d ->
+            d.Rejected |> List.map (fun r -> item [ "id", s r.DirectoryId; "key", s r.ScenarioKey; "code", s r.Code; "detail", s (Words.clip 240 r.Detail) ])
+        | _ -> []
+    [ "demoInvestigations", JArr rows
+      "hasDemo", b (not rows.IsEmpty)
+      "demoLoading", b (st.Demo = DemoLoading)
+      "demoFailed", b (match st.Demo with DemoFailed _ -> true | _ -> false)
+      "demoFailure", s (match st.Demo with DemoFailed r -> r | _ -> "")
+      "demoEmpty", b (match st.Demo with DemoReady d -> d.Valid.IsEmpty | _ -> false)
+      "demoRejected", JArr rejected
+      "hasDemoRejected", b (not rejected.IsEmpty)
+      "demoSummary",
+      s (
+          match st.Demo with
+          | DemoReady d ->
+              string d.Valid.Length + " investigation(s) from " + CausaData.Pins.tag + ", each replayed from its event history and verified against the Causa storage contract v1.0.0"
+              + (if d.Rejected.IsEmpty then "." else "; " + string d.Rejected.Length + " refused (see below).")
+          | DemoLoading -> "Loading the frozen demonstration data…"
+          | DemoFailed _ -> "The demonstration data could not be loaded."
+      ) ]
+
 let private homeKeys (st: AppState) : (string * J) list =
     let rows =
         st.Investigations
@@ -2192,9 +2458,10 @@ let private homeKeys (st: AppState) : (string * J) list =
                 [ "id", s (Id.text iid)
                   "title", s e.Title
                   "reason", s ("Could not be read: " + (Map.tryFind iid st.Unreadable |> Option.defaultValue "not loaded") + ". It is kept in the index and was not changed.") ])
-    [ "unreadable", JArr unreadable
-      "hasUnreadable", b (not unreadable.IsEmpty)
-      "investigations", JArr rows; "hasInvestigations", b (not rows.IsEmpty); "noInvestigations", b rows.IsEmpty ]
+    demoKeys st
+    @ [ "unreadable", JArr unreadable
+        "hasUnreadable", b (not unreadable.IsEmpty)
+        "investigations", JArr rows; "hasInvestigations", b (not rows.IsEmpty); "noInvestigations", b rows.IsEmpty ]
 
 /// The complete ViewState: every key in every projection (Limen rule).
 let private factoryKeys (st: AppState) : (string * J) list =
@@ -2266,12 +2533,14 @@ let private focusOf (inv: Investigation) (events: Event list) (kind: EntityKind)
     | _ -> None
 
 let project (st: AppState) : (string * J) list =
-    let screenOk iid = st.Investigations.ContainsKey iid
+    let screenOk iid = (sourceOf st iid false).IsSome
     let loading =
         match st.Screen with
         | WorkspaceScreen iid | ReportScreen iid | EntityScreen(iid, _, _) -> not st.Loaded && not (screenOk iid)
+        | DemoScreen iid -> not st.Loaded && (demoOf st iid).IsNone
         | _ -> not st.Loaded
-    let current = currentId st |> Option.bind (fun iid -> investigationOf st iid |> Option.map (fun inv -> inv, st.Investigations[iid]))
+    let sourced = currentId st |> Option.bind (fun iid -> sourceOf st iid (st.Screen = DemoScreen iid))
+    let current = sourced |> Option.map (fun (inv, events, _) -> inv, events)
     let focus =
         match st.Screen, current with
         | EntityScreen(_, kind, g), Some(inv, events) -> focusOf inv events kind g
@@ -2281,6 +2550,7 @@ let project (st: AppState) : (string * J) list =
         | WorkspaceScreen iid -> screenOk iid, false, st.Loaded && not (screenOk iid)
         | EntityScreen(iid, _, _) -> screenOk iid && focus.IsSome, false, (st.Loaded && not (screenOk iid)) || (screenOk iid && focus.IsNone)
         | ReportScreen iid -> false, screenOk iid, st.Loaded && not (screenOk iid)
+        | DemoScreen iid -> (demoOf st iid).IsSome, false, st.Loaded && (demoOf st iid).IsNone
         | MissingScreen _ | RefusedLinkScreen _ -> false, false, true
         | HomeScreen | SettingsScreen | FactoryScreen -> false, false, false
     let ws =
@@ -2288,16 +2558,67 @@ let project (st: AppState) : (string * J) list =
         | Some(inv, events), _ -> workspaceKeys st inv events true @ reportKeys inv events true
         | None, Some p -> workspaceKeys st p [] false @ reportKeys p [] false
         | None, None -> []
+    let sourceKeys =
+        let iid = currentId st
+        let frozen, working, legacy, origin =
+            match sourced, iid with
+            | Some(_, _, FrozenSource d), _ -> Some d, false, false, None
+            | Some(_, _, WorkingSource), Some i ->
+                None, true, (formatOf st i = LegacyFormat), (match formatOf st i with CausaFormat o -> o | LegacyFormat -> None)
+            | _ -> None, false, false, None
+        let idText = iid |> Option.map Id.text |> Option.defaultValue ""
+        let demoOfCurrent = iid |> Option.bind (demoOf st)
+        let loaded = match frozen, demoOfCurrent with Some d, _ -> Some d.Loaded | None, Some d when not working -> Some d.Loaded | _ -> None
+        let conflict = iid |> Option.bind (fun i -> Map.tryFind i st.SaveConflicts)
+        [ "isFrozen", b frozen.IsSome
+          "isWorkingCopy", b (working && not legacy)
+          "isLegacy", b legacy
+          "canEdit", b (working && not legacy && st.Screen <> (iid |> Option.map DemoScreen |> Option.defaultValue HomeScreen))
+          "readOnly", b (frozen.IsSome || legacy)
+          "frozenBanner",
+          s (
+              match frozen with
+              | Some d ->
+                  "Frozen demonstration data from " + CausaData.Pins.tag + " (scenario \"" + d.ScenarioKey + "\"). It is read-only and never changes. Create a working copy to investigate further; the copy keeps this exact history and is saved on this device."
+              | None when legacy -> "Saved before Causa storage in a format that is kept unchanged (not migrated), so it is read-only."
+              | None -> ""
+          )
+          "createCopyKey", s idText
+          "showCreateCopy", b (frozen.IsSome && not (iid |> Option.exists st.Investigations.ContainsKey))
+          "hasWorkingCopy", b (frozen.IsSome && (iid |> Option.exists st.Investigations.ContainsKey))
+          "workingCopyHref", s (iid |> Option.map (WorkspaceScreen >> ScreenRoute.format) |> Option.defaultValue "#/")
+          "hasFrozenOriginal", b (working && demoOfCurrent.IsSome)
+          "frozenOriginalHref", s (iid |> Option.map (DemoScreen >> ScreenRoute.format) |> Option.defaultValue "#/")
+          "originText",
+          s (
+              match origin with
+              | Some o -> "Working copy of frozen demonstration " + o + ". Its history starts with the frozen events, byte for byte."
+              | None when working && not legacy -> "Saved on this device as a Causa storage v1.0.0 file set."
+              | None -> ""
+          )
+          "contractText",
+          s (
+              match loaded with
+              | Some l ->
+                  "Verified on load against the Causa storage contract v1.0.0: all 17 reader stages, admissibility re-decided by this engine, snapshot equal to the replay. State digest "
+                  + l.StateSha256.Substring(0, 12) + "…, events digest " + l.EventsSha256.Substring(0, 12) + "…."
+              | None when working && not legacy ->
+                  "Each change is decided by the engine, then the complete Causa v1.0.0 file set is rebuilt and re-verified before it is saved."
+              | None -> ""
+          )
+          "hasSaveConflict", b conflict.IsSome
+          "saveConflict", s (conflict |> Option.defaultValue "") ]
     let title =
         match st.Screen, current with
-        | HomeScreen, _ -> "Root-Cause Investigator"
-        | SettingsScreen, _ -> "GitHub settings · Root-Cause Investigator"
-        | WorkspaceScreen _, Some(inv, _) -> inv.Title.Value + " · Root-Cause Investigator"
-        | EntityScreen _, Some(inv, _) when isWorkspace -> inv.Title.Value + " · Root-Cause Investigator"
-        | FactoryScreen, _ -> "How this app was built · Root-Cause Investigator"
-        | ReportScreen _, Some(inv, _) -> "Report: " + inv.Title.Value + " · Root-Cause Investigator"
-        | _, _ when loading -> "Loading · Root-Cause Investigator"
-        | _ -> "Not found · Root-Cause Investigator"
+        | HomeScreen, _ -> "Causa · Root-Cause Investigation"
+        | SettingsScreen, _ -> "GitHub settings · Causa"
+        | WorkspaceScreen _, Some(inv, _) -> inv.Title.Value + " · Causa"
+        | EntityScreen _, Some(inv, _) when isWorkspace -> inv.Title.Value + " · Causa"
+        | FactoryScreen, _ -> "How this app was built · Causa"
+        | ReportScreen _, Some(inv, _) -> "Report: " + inv.Title.Value + " · Causa"
+        | DemoScreen _, Some(inv, _) -> inv.Title.Value + " (frozen original) · Causa"
+        | _, _ when loading -> "Loading · Causa"
+        | _ -> "Not found · Causa"
     let missingText =
         match st.Screen with
         | MissingScreen path -> "There is no page at \"" + Words.clip 80 path + "\"."
@@ -2357,6 +2678,7 @@ let project (st: AppState) : (string * J) list =
           | None -> "Not connected to GitHub. Investigations are saved on this device only."
       ) ]
     @ homeKeys st
+    @ sourceKeys
     @ (draftFields |> List.map (fun f -> "draft_" + f, s (draftValue f)))
     @ ws
     @ focusKeys
@@ -2375,7 +2697,10 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
         let c1, st = Ids.correlation st LoadSettings
         let c2, st = Ids.correlation st LoadSync
         let c3, st = Ids.correlation st LoadIndex
-        let loads = [ StorageGet(c1, Storage.settingsKey); StorageGet(c2, Storage.syncKey); StorageGet(c3, Storage.indexKey) ]
+        let c4, st = Ids.correlation st LoadDataset
+        let loads =
+            [ StorageGet(c1, Storage.settingsKey); StorageGet(c2, Storage.syncKey); StorageGet(c3, Storage.indexKey)
+              HttpCall(c4, "GET", "./data/" + CausaData.Pins.tag + ".bundle.json", [], None) ]
         let st, subscribe =
             if lifecycle then
                 let c, st = Ids.correlation st Subscribe
@@ -2399,6 +2724,21 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
             st, fx, NoHandshake
         | Some(RemoteWrite(iid, remote)) when remote = currentIdentity st ->
             let st, fx = onRemoteWrite iid outcome { st with Pending = st.Pending |> Map.remove c }
+            st, fx, NoHandshake
+        | Some LoadDataset ->
+            let demo =
+                match outcome with
+                | HttpSuccess(200, body) ->
+                    match CausaData.decodeBundle body with
+                    | Ok(tag, _) when tag <> CausaData.Pins.tag -> DemoFailed("the data bundle is " + tag + ", not " + CausaData.Pins.tag)
+                    | Ok(_, files) -> (match CausaData.loadDataset files with Ok d -> DemoReady d | Error e -> DemoFailed(CausaData.describe e))
+                    | Error e -> DemoFailed(CausaData.describe e)
+                | HttpSuccess(status, _) -> DemoFailed("the server answered " + string status)
+                | HttpFailure(reason, _) -> DemoFailed("the request failed (" + reason + ")")
+                | HttpCancelled -> DemoFailed "the request was cancelled"
+                | HttpOutcomeUnknown reason -> DemoFailed reason
+            let st = adoptDeferred { st with Pending = st.Pending |> Map.remove c; Demo = demo }
+            let st, fx = finishLoading st
             st, fx, NoHandshake
         | Some FactoryLoad ->
             let factory =

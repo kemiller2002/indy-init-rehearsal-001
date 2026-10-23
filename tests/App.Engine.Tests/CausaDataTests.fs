@@ -9,20 +9,8 @@ open Xunit
 open IndyInitRootCauseInvestigator.Engine
 open Causa.Contract
 
-let private releaseRoot =
-    let rec up (dir: DirectoryInfo) =
-        let candidate = Path.Combine(dir.FullName, "data", "causa-storage-v1.0.0")
-        if Directory.Exists candidate then candidate
-        else match dir.Parent with null -> failwith "data/causa-storage-v1.0.0 not found" | parent -> up parent
-    up (DirectoryInfo AppContext.BaseDirectory)
-
-/// The same file selection the site build bundles (scripts/build-site.mjs).
-let private releaseFiles : Map<string, byte[]> =
-    let rel (p: string) = Path.GetRelativePath(releaseRoot, p).Replace('\\', '/')
-    let pick (dir: string) =
-        Directory.GetFiles(Path.Combine(releaseRoot, dir), "*", SearchOption.AllDirectories) |> Array.map (fun p -> rel p, File.ReadAllBytes p)
-    Array.concat [ pick "contract/v1.0.0/schemas"; pick "contract/v1.0.0/golden"; pick "fixtures/v1.0.0/investigations"; [| "fixtures/v1.0.0/manifest.json", File.ReadAllBytes(Path.Combine(releaseRoot, "fixtures/v1.0.0/manifest.json")) |] ]
-    |> Map.ofArray
+let private releaseRoot = TestData.releaseRoot
+let private releaseFiles = TestData.releaseFiles
 
 let private lockStates =
     let lock = File.ReadAllText(Path.Combine(releaseRoot, "compatibility/v1.0.0/lock.json"))

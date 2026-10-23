@@ -8,6 +8,7 @@
 //   dist/wasm/_framework/      the .NET WebAssembly engine (dotnet publish)
 //   dist/.nojekyll             Pages must not run Jekyll (it drops _framework)
 //   dist/build-info.json       { commit, builtAt }
+//   dist/data/causa-storage-v1.0.0.bundle.json   the frozen Causa release (verified against its lock first)
 //   dist/factory.json          requirements, slices, work items at build time
 //
 // Every URL in the output is relative; nothing points into node_modules.
@@ -49,6 +50,9 @@ const copyTree = (from, to, accept) => {
 rmSync(dist, { recursive: true, force: true });
 mkdirSync(dist, { recursive: true });
 
+// 0. The frozen Causa release must be byte-identical to its lock before anything ships (CAUSA-INV-13).
+run(process.execPath, [join(root, "scripts", "verify-causa-vendor.mjs")]);
+
 // 1. The engine: dotnet publish (Release) of the WebAssembly host.
 const publishDir = join(root, "src", "wasm", "bin", "site-publish");
 rmSync(publishDir, { recursive: true, force: true });
@@ -67,6 +71,22 @@ cpSync(join(root, "node_modules", formaPackage, "dist", "all.css"), join(dist, "
 copyTree(join(modules, "print-components", "src", "components"), join(dist, "vendor", "folio", "components"), (name) => name.endsWith(".js"));
 cpSync(join(modules, "print-components", "src", "styles", "print.css"), join(dist, "vendor", "folio", "print.css"));
 
+// 2b. The frozen Causa storage release the app loads (CAUSA-REHEARSAL-INTEGRATION-001). Exact bytes travel as
+// base64 so the engine can run the encoding and canonical-form stages and recompute every digest itself.
+const release = join(root, "data", "causa-storage-v1.0.0");
+const releaseFiles = {};
+const addRelease = (dir) => {
+  for (const name of readdirSync(join(release, dir))) {
+    const rel = `${dir}/${name}`;
+    if (statSync(join(release, rel)).isDirectory()) addRelease(rel);
+    else releaseFiles[rel] = readFileSync(join(release, rel)).toString("base64");
+  }
+};
+for (const dir of ["contract/v1.0.0/schemas", "contract/v1.0.0/golden", "fixtures/v1.0.0/investigations"]) addRelease(dir);
+releaseFiles["fixtures/v1.0.0/manifest.json"] = readFileSync(join(release, "fixtures", "v1.0.0", "manifest.json")).toString("base64");
+mkdirSync(join(dist, "data"), { recursive: true });
+writeFileSync(join(dist, "data", "causa-storage-v1.0.0.bundle.json"), JSON.stringify({ tag: "causa-storage-v1.0.0", files: releaseFiles }) + "\n");
+
 // 3. The page.
 const shortSha = commit.slice(0, 7);
 const source = readFileSync(join(kernel, "index.html"), "utf8");
@@ -78,6 +98,7 @@ const html = source.replaceAll("__BUILD_SHA__", shortSha).replaceAll("__IMPORTMA
 writeFileSync(join(dist, "index.html"), html);
 cpSync(join(kernel, "main.js"), join(dist, "main.js"));
 cpSync(join(kernel, "app.css"), join(dist, "app.css"));
+cpSync(join(kernel, "favicon.svg"), join(dist, "favicon.svg"));
 writeFileSync(join(dist, ".nojekyll"), "");
 // The route inventory (echelon.routes/v1) is published with the site.
 mkdirSync(join(dist, ".echelon"), { recursive: true });

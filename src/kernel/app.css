@@ -134,3 +134,13 @@ button { min-width: 2.75rem; }
 .factory-table th, .factory-table td { text-align: left; padding: 0.375rem 0.5rem; border-bottom: 1px solid var(--ef-color-border-subtle); vertical-align: top; color: var(--ef-color-text-primary); }
 .challenge { border: 1px solid var(--ef-color-border-functional); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem; }
 [data-preferred="true"] { font-weight: 600; }
+
+/* Causa branding and the demonstration list (CAUSA-REHEARSAL-INTEGRATION-001). */
+.app-brand__name { font-size: 1.25em; letter-spacing: 0.02em; }
+.app-brand__tagline { font-weight: 400; color: var(--ef-color-text-muted, inherit); margin-inline-start: 0.5ch; }
+.demo-card__counts { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; margin: 0.5rem 0; }
+.demo-card__counts div { display: flex; gap: 0.5ch; }
+.demo-card__counts dt { color: var(--ef-color-text-muted, inherit); }
+.demo-card__counts dd { margin: 0; font-weight: 600; }
+.demo-card__problem, .demo-card__cause, .demo-card__activity { overflow-wrap: anywhere; }
+.demo-card__actions { flex-wrap: wrap; }

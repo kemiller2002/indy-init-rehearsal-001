@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- The import map is the only inline script; the build pins it by hash. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' '__IMPORTMAP_HASH__'; connect-src 'self' https://api.github.com; img-src 'self' data:; style-src 'self'; base-uri 'none'; form-action 'none'">
-  <meta name="description" content="Root-Cause Investigator: keep observations, hypotheses and evidence straight until the cause is proven.">
-  <title data-text="pageTitle">Root-Cause Investigator</title>
+  <meta name="description" content="Causa — Root-Cause Investigation: keep observations, hypotheses and evidence straight until the cause is proven.">
+  <title data-text="pageTitle">Causa · Root-Cause Investigation</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./vendor/forma/all.css">
   <link rel="stylesheet" href="./vendor/folio/print.css" media="print">
   <link rel="stylesheet" href="./app.css">
@@ -23,7 +24,7 @@
 
   <header class="app-header" role="banner">
     <div class="app-header__inner">
-      <p class="app-brand"><a href="#/">Root-Cause Investigator</a></p>
+      <p class="app-brand"><a href="#/"><span class="app-brand__name">Causa</span> <span class="app-brand__tagline">Root-Cause Investigation</span></a></p>
       <nav aria-label="Main">
         <ul class="app-nav">
           <li><a href="#/">Investigations</a></li>
@@ -41,7 +42,7 @@
   </div>
 
   <main id="main" tabindex="-1" class="app-main">
-    <p class="app-boot" data-boot data-bind-hidden="booted">Starting the investigator…</p>
+    <p class="app-boot" data-boot data-bind-hidden="booted">Starting Causa…</p>
     <template data-if="isLoading">
       <p class="app-boot" role="status">Loading investigations saved on this device…</p>
     </template>
@@ -73,6 +74,60 @@
     <template data-if="isHome">
       <div class="screen screen--home">
         <h1>Investigations</h1>
+        <section class="ef-section demo" aria-labelledby="demo-title" data-testid="demo-section">
+          <h2 id="demo-title">Demonstration investigations</h2>
+          <p class="muted" data-testid="demo-summary" data-text="demoSummary"></p>
+          <template data-if="demoLoading">
+            <p class="app-boot" role="status" data-testid="demo-loading">Loading and verifying the frozen demonstration data…</p>
+          </template>
+          <template data-if="demoFailed">
+            <div class="ef-alert" data-tone="critical" role="alert" data-testid="demo-failed">
+              <div class="ef-alert__icon" aria-hidden="true">!</div>
+              <div>
+                <h3 class="ef-alert__title">The demonstration data was refused</h3>
+                <p>Nothing from it is shown, because it is not the frozen release this build expects.</p>
+                <p><code data-text="demoFailure"></code></p>
+              </div>
+            </div>
+          </template>
+          <template data-if="demoEmpty">
+            <p class="empty" data-testid="demo-empty">No demonstration investigation passed verification.</p>
+          </template>
+          <template data-if="hasDemoRejected">
+            <div class="ef-alert" data-tone="attention" data-testid="demo-rejected">
+              <div class="ef-alert__icon" aria-hidden="true">!</div>
+              <div>
+                <h3 class="ef-alert__title">Incompatible or corrupted investigations were not loaded</h3>
+                <ul class="plain-list">
+                  <template data-each="demoRejected" data-key="id"><li data-testid="demo-rejection"><strong data-text="key"></strong> — <code data-text="code"></code>: <span data-text="detail"></span></li></template>
+                </ul>
+              </div>
+            </div>
+          </template>
+          <ul class="card-list demo-list">
+            <template data-each="demoInvestigations" data-key="id">
+              <li class="ef-card investigation-card demo-card" data-testid="demo-card">
+                <h3 class="ef-card__title"><a data-bind-href="frozenHref" data-text="title"></a></h3>
+                <p><span class="ef-status-lozenge" data-testid="demo-lifecycle" data-text="lifecycle"></span> <span class="ef-status-lozenge" data-bind-data-tone="verificationTone" data-testid="demo-verification" data-text="verification"></span></p>
+                <p class="demo-card__problem" data-testid="demo-problem" data-text="problem"></p>
+                <dl class="demo-card__counts">
+                  <div><dt>Hypotheses</dt><dd data-testid="demo-hypotheses" data-text="hypotheses"></dd></div>
+                  <div><dt>Open</dt><dd data-text="openHypotheses"></dd></div>
+                  <div><dt>Evidence</dt><dd data-testid="demo-evidence" data-text="evidenceCount"></dd></div>
+                  <div><dt>Contradictions</dt><dd data-testid="demo-contradictions" data-text="contradictions"></dd></div>
+                  <div><dt>Open unknowns</dt><dd data-text="unknowns"></dd></div>
+                </dl>
+                <p class="demo-card__cause"><span class="muted">Cause:</span> <span data-text="cause"></span></p>
+                <p class="muted demo-card__activity"><span>Last activity:</span> <span data-testid="demo-activity" data-text="lastActivity"></span></p>
+                <p class="ef-actions demo-card__actions">
+                  <a class="ef-button" data-bind-href="frozenHref">Open (read-only)</a>
+                  <template data-if="hasWorkingCopy"><a class="ef-button" data-bind-href="href">Open working copy</a></template>
+                  <template data-if="noWorkingCopy"><button type="button" data-event="workingCopy.create">Create working copy</button></template>
+                </p>
+              </li>
+            </template>
+          </ul>
+        </section>
         <section class="ef-surface" aria-labelledby="start-title">
           <h2 id="start-title">Start an investigation</h2>
           <p>Describe what you observed in your own words. It is kept exactly as you write it.</p>

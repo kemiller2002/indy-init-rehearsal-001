@@ -67,10 +67,34 @@ let private answerLoads (st: AppState) (doc: JsonDocument) =
     |> List.filter (fun e -> kindOf e = "Storage" && e.GetProperty("operation").GetString() = "get")
     |> List.fold (fun (s, d) e -> send s (storageResult (e.GetProperty("correlationId").GetString()) None)) (st, doc)
 
+/// Answer the frozen Causa dataset request with the real vendored release.
+let private answerDataset (st: AppState) (doc: JsonDocument) =
+    effects doc
+    |> List.filter (fun e -> kindOf e = "Http" && e.GetProperty("url").GetString().EndsWith("causa-storage-v1.0.0.bundle.json"))
+    |> List.fold (fun (s, d) e -> send s (httpSuccess (e.GetProperty("correlationId").GetString()) 200 TestData.bundleJson.Value)) (st, doc)
+
 let private boot (hash: string) =
     let st, doc = send initial (initialize hash)
     let st, _ = answerLoads st doc
-    st, doc
+    let st, last = answerDataset st doc
+    st, last
+
+/// Perform the investigation storage effects of `doc` (and of every answer they lead to) as the Limen kernel does
+/// against one device: gets read `device`, sets write it. Returns the last state, document and device.
+let rec private settle (device: Map<string, string>) (st: AppState, doc: JsonDocument) : AppState * JsonDocument * Map<string, string> =
+    let isInvestigation (e: JsonElement) = kindOf e = "Storage" && e.GetProperty("key").GetString().StartsWith("rci:inv:")
+    effects doc
+    |> List.filter isInvestigation
+    |> List.fold
+        (fun (s, d, dev) e ->
+            let key = e.GetProperty("key").GetString()
+            let c = e.GetProperty("correlationId").GetString()
+            match e.GetProperty("operation").GetString() with
+            | "set" ->
+                let dev = Map.add key (e.GetProperty("value").GetString()) dev
+                settle dev (send s (storageResult c None))
+            | _ -> settle dev (send s (storageResult c (Map.tryFind key dev))))
+        (st, doc, device)
 
 let private start (st: AppState) =
     let st, _ = send st (event "f.observation" None (Some "Checkout returns 502 since 02:00."))
@@ -99,7 +123,8 @@ let ``Initialize is answered with exactly view, effects, cancellations and an ex
     let caps = [ for c in hs.GetProperty("capabilities").EnumerateArray() -> c.GetProperty("id").GetString(), c.GetProperty("fingerprint").GetString() ]
     Assert.Equal<(string * string) list>([ "limen.lifecycle", lifecycleFingerprint ], caps)
     let fx = effects doc
-    Assert.Equal<string list>([ "Storage"; "Storage"; "Storage"; "Capability" ], fx |> List.map kindOf)
+    Assert.Equal<string list>([ "Storage"; "Storage"; "Storage"; "Http"; "Capability" ], fx |> List.map kindOf)
+    Assert.Equal("./data/causa-storage-v1.0.0.bundle.json", fx[3].GetProperty("url").GetString())
     let subscribe = fx |> List.last
     Assert.Equal("subscribe", subscribe.GetProperty("request").GetProperty("operation").GetString())
     Assert.Equal(0, doc.RootElement.GetProperty("cancellations").GetArrayLength())
@@ -419,7 +444,7 @@ let private factoryJson =
 [<Fact>]
 let ``[R14.2] [R14.3] the factory view loads factory.json by an Http effect and shows requirements, their slices and work-item states`` () =
     let st, doc = send initial (initialize "#/factory")
-    let get = effects doc |> List.find (fun e -> kindOf e = "Http")
+    let get = effects doc |> List.find (fun e -> kindOf e = "Http" && e.GetProperty("url").GetString() = "./factory.json")
     Assert.Equal("GET", get.GetProperty("method").GetString())
     Assert.Equal("./factory.json", get.GetProperty("url").GetString())
     let st, _ = answerLoads st doc
@@ -555,29 +580,35 @@ let ``[R11.4] evidence containing instructions is stored and shown verbatim and 
     Assert.Contains(injection, shown)
 
 [<Fact>]
-let ``[R15.4] history is append-only: every earlier stored document is a byte-identical prefix of the next`` () =
+let ``[R15.4] history is append-only: every stored Causa file set verifies and its events are a byte prefix of the next`` () =
     let st, _ = boot "#/"
-    let st, doc = start st
+    let st, doc, device = settle Map.empty (start st)
     let iid = (currentId st).Value
-    let stored (d: JsonDocument) =
-        effects d
-        |> List.tryFind (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString() = "rci:inv:" + Id.text iid)
-        |> Option.map (fun e -> e.GetProperty("value").GetString())
+    let key = "rci:inv:" + Id.text iid
     let steps =
         [ event "f.hypStatement" None (Some "Expired certificate"); event "hyp.add" None None
           event "f.evContent" None (Some "openssl shows expiry"); event "f.evSource" None (Some "openssl"); event "ev.add" None None
           event "f.unkQuestion" None (Some "All nodes?"); event "unk.add" None None
           event "f.hypStatement" None (Some "DNS"); event "hyp.add" None None ]
-    let _, documents =
-        steps |> List.fold (fun (s, docs) m -> let s, d = send s m in s, docs @ (stored d |> Option.toList)) (st, stored doc |> Option.toList)
-    Assert.True(documents.Length >= 4)
-    for (earlier, later) in List.pairwise documents do
-        match EventCodec.decode earlier, EventCodec.decode later with
-        | Ok(_, older), Ok(_, newer) ->
-            Assert.True(newer.Length > older.Length)
-            Assert.Equal<Event list>(older, List.take older.Length newer)
-            Assert.Equal(earlier, EventCodec.encode iid (List.take older.Length newer))
-        | _ -> failwith "stored documents must decode"
+    let _, _, _, documents =
+        steps
+        |> List.fold
+            (fun (s, _, dev, docs) m ->
+                let s, d, dev = settle dev (send s m)
+                s, d, dev, docs @ [ dev[key] ])
+            (st, doc, device, [ device[key] ])
+    let schemas = (TestData.dataset.Value).Schemas
+    let files =
+        documents
+        |> List.distinct
+        |> List.map (fun d ->
+            match CausaData.decodeFileSet d |> Result.bind (fun (f, _) -> Causa.Contract.Store.validate schemas f |> Result.map (fun _ -> f)) with
+            | Ok f -> f
+            | Error e -> failwith (CausaData.describe e))
+    Assert.True(files.Length >= 4)
+    for (earlier, later) in List.pairwise files do
+        Assert.True(later.Events.Length > earlier.Events.Length)
+        Assert.True(later.Events.AsSpan().StartsWith(earlier.Events.AsSpan()))
 
 // ---------------------------------------------------------------------------
 // Stop-the-line fixes: remote identity (C2), load-before-write (M6), token (M3)
@@ -653,8 +684,8 @@ let ``[R11.3] the token is kept in memory only; after a reload it must be entere
 
 [<Fact>]
 let ``[R10.7] nothing is created before saved investigations load, and the index is never written from a partial load`` () =
-    let st, doc = send initial (initialize "#/")
-    let gets = storageGets doc
+    let st, initDoc = send initial (initialize "#/")
+    let gets = storageGets initDoc
     let st, _ = send st (event "f.observation" None (Some "Early"))
     let st, doc = send st (event "start" None None)
     Assert.Equal("LOAD.IN_PROGRESS", (first ((view doc).GetProperty("refusals"))).GetProperty("code").GetString())
@@ -679,7 +710,12 @@ let ``[R10.7] nothing is created before saved investigations load, and the index
     let st, _ = send st (storageResult gets["rci:sync"] None)
     let st, doc = send st (storageResult gets["rci:index"] (Some index))
     let invGets = storageGets doc
-    let st, _ = send st (storageResult invGets["rci:inv:" + Id.text good] (Some(EventCodec.encode good events)))
+    let stored =
+        match Causa.Contract.Store.build (TestData.dataset.Value).Schemas events with
+        | Ok(files, _) -> CausaData.encodeFileSet None files
+        | Error e -> failwith (CausaData.describe e)
+    let st, _ = answerDataset st initDoc
+    let st, _ = send st (storageResult invGets["rci:inv:" + Id.text good] (Some stored))
     // A change to the loaded one while the other is still loading writes no index.
     let st, _ = send st ("{\"kind\":\"LocationChanged\",\"location\":{\"origin\":\"x\",\"path\":\"/\",\"query\":\"\",\"hash\":\"#/i/" + Id.text good + "\"}}")
     let st, _ = send st (event "f.hypStatement" None (Some "A hypothesis"))
@@ -725,8 +761,8 @@ let ``[R8.1] the Confirm action follows the policy gate: a confirmed cause offer
 
 [<Fact>]
 let ``[R10.7] a stored history that fails History.validate is not adopted, stays listed and is left untouched`` () =
-    let st, doc = send initial (initialize "#/")
-    let gets = storageGets doc
+    let st, initDoc = send initial (initialize "#/")
+    let gets = storageGets initDoc
     let forged = Id.create<InvestigationTag> (Guid("0b0e8d7c-1111-4222-8333-944455556666"))
     let started =
         let env =
@@ -745,12 +781,18 @@ let ``[R10.7] a stored history that fails History.validate is not adopted, stays
     let st, _ = send st (storageResult gets["rci:sync"] None)
     let st, doc = send st (storageResult gets["rci:index"] (Some index))
     let invGets = storageGets doc
-    let st, doc = send st (storageResult invGets["rci:inv:" + Id.text forged] (Some(EventCodec.encode forged history)))
+    // Hand-forged bytes: well-formed Causa files whose history the engine does not admit.
+    let forgedFiles =
+        match Causa.Contract.Store.buildUnchecked history with
+        | Ok files -> CausaData.encodeFileSet None files
+        | Error e -> failwith (CausaData.describe e)
+    let st, _ = answerDataset st initDoc
+    let st, doc = send st (storageResult invGets["rci:inv:" + Id.text forged] (Some forgedFiles))
     Assert.False(st.Investigations.ContainsKey forged)
     Assert.Contains("HISTORY.INADMISSIBLE_EVENT", st.Unreadable[forged])
     Assert.Empty(effects doc |> List.filter (fun e -> kindOf e = "Storage" && e.GetProperty("operation").GetString() <> "get"))
     let reason = (first ((view doc).GetProperty("unreadable"))).GetProperty("reason").GetString()
-    Assert.Contains("could not be verified", reason)
+    Assert.Contains("failed Causa verification", reason)
     // A new investigation keeps the forged one's index entry.
     let _, doc = start st
     let indexWrite = effects doc |> List.find (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString() = "rci:index")
@@ -766,7 +808,7 @@ let ``[R14.3] the factory view shows the recorded test counts and build status w
             "\"tests\":{\"commit\":\"fedcba9876543210\",\"tests\":120,\"passed\":118,\"failed\":2,\"tested\":60,\"untested\":15,\"failing\":3},\"buildStatus\":\"failing\"}"
         )
     let st, doc = send initial (initialize "#/factory")
-    let get = effects doc |> List.find (fun e -> kindOf e = "Http")
+    let get = effects doc |> List.find (fun e -> kindOf e = "Http" && e.GetProperty("url").GetString() = "./factory.json")
     let st, _ = answerLoads st doc
     let _, doc = send st (httpSuccess (get.GetProperty("correlationId").GetString()) 200 withTests)
     Assert.Equal("120 tests recorded, 118 passed, 2 failed (run on commit fedcba9). Requirements: 60 tested, 15 untested, 3 failing.", text doc "factoryTests")
@@ -778,9 +820,13 @@ let ``[R10.6] the local status never claims a save that has not been recorded`` 
     let st, doc = start st
     Assert.Equal("Saving on this device…", text doc "localStatus")
     Assert.Equal(JStr "Not saved yet", (project { st with Local = Map.empty } |> Map.ofList)["localStatus"])
-    let save =
-        effects doc
-        |> List.find (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString().StartsWith("rci:inv:"))
+    // The device copy is read first (lost-update check); reading it is not saving it.
+    let check = effects doc |> List.find (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString().StartsWith("rci:inv:"))
+    Assert.Equal("get", check.GetProperty("operation").GetString())
+    let st, doc = send st (storageResult (check.GetProperty("correlationId").GetString()) None)
+    Assert.Equal("Saving on this device…", text doc "localStatus")
+    let save = effects doc |> List.find (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString().StartsWith("rci:inv:"))
+    Assert.Equal("set", save.GetProperty("operation").GetString())
     let _, doc = send st (storageResult (save.GetProperty("correlationId").GetString()) None)
     Assert.Equal("Saved on this device", text doc "localStatus")
 
