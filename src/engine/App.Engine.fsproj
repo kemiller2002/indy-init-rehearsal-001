@@ -30,6 +30,7 @@
     <Compile Include="Codec.fs" />
     <Compile Include="CausaData.fs" />
     <Compile Include="Sync.fs" />
+    <Compile Include="CausaGitHub.fs" />
     <Compile Include="Report.fs" />
     <Compile Include="Routes.fs" />
     <Compile Include="Shell.fs" />

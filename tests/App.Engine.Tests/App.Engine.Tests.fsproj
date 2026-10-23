@@ -16,6 +16,8 @@
     <Compile Include="ReportTests.fs" />
     <Compile Include="ShellTests.fs" />
     <Compile Include="CausaDataTests.fs" />
+    <Compile Include="FakeGitHub.fs" />
+    <Compile Include="GitHubProviderTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
