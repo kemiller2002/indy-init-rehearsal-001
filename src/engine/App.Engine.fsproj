@@ -15,7 +15,20 @@
     <Compile Include="Decide.fs" />
     <Compile Include="Operational.fs" />
     <Compile Include="Faults.fs" />
+    <Compile Include="CaseNames.fs" />
+    <!-- Causa storage contract v1.0.0: byte-identical vendor copy of causa-data@causa-storage-v1.0.0
+         tools/src/Causa.Contract (data/causa-storage-v1.0.0/VENDOR.json, scripts/verify-causa-vendor.mjs).
+         Compiled into this assembly (before Codec.fs, whose internal Json module would otherwise shadow the
+         contract's) so Shell can use it; it runs on this engine, the contract's pinned oracle. -->
+    <Compile Include="../contract/Json.fs" />
+    <Compile Include="../contract/Errors.fs" />
+    <Compile Include="../contract/Wire.fs" />
+    <Compile Include="../contract/Events.fs" />
+    <Compile Include="../contract/Projection.fs" />
+    <Compile Include="../contract/SchemaCheck.fs" />
+    <Compile Include="../contract/Store.fs" />
     <Compile Include="Codec.fs" />
+    <Compile Include="CausaData.fs" />
     <Compile Include="Sync.fs" />
     <Compile Include="Report.fs" />
     <Compile Include="Routes.fs" />

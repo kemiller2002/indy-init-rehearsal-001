@@ -5,3 +5,5 @@
 # byte; `praxis init` and `upgrade` keep these two lines in any .gitattributes.
 praxis.cmd text eol=crlf
 ros.cmd text eol=crlf
+data/** -text
+src/contract/*.fs -text
