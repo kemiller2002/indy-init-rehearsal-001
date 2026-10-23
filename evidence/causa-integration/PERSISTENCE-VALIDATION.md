@@ -44,8 +44,8 @@ Evidence comes from three places:
 | AC-PROV-13 token scan | **met** | fake, shell, browser and live: the token appears only in `Authorization` to `https://api.github.com` |
 | AC-PROV-14 create over an existing directory | **met** | `refused`, `CAUSA.VERSION_STALE`, existing bytes unchanged, no PATCH |
 | AC-PROV-15 working copy of all 5 | **partial** | every copied file equals the frozen bytes and `fixtures/` is unchanged, but it is **one commit per investigation**, not one commit for all five |
-| AC-PROV-16 two queued commands across a restart | **partial** | offline changes are kept (device file set plus record) and published in order when back online (shell, browser). The queue is per investigation, not per command, and stores no command inputs |
-| AC-PROV-17 PATCH status mapping | **met** | 401→failed, 403 rate-limit→pending, 429→pending, 422 "Reference does not exist"→failed, 409 "empty"→failed, 502→unknown |
+| AC-PROV-16 two queued commands across a restart | **partial** | two offline changes survive a reload and are published in order, byte for byte (shell test `[AC-PROV-16 partial]`). The queue is per investigation, not per command, and stores no command inputs |
+| AC-PROV-17 PATCH status mapping | **met** | 401→failed, 403 rate-limit→pending, 429→pending, 422 "Reference does not exist"→failed, 409 "empty"→failed, 502→unknown. A 401 halts publishing until a new token is entered, which returns authentication failures to `pending` (shell test `[CAUSA-PROV-19] [T18]`) |
 | AC-PROV-18 rewind before the PATCH | **met** | the step-8 re-read sees the move; lost confirmed events → `CAUSA.HISTORY_REWRITTEN`, no PATCH |
 | AC-PROV-19 truncated listings | **met** | only non-recursive walks; `truncated:true` is never taken as complete (→ pending) |
 | AC-PROV-20 byte exactness | **met (base64)** | non-ASCII, U+2028, a control escape and a 4-byte character round-trip; a server that stores different bytes → `failed` (byte mismatch) before the PATCH. The `utf-8` blob encoding (a MAY) is not used |
@@ -72,10 +72,17 @@ provider-gate PASS. **This build's provider gate is therefore incomplete.**
   An ambiguous PATCH is resolved immediately once.
 - **Fetch options.** The kernel cannot set `fetch` `cache`, `redirect` or `referrerPolicy` (CAUSA-PROV-06 §2,
   -31 §3). Ref reads therefore use a per-request nonce URL so they are never served from cache, and GitHub calls use
-  `credentials: "omit"`. A redirect is followed by the browser. Modern browsers drop `Authorization` on
-  cross-origin redirects, and any response that is not the expected JSON fails closed.
+  `credentials: "omit"`.
+- **Redirects.** A redirect is followed by the browser. GitHub's own redirects (a renamed repository) stay on
+  `api.github.com`, so the token is re-sent to the same origin. A moved repository is therefore followed instead of
+  failing as a configuration error (review m11). Any response that is not the expected JSON still fails closed.
 - **Batching.** A publish may carry several local changes of one investigation as one commit, as CAUSA-PROV-18 §1
   allows.
+- **Local concurrency.** The local fast-forward check is a read followed by a write. `localStorage` has no
+  compare-and-set, so two windows can still race between the read and the write (review m3). An investigation whose
+  local save was refused is not published.
+- **Run ids.** A new run id is not checked for absence on GitHub (CAUSA-PROV-02 §4). A collision would show as
+  `refused` per investigation, never as an overwrite.
 - **Branch protection.** Protection of the data branch (CAUSA-PROV-04 §1) cannot be configured from this session.
   The residual rewind window between step 8 and step 9 (CAUSA-PROV-16 §4) is therefore open on `causa-workspace`.
 
