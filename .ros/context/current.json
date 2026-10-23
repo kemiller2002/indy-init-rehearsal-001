@@ -4,7 +4,7 @@
   "repository": "indy-init-rehearsal-001",
   "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-10-21T20:49:28.421Z",
+  "updatedAt": "2026-10-23T08:18:32.000Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -553,6 +553,17 @@
         }
       },
       "completedAt": "2026-10-21T20:49:25.537Z"
+    },
+    {
+      "id": "CAUSA-REHEARSAL-INTEGRATION-001",
+      "type": "task",
+      "state": "active",
+      "semanticState": "active",
+      "evidence": [],
+      "updatedAt": "2026-10-23T08:18:32.000Z",
+      "telemetryExecutionIds": [
+        "EXE-20261023T081832699Z-2539c4b3"
+      ]
     }
   ]
 }
