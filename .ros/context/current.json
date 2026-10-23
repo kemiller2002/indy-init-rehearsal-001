@@ -4,7 +4,7 @@
   "repository": "indy-init-rehearsal-001",
   "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-10-23T08:18:32.000Z",
+  "updatedAt": "2026-10-23T11:24:44.000Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -557,13 +557,67 @@
     {
       "id": "CAUSA-REHEARSAL-INTEGRATION-001",
       "type": "task",
-      "state": "active",
-      "semanticState": "active",
-      "evidence": [],
-      "updatedAt": "2026-10-23T08:18:32.000Z",
+      "state": "complete",
+      "semanticState": "complete",
+      "evidence": [
+        {
+          "type": "result",
+          "path": "evidence/causa-integration/RESULT.md"
+        },
+        {
+          "type": "baseline",
+          "path": "evidence/causa-integration/BASELINE.md"
+        },
+        {
+          "type": "implementation",
+          "path": "evidence/causa-integration/CONTRACT-INTEGRATION.md"
+        },
+        {
+          "type": "implementation",
+          "path": "evidence/causa-integration/FORMA-UPGRADE.md"
+        },
+        {
+          "type": "tests",
+          "path": "evidence/causa-integration/PERSISTENCE-VALIDATION.md"
+        },
+        {
+          "type": "tests",
+          "path": "evidence/causa-integration/BROWSER-TESTS.md"
+        },
+        {
+          "type": "deployment",
+          "path": "evidence/causa-integration/DEPLOYMENT-VERIFICATION.md"
+        },
+        {
+          "type": "review",
+          "path": "evidence/causa-integration/ADVERSARIAL-REVIEW.md"
+        }
+      ],
+      "updatedAt": "2026-10-23T11:24:44.000Z",
       "telemetryExecutionIds": [
         "EXE-20261023T081832699Z-2539c4b3"
-      ]
+      ],
+      "latestCheckpoint": {
+        "id": "b83b46a3c10a6d8bc0ab20f8",
+        "recordedAt": "2026-10-23T11:24:42.000Z",
+        "executionId": "EXE-20261023T081832699Z-2539c4b3",
+        "repository": "indy-init-rehearsal-001",
+        "branch": "claude/causa-contract-consolidation-ffh5tn",
+        "commit": "5f48c81428e05771103b3de9999bf1f3b3d04bb1",
+        "remote": {
+          "name": "origin",
+          "url": "https://github.com/kemiller2002/indy-init-rehearsal-001"
+        },
+        "remoteBranch": "claude/causa-contract-consolidation-ffh5tn",
+        "remoteCommit": "5f48c81428e05771103b3de9999bf1f3b3d04bb1",
+        "summary": "Causa contract integrated, provider live-verified, reviewed, deployed (2d1fb29, 5d5f123) and verified on the live site; RESULT PARTIAL",
+        "nextAction": "Complete the work item and commit the Praxis state",
+        "verification": {
+          "status": "verified",
+          "mechanism": "git-remote-observation"
+        }
+      },
+      "completedAt": "2026-10-23T11:24:44.000Z"
     }
   ]
 }

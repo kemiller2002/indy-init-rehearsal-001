@@ -66,4 +66,30 @@ below.
 
 ## Deployment 2: follow-up (frozen-view save status)
 
-Not deployed yet when this revision was written. It is recorded here once its own deploy run has finished and has been checked on the live site.
+| item | value |
+|---|---|
+| Merged | PR #9, head `f5b9f128b158622ab06c0935ef9c9d58051d898f`. Its checks: build-and-test ✓, foundations ✓, validate ✓, live GitHub persistence ✓ (third live pass, run [39941861418](https://github.com/kemiller2002/indy-init-rehearsal-001/actions/runs/39941861418)) |
+| Deployed commit | **`5d5f123a5d82572fd8f9faa9163e837f51e25afa`** (merge commit on `main`) |
+| Workflow | Deploy to GitHub Pages **#10**, run [39944028563](https://github.com/kemiller2002/indy-init-rehearsal-001/actions/runs/39944028563): verify-and-build ✓ (engine tests on the commit), deploy ✓, accept ✓ |
+| Served identity | live `build-info.json` = `{"commit": "5d5f123a5d82572fd8f9faa9163e837f51e25afa", "builtAt": "2026-10-23T11:11:04.162Z"}` |
+| Accept job (live URL) | **93 passed, 1 flaky, 0 failed**, of 94 tests (job 120383172940; artifact `deployed-acceptance` 12498565263) |
+
+**The flaky test.** R001's journey test `[R15.2][R15.5] AI-suggested hypothesis…` on chromium-desktop failed its first
+attempt and passed on its retry.
+- **What failed:** while opening the page, `data-kernel` did not become `running` within 15 s, a boot timeout. It
+  failed before any step of the test itself ran.
+- **Context:** the same test passed first time in the run #9 accept, in every CI project of PR #8 and PR #9, and in
+  all local runs.
+- **Root cause:** not established. It is recorded as **flaky**, not as a pass.
+
+**Independent check of the live site at `5d5f123`** (2026-10-23, after 11:22 UTC; this replaces
+`deployed-verification.json`):
+- Desktop, tablet (both orientations) and mobile each show 5 cards and 0 refusals.
+- Horizontal overflow is 0 px on the list and on a detail page.
+- There were **no** console errors, page errors, failed requests or HTTP ≥ 400 responses.
+- All five investigations open with golden-matching hypothesis and evidence counts, the pinned state digest, and no
+  form.
+- **No save status is shown** on any frozen original (`local-status` and `remote-status` are absent): the fix is live.
+- The screenshots in `screenshots/after/` were retaken from this deployment.
+
+**R001 evidence.** It is still unchanged at `5d5f123`: only `evidence/causa-integration/` differs from `55f49f6`.

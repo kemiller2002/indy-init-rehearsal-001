@@ -2,6 +2,7 @@
 
 | ID | Work | Status | Tags | Priority |
 |---|---|---|---|---|
+| CAUSA-REHEARSAL-INTEGRATION-001 | CAUSA-REHEARSAL-INTEGRATION-001 | active |  |  |
 | COND-MISSION-001 | Build indy-init-root-cause-investigator from the Conditor execution contract | complete | conditor, mission | high |
 | ROS-INSTALL-3-16-0 | ROS-INSTALL-3-16-0 | complete |  |  |
 | SLICE-ADVANCED-VIEWS | Slice 17 advanced-views: advanced reasoning views and diagnostics: dependency and causal-set visualizations, uncertainty map, miners, search | ready | indy-init, slice, cut:stretch | low |
