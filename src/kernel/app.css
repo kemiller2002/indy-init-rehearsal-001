@@ -144,3 +144,7 @@ button { min-width: 2.75rem; }
 .demo-card__counts dd { margin: 0; font-weight: 600; }
 .demo-card__problem, .demo-card__cause, .demo-card__activity { overflow-wrap: anywhere; }
 .demo-card__actions { flex-wrap: wrap; }
+.overview { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.5rem 1.5rem; margin: 0 0 0.75rem; }
+.overview dt { font-weight: 600; }
+.overview dd { margin: 0; overflow-wrap: anywhere; }
+.persistence__path code, .persistence__log code { overflow-wrap: anywhere; }

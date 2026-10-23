@@ -1540,7 +1540,8 @@ let private itemCommand (table: (string * 'C * string) list) (name: string) (bui
 /// Copy a frozen demonstration into an editable working copy with the same id and the exact frozen history
 /// (PROVIDER-GITHUB CAUSA-PROV-11). The frozen original is never written.
 let private createWorkingCopy (key: string option) (st: AppState) : AppState * Effect list =
-    match parseKey<InvestigationTag> key with
+    // From the demonstration list the key names it; from the frozen view, it is the one shown.
+    match parseKey<InvestigationTag> key |> Option.orElse (currentId st) with
     | Some iid when st.Investigations.ContainsKey iid -> navigate (WorkspaceScreen iid) { st with Notice = "This device already has a working copy of it." }
     | Some iid ->
         match demoOf st iid with
@@ -2078,6 +2079,39 @@ let private localText (st: AppState) (iid: InvestigationId) =
     // N9: nothing claims a save that has not been recorded.
     | None -> "Not saved yet"
 
+/// Plain summaries of what the replayed state already records; they describe, they never decide.
+let private verificationSummary (inv: Investigation) =
+    let corrections = inv.CorrectiveActions |> Map.toList |> List.map snd
+    if corrections |> List.exists (fun c -> c.State = VerifiedEffective) then "Fix verified effective", "success"
+    elif corrections |> List.exists (fun c -> c.State = AwaitingVerificationOfEffect) then "Awaiting verification of the fix", "info"
+    elif corrections |> List.exists (fun c -> c.State = VerificationFailed || c.State = ReworkRequired) then "Verification failed; rework needed", "danger"
+    elif not corrections.IsEmpty then "Fix recorded, not yet verified", "warning"
+    else "No fix recorded yet", "neutral"
+
+let private causeSummary (inv: Investigation) =
+    let causes = inv.Causes |> Map.toList |> List.map snd
+    if causes |> List.exists (fun c -> c.State = CauseConfirmed) then "Cause confirmed"
+    elif causes |> List.exists (fun c -> c.State = CauseReopened) then "Cause reopened"
+    elif not causes.IsEmpty then "Cause proposed, not confirmed"
+    else "No cause asserted yet"
+
+let private openHypotheses (inv: Investigation) =
+    inv.Hypotheses |> Map.filter (fun _ h -> h.State <> Falsified && h.State <> Superseded) |> Map.count
+
+/// The overview of one investigation, from its replayed state only (no hand-written summaries).
+let private overviewKeys (inv: Investigation) (events: Event list) : (string * J) list =
+    let l = labelsOf events
+    let openUnknowns = inv.Unknowns |> Map.filter (fun _ u -> u.State = Identified || u.State = Investigating) |> Map.count
+    let openContradictions = inv.Contradictions |> Map.filter (fun _ c -> c.State = Detected || c.State = Triaged || c.State = ContradictionInvestigating) |> Map.count
+    [ "ovHypotheses", s (string inv.Hypotheses.Count + " (" + string (openHypotheses inv) + " open)")
+      "ovEvidence", s (string inv.Evidence.Count)
+      "ovContradictions", s (string inv.Contradictions.Count + " (" + string openContradictions + " open)")
+      "ovUnknowns", s (string inv.Unknowns.Count + " (" + string openUnknowns + " open)")
+      "ovCause", s (causeSummary inv)
+      "ovVerification", s (fst (verificationSummary inv))
+      "ovLastActivity",
+      s (match List.tryLast events with Some e -> Words.date e.At + " · " + Words.clip 110 (describe inv l e.Body) | None -> "") ]
+
 let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event list) (real: bool) : (string * J) list =
     let l = labelsOf events
     let iid = inv.Id
@@ -2093,6 +2127,10 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
     let evName (e: EvidenceId) =
         lbl l.Ev e.Value + (inv.Evidence |> Map.tryFind e |> Option.map (fun x -> ": " + Words.clip 60 (evidenceText x)) |> Option.defaultValue "")
     let isOpen = Transitions.isOpen inv.Lifecycle
+    // Frozen originals and earlier-format copies are read-only: no action is offered at all, not merely refused.
+    let editable =
+        real && st.Investigations.ContainsKey iid && formatOf st iid <> LegacyFormat && (match st.Screen with DemoScreen _ -> false | _ -> true)
+    let canAct = isOpen && editable
     let observation = inv.Observations |> Map.toList |> List.map snd |> List.sortBy (fun o -> o.Provenance.RecordedAt) |> List.tryHead
     let resolution = if real then Policy.resolutionBlockers inv else []
     let remote, remoteTone = remoteText st iid
@@ -2152,7 +2190,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "unavailable", s (if unavailable.IsEmpty then "" else "Not available now: " + Words.join "; " unavailable)
                   "by", s (Words.actor h.Provenance.Actor) ]
                 @ (Words.hypothesisCommands
-                   |> List.map (fun (name, c, _) -> "hide" + name, b (not isOpen || Transitions.hypothesis h.State c |> Option.isNone)))
+                   |> List.map (fun (name, c, _) -> "hide" + name, b (not canAct || Transitions.hypothesis h.State c |> Option.isNone)))
             ))
     let hypothesisChanges =
         hypotheses
@@ -2206,10 +2244,10 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
     // m2: a button that needs no typed input is shown only when the kernel would
     // accept that exact command now (decide without emitting anything).
     let accepts (command: Command) =
-        real
+        editable
         && (Decide.probe inv (Actor.human "local-user") st.Now command |> Result.isOk)
     let transitionFlags (table: (string * 'C * string) list) (legal: 'C -> bool) =
-        table |> List.map (fun (name, c, _) -> "hide" + name, b (not isOpen || not (legal c)))
+        table |> List.map (fun (name, c, _) -> "hide" + name, b (not canAct || not (legal c)))
     let unknownItems =
         inv.Unknowns
         |> Map.toList
@@ -2307,7 +2345,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "mechanism", s (c.Mechanism |> Option.map (fun x -> x.Value) |> Option.defaultValue "not stated")
                   "state", s (Words.cause c.State)
                   "isConfirmed", b (c.State = CauseConfirmed)
-                  "hideConfirm", b (not real || not (Policy.canConfirm inv c.Id))
+                  "hideConfirm", b (not editable || not (Policy.canConfirm inv c.Id))
                   "blockerCount", n blockers.Length
                   "isBlocked", b (not blockers.IsEmpty)
                   "readiness",
@@ -2394,7 +2432,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
                   "rationale", s (p.Rationale |> Option.map (fun x -> x.Value) |> Option.defaultValue "")
                   "state", s (Words.proposal p.State)
                   "decision", s (p.Decision |> Option.map (fun x -> x.Value) |> Option.defaultValue "")
-                  "isActive", b (p.State = ProposalActive && isOpen)
+                  "isActive", b (p.State = ProposalActive && canAct)
                   "by", s (Words.actor p.Provenance.Actor)
                   "acceptLabel",
                   s (
@@ -2441,7 +2479,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
         |> List.map (fun (name, c, _) ->
             match c with
             // Reopening needs a typed basis: structural table plus the refusal explanation.
-            | ReopenInvestigation _ -> "lifeHide_" + name, b (not (LifecycleCommands.legal inv.Lifecycle c))
+            | ReopenInvestigation _ -> "lifeHide_" + name, b (not editable || not (LifecycleCommands.legal inv.Lifecycle c))
             | _ -> "lifeHide_" + name, b (not (accepts c)))
     [ "wsId", s (Id.text iid)
       "wsTitle", s inv.Title.Value
@@ -2517,6 +2555,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
       ) ]
     @ lifecycleFlags
     @ syncKeys st iid
+    @ overviewKeys inv events
 
 let private reportKeys (inv: Investigation) (events: Event list) (real: bool) : (string * J) list =
     match real with
@@ -2554,25 +2593,6 @@ let private reportKeys (inv: Investigation) (events: Event list) (real: bool) : 
           "reportRows", JArr rows
           "reportUnresolved", JArr unresolved
           "hasUnresolved", b (not unresolved.IsEmpty) ]
-
-/// Plain summaries of what the replayed state already records; they describe, they never decide.
-let private verificationSummary (inv: Investigation) =
-    let corrections = inv.CorrectiveActions |> Map.toList |> List.map snd
-    if corrections |> List.exists (fun c -> c.State = VerifiedEffective) then "Fix verified effective", "success"
-    elif corrections |> List.exists (fun c -> c.State = AwaitingVerificationOfEffect) then "Awaiting verification of the fix", "info"
-    elif corrections |> List.exists (fun c -> c.State = VerificationFailed || c.State = ReworkRequired) then "Verification failed; rework needed", "danger"
-    elif not corrections.IsEmpty then "Fix recorded, not yet verified", "warning"
-    else "No fix recorded yet", "neutral"
-
-let private causeSummary (inv: Investigation) =
-    let causes = inv.Causes |> Map.toList |> List.map snd
-    if causes |> List.exists (fun c -> c.State = CauseConfirmed) then "Cause confirmed"
-    elif causes |> List.exists (fun c -> c.State = CauseReopened) then "Cause reopened"
-    elif not causes.IsEmpty then "Cause proposed, not confirmed"
-    else "No cause asserted yet"
-
-let private openHypotheses (inv: Investigation) =
-    inv.Hypotheses |> Map.filter (fun _ h -> h.State <> Falsified && h.State <> Superseded) |> Map.count
 
 let private demoKeys (st: AppState) : (string * J) list =
     let rows =
