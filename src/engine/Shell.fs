@@ -2937,6 +2937,8 @@ let project (st: AppState) : (string * J) list =
           "isLegacy", b legacy
           "canEdit", b (working && not legacy && st.Screen <> (iid |> Option.map DemoScreen |> Option.defaultValue HomeScreen))
           "readOnly", b (frozen.IsSome || legacy)
+          // A frozen original is never saved anywhere: no device or GitHub status is shown for it.
+          "showPersistence", b frozen.IsNone
           "frozenBanner",
           s (
               match frozen with

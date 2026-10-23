@@ -1,0 +1,140 @@
+{
+  "base": "https://kevinmmiller.us/indy-init-rehearsal-001/",
+  "checkedAt": "2026-10-23T10:42:14.577Z",
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1440,
+      "height": 900,
+      "title": "Causa · Root-Cause Investigation",
+      "brand": "Causa Root-Cause Investigation",
+      "cards": 5,
+      "rejected": 0,
+      "summary": "5 investigation(s) from causa-storage-v1.0.0, each replayed from its event history and verified against the Causa storage contract v1.0.0.",
+      "overflow": 0,
+      "detailOverflow": 0,
+      "errors": []
+    },
+    {
+      "name": "tablet",
+      "width": 834,
+      "height": 1194,
+      "title": "Causa · Root-Cause Investigation",
+      "brand": "Causa Root-Cause Investigation",
+      "cards": 5,
+      "rejected": 0,
+      "summary": "5 investigation(s) from causa-storage-v1.0.0, each replayed from its event history and verified against the Causa storage contract v1.0.0.",
+      "overflow": 0,
+      "detailOverflow": 0,
+      "errors": []
+    },
+    {
+      "name": "tablet-landscape",
+      "width": 1194,
+      "height": 834,
+      "title": "Causa · Root-Cause Investigation",
+      "brand": "Causa Root-Cause Investigation",
+      "cards": 5,
+      "rejected": 0,
+      "summary": "5 investigation(s) from causa-storage-v1.0.0, each replayed from its event history and verified against the Causa storage contract v1.0.0.",
+      "overflow": 0,
+      "detailOverflow": 0,
+      "errors": []
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844,
+      "title": "Causa · Root-Cause Investigation",
+      "brand": "Causa Root-Cause Investigation",
+      "cards": 5,
+      "rejected": 0,
+      "summary": "5 investigation(s) from causa-storage-v1.0.0, each replayed from its event history and verified against the Causa storage contract v1.0.0.",
+      "overflow": 0,
+      "detailOverflow": 0,
+      "errors": []
+    }
+  ],
+  "investigations": [
+    {
+      "key": "payment-failure",
+      "id": "6fd2ddc9-bedd-5fff-9093-5506c4d68cb3",
+      "h1": "Card payments failing at checkout",
+      "lifecycle": "In progress",
+      "hypotheses": 4,
+      "evidence": 3,
+      "contract": "Verified on load against the Causa storage contract v1.0.0: all 17 reader stages, admissibility re-decided by this engine, snapshot equal to the replay. State digest 9ce1ec0eb49c…, events digest a34c241e4eb6….",
+      "forms": 0,
+      "titleMatches": true,
+      "hypothesesMatch": true,
+      "evidenceMatches": true,
+      "digestShown": true,
+      "readOnly": true
+    },
+    {
+      "key": "authentication-outage",
+      "id": "a6747bd3-2794-5ac7-83b8-5ea2a0c50f5e",
+      "h1": "Users unable to sign in via single sign-on",
+      "lifecycle": "Resolved",
+      "hypotheses": 2,
+      "evidence": 7,
+      "contract": "Verified on load against the Causa storage contract v1.0.0: all 17 reader stages, admissibility re-decided by this engine, snapshot equal to the replay. State digest cd3ea94c8be6…, events digest 8c47a0b8d248….",
+      "forms": 0,
+      "titleMatches": true,
+      "hypothesesMatch": true,
+      "evidenceMatches": true,
+      "digestShown": true,
+      "readOnly": true
+    },
+    {
+      "key": "conflicting-metrics",
+      "id": "abd5f9b5-e335-5245-b951-802f01d5a2e5",
+      "h1": "Error-rate dashboard contradicts application logs",
+      "lifecycle": "In progress",
+      "hypotheses": 3,
+      "evidence": 5,
+      "contract": "Verified on load against the Causa storage contract v1.0.0: all 17 reader stages, admissibility re-decided by this engine, snapshot equal to the replay. State digest f189ac3bf47f…, events digest deffe3cec616….",
+      "forms": 0,
+      "titleMatches": true,
+      "hypothesesMatch": true,
+      "evidenceMatches": true,
+      "digestShown": true,
+      "readOnly": true
+    },
+    {
+      "key": "intermittent-outage",
+      "id": "c57e4407-dd43-5d63-8dbe-9d6ceac6c31a",
+      "h1": "Intermittent 502 errors on the order-status API",
+      "lifecycle": "Waiting for evidence",
+      "hypotheses": 2,
+      "evidence": 4,
+      "contract": "Verified on load against the Causa storage contract v1.0.0: all 17 reader stages, admissibility re-decided by this engine, snapshot equal to the replay. State digest 289c26e5525c…, events digest 90ed91e1dc3d….",
+      "forms": 0,
+      "titleMatches": true,
+      "hypothesesMatch": true,
+      "evidenceMatches": true,
+      "digestShown": true,
+      "readOnly": true
+    },
+    {
+      "key": "api-latency",
+      "id": "d588748e-8df9-5f27-859e-5d36d9a2b53d",
+      "h1": "p95 latency regression on the search API after release 4.2",
+      "lifecycle": "Waiting for verification",
+      "hypotheses": 3,
+      "evidence": 4,
+      "contract": "Verified on load against the Causa storage contract v1.0.0: all 17 reader stages, admissibility re-decided by this engine, snapshot equal to the replay. State digest 2ba34140daab…, events digest a85cec5ef9e8….",
+      "forms": 0,
+      "titleMatches": true,
+      "hypothesesMatch": true,
+      "evidenceMatches": true,
+      "digestShown": true,
+      "readOnly": true
+    }
+  ],
+  "buildInfo": {
+    "commit": "2d1fb29078aaceb297cef35c50f15168ad0a154d",
+    "builtAt": "2026-10-23T10:33:47.299Z"
+  },
+  "detailErrors": []
+}
