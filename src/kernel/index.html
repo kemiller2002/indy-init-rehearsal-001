@@ -228,13 +228,13 @@
           </section>
         </template>
         <div class="ws-grid">
-          <section class="ws-panel ws-panel--wide" aria-labelledby="obs-title">
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="obs-title">
             <h2 id="obs-title">What was observed</h2>
             <blockquote class="observation" data-testid="observation" data-text="wsObservation"></blockquote>
             <p class="muted" data-text="wsObservationBy"></p>
           </section>
 
-          <section class="ws-panel ws-panel--wide" aria-labelledby="todo-title" data-testid="outstanding">
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="todo-title" data-testid="outstanding">
             <h2 id="todo-title">Outstanding work</h2>
             <p class="outstanding-summary" data-text="outstandingSummary"></p>
             <ul class="ef-obligation-list" aria-label="Open obligations">
@@ -247,7 +247,7 @@
             </ul>
           </section>
 
-          <section class="ws-panel ws-panel--wide" aria-labelledby="hyp-title">
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="hyp-title">
             <h2 id="hyp-title">Possible explanations (hypotheses)</h2>
             <form data-event="hyp.add" class="form form--inline">
               <div class="ef-field">
@@ -308,7 +308,7 @@
             </ol>
           </section>
 
-          <section class="ws-panel" aria-labelledby="ai-title">
+          <section class="ef-surface ws-panel" aria-labelledby="ai-title">
             <h2 id="ai-title">AI suggestions and challenges</h2>
             <div class="challenge" data-testid="challenge">
               <h3>Challenge the leading explanation</h3>
@@ -353,7 +353,7 @@
             </ul>
           </section>
 
-          <section class="ws-panel" aria-labelledby="ev-title">
+          <section class="ef-surface ws-panel" aria-labelledby="ev-title">
             <h2 id="ev-title">Evidence</h2>
             <form data-event="ev.add" class="form">
               <div class="ef-select-field">
@@ -437,7 +437,7 @@
             </ul>
           </section>
 
-          <section class="ws-panel" aria-labelledby="rel-title">
+          <section class="ef-surface ws-panel" aria-labelledby="rel-title">
             <h2 id="rel-title">Link evidence to a hypothesis</h2>
             <form data-event="rel.add" class="form">
               <div class="ef-select-field">
@@ -483,7 +483,7 @@
             </ul>
           </section>
 
-          <section class="ws-panel" aria-labelledby="con-title">
+          <section class="ef-surface ws-panel" aria-labelledby="con-title">
             <h2 id="con-title">Contradictions</h2>
             <template data-if="hasContradictingLinks">
               <div class="ef-alert" data-tone="attention">
@@ -545,7 +545,7 @@
             </ul>
           </section>
 
-          <section class="ws-panel" aria-labelledby="unk-title">
+          <section class="ef-surface ws-panel" aria-labelledby="unk-title">
             <h2 id="unk-title">Open questions (unknowns)</h2>
             <form data-event="unk.add" class="form">
               <div class="ef-field">
@@ -586,7 +586,7 @@
             </ul>
           </section>
 
-          <section class="ws-panel" aria-labelledby="test-title">
+          <section class="ef-surface ws-panel" aria-labelledby="test-title">
             <h2 id="test-title">Predictions, tests and findings</h2>
             <form data-event="pred.add" class="form">
               <div class="ef-select-field">
@@ -689,7 +689,7 @@
             </ul>
           </section>
 
-          <section class="ws-panel" aria-labelledby="neg-title">
+          <section class="ef-surface ws-panel" aria-labelledby="neg-title">
             <h2 id="neg-title">Ruled out for good (negative knowledge)</h2>
             <form data-event="neg.add" class="form">
               <div class="ef-field">
@@ -717,7 +717,7 @@
             </ul>
           </section>
 
-          <section class="ws-panel ws-panel--wide" aria-labelledby="cause-title">
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="cause-title">
             <h2 id="cause-title">Cause</h2>
             <form data-event="cause.add" class="form form--inline">
               <div class="ef-field">
@@ -774,7 +774,7 @@
             </ul>
           </section>
 
-          <section class="ws-panel ws-panel--wide" aria-labelledby="corr-title">
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="corr-title">
             <h2 id="corr-title">Fix and verification</h2>
             <form data-event="corr.add" class="form form--inline">
               <div class="ef-select-field">
@@ -879,7 +879,7 @@
             <ul class="plain-list"><template data-each="verifications" data-key="id"><li data-testid="verification" data-text="text"></li></template></ul>
           </section>
 
-          <section class="ws-panel ws-panel--wide" aria-labelledby="concl-title">
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="concl-title">
             <h2 id="concl-title">Conclusion and resolution</h2>
             <form data-event="concl.add" class="form form--inline">
               <div class="ef-field">
@@ -946,7 +946,7 @@
             </div>
           </section>
 
-          <section class="ws-panel ws-panel--wide" aria-labelledby="hist-title">
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="hist-title">
             <h2 id="hist-title">History</h2>
             <ol class="ef-timeline" aria-label="Investigation history, newest first">
               <template data-each="history" data-key="id">

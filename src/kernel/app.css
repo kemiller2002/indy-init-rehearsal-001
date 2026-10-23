@@ -120,13 +120,6 @@ button { min-width: 2.75rem; }
   .ws-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ws-panel--wide { grid-column: 1 / -1; }
 }
-.ws-panel {
-  background: var(--ef-color-surface-secondary);
-  border: 1px solid var(--ef-color-border-subtle);
-  border-radius: 0.75rem;
-  padding: 1rem;
-  min-width: 0;
-}
 
 .refusal-list { margin: 0.5rem 0 0; padding-left: 1.25rem; }
 .refusal__message { display: block; font-weight: 600; }
@@ -158,4 +151,3 @@ button { min-width: 2.75rem; }
 .factory-table th, .factory-table td { text-align: left; padding: 0.375rem 0.5rem; border-bottom: 1px solid var(--ef-color-border-subtle); vertical-align: top; color: var(--ef-color-text-primary); }
 .challenge { border: 1px solid var(--ef-color-border-functional); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem; }
 [data-preferred="true"] { font-weight: 600; }
-.ws-panel .ef-field__description { color: var(--ef-color-text-primary); }
