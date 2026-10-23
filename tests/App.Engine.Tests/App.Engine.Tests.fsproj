@@ -8,15 +8,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="TestData.fs" />
+    <Compile Include="FakeGitHub.fs" />
     <Compile Include="EngineTests.fs" />
     <Compile Include="RouteTests.fs" />
     <Compile Include="DomainTests.fs" />
     <Compile Include="CodecTests.fs" />
-    <Compile Include="SyncTests.fs" />
     <Compile Include="ReportTests.fs" />
     <Compile Include="ShellTests.fs" />
     <Compile Include="CausaDataTests.fs" />
-    <Compile Include="FakeGitHub.fs" />
     <Compile Include="GitHubProviderTests.fs" />
   </ItemGroup>
   <ItemGroup>

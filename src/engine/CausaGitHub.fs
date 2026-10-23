@@ -688,7 +688,12 @@ let publish (a: Attempt) : Remote<Outcome> =
         | Unanswered r -> Done(Unknown("timeout-after-patch", "the ref update was sent but no answer came back (" + r + ")"))
     match Workspace.checkTarget s.Workspace a.InvestigationId with
     | Error e -> Done(Failed(integrity (if e.Code = Codes.pathInvalid then PathInvalid else PathFrozen) "R" e.Code e.Detail))
-    | Ok _ -> orFault beforePatch (Git.head "R" s 0) (fromHead 1)
+    | Ok _ ->
+        match a.Base with
+        | Some b when not (startsWith a.Files.Events b.Files.Events) ->
+            // CONTRACT §9.3: a writer only ever appends to the confirmed history; nothing is sent.
+            Done(Failed(integrity Unreadable "R" Codes.historyRewritten "the files to publish do not extend the confirmed history"))
+        | _ -> orFault beforePatch (Git.head "R" s 0) (fromHead 1)
 
 /// CAUSA-PROV-24: after an ambiguous PATCH, classify the remote without writing anything.
 let resolve (a: Attempt) : Remote<Outcome> =

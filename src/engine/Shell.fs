@@ -253,7 +253,7 @@ type HandshakeOffer =
       Offers: CapabilityOffer list }
 
 type HttpOutcome =
-    | HttpSuccess of status: int * body: string
+    | HttpSuccess of status: int * body: string * headers: Map<string, string>
     | HttpFailure of reason: string * status: int option
     | HttpCancelled
     | HttpOutcomeUnknown of reason: string
@@ -312,7 +312,11 @@ module Wire =
     let private httpOutcome (outcome: JsonNode option) =
         match JsonIn.child "kind" outcome |> JsonIn.str with
         | Some "Success" ->
-            HttpSuccess(JsonIn.child "status" outcome |> JsonIn.int |> Option.defaultValue 0, JsonIn.child "body" outcome |> JsonIn.text |> Option.defaultValue "")
+            let headers =
+                match JsonIn.child "headers" outcome with
+                | Some(:? JsonObject as o) -> o |> Seq.choose (fun (KeyValue(k, v)) -> JsonIn.ofNullable v |> JsonIn.str |> Option.map (fun x -> k.ToLowerInvariant(), x)) |> Map.ofSeq
+                | _ -> Map.empty
+            HttpSuccess(JsonIn.child "status" outcome |> JsonIn.int |> Option.defaultValue 0, JsonIn.child "body" outcome |> JsonIn.text |> Option.defaultValue "", headers)
         | Some "Failure" ->
             HttpFailure(JsonIn.child "reason" outcome |> JsonIn.str |> Option.defaultValue "network", JsonIn.child "status" outcome |> JsonIn.int)
         | Some "Cancelled" -> HttpCancelled
@@ -398,7 +402,11 @@ module Wire =
                 [ "kind", JStr "Http"; "correlationId", JStr c; "method", JStr m; "url", JStr url ]
                 @ (if headers.IsEmpty then [] else [ "headers", JObj(headers |> List.map (fun (k, v) -> k, JStr v)) ])
                 @ (match body with Some b -> [ "body", JStr b ] | None -> [])
-                @ [ "timeoutMs", JNum 20000L; "response", JStr "text" ]
+                @ [ "timeoutMs", JNum 30000L; "response", JStr "text" ]
+                @ (if url.StartsWith(CausaGitHub.apiBase + "/", StringComparison.Ordinal) then
+                       [ "credentials", JStr "omit"
+                         "responseHeaders", JArr [ JStr "retry-after"; JStr "x-ratelimit-remaining"; JStr "x-ratelimit-reset" ] ]
+                   else [])
             )
         | ClipboardWrite(c, text) -> JObj [ "kind", JStr "Clipboard"; "correlationId", JStr c; "operation", JStr "writeText"; "text", JStr text ]
         | Navigate(c, url) -> JObj [ "kind", JStr "Navigation"; "operation", JStr "push"; "correlationId", JStr c; "url", JStr url ]
@@ -729,6 +737,16 @@ type FactoryState =
     | FactoryLoaded of FactoryInfo
     | FactoryFailed of reason: string
 
+/// What a finished provider program produced.
+type RemoteResult =
+    | PublishDone of CausaGitHub.Outcome
+    | ResolveDone of CausaGitHub.Outcome
+    | RecoverDone of Result<(string * Result<CausaGitHub.Confirmed option, CausaGitHub.Fault>) list, CausaGitHub.Fault>
+
+/// A provider program waiting for its next answer (a continuation, compared by reference).
+[<ReferenceEquality>]
+type Resume = { Resume: CausaGitHub.Reply -> CausaGitHub.Remote<RemoteResult> }
+
 /// What an outstanding correlation id was for.
 type PendingOp =
     | LoadSettings
@@ -745,11 +763,14 @@ type PendingOp =
     | SaveConflictCopy
     | SaveIndex
     | SaveSettings
-    | SaveSync
-    /// The remote identity travels with the request: a result for another
-    /// repository (settings changed meanwhile) is never adopted (D-009).
-    | RemoteWrite of InvestigationId * remote: string
-    | RemoteRead of InvestigationId * remote: string
+    /// The provider record of one investigation (CAUSA-PROV-25), adapter-private.
+    | LoadRecord of InvestigationId
+    | SaveRecord of InvestigationId
+    /// One step of a provider program. The workspace identity travels with it: an answer for another workspace
+    /// (settings changed meanwhile) is never adopted (D-009).
+    | RemoteStep of InvestigationId option * workspace: string * Resume
+    /// The durable step-7 marker of a publish; the PATCH is sent only once it is stored.
+    | KeepMarker of InvestigationId option * workspace: string * Resume
     | Subscribe
     | NavigationAck
     | CopyLink of url: string
@@ -789,11 +810,12 @@ type AppState =
       /// origin + path of the page, for absolute share links (never carries a query).
       BaseUrl: string
       Factory: FactoryState
-      Sync: Map<InvestigationId, SyncStatus>
-      RemoteSha: Map<InvestigationId, string>
-      /// Event count included in the write in flight (to detect changes made meanwhile).
-      SentLength: Map<InvestigationId, int>
-      SyncDetail: Map<InvestigationId, string>
+      /// GitHub provider records (CAUSA-PROV-25), by investigation; a record for another workspace does not count.
+      Records: Map<InvestigationId, CausaGitHub.Record>
+      /// One provider program in flight per client (CAUSA-PROV-20 §7).
+      Busy: bool
+      /// Investigations whose publish was tried in this sync cycle without confirmation; retried on the next trigger.
+      Attempted: Set<InvestigationId>
       Remote: RemoteConfig option
       /// Index entries as read from this device, kept even when their investigation
       /// could not be decoded, so a save never drops them (R10.7).
@@ -803,8 +825,6 @@ type AppState =
       IndexUnreadable: bool
       /// A change happened before the initial load finished; the index is written once it has.
       IndexDirty: bool
-      /// The remote identity the saved sync statuses were confirmed against.
-      SyncRemote: string option
       Demo: DemoState
       Formats: Map<InvestigationId, StoredFormat>
       /// The aggregate version this window last read from, or wrote to, the device copy.
@@ -831,16 +851,14 @@ let initial: AppState =
       LifecycleNegotiated = false
       BaseUrl = ""
       Factory = FactoryNotRequested
-      Sync = Map.empty
-      RemoteSha = Map.empty
-      SentLength = Map.empty
-      SyncDetail = Map.empty
+      Records = Map.empty
+      Busy = false
+      Attempted = Set.empty
       Remote = None
       StoredIndex = Map.empty
       Unreadable = Map.empty
       IndexUnreadable = false
       IndexDirty = false
-      SyncRemote = None
       Demo = DemoLoading
       Formats = Map.empty
       StoredVersion = Map.empty
@@ -871,7 +889,6 @@ module private Ids =
 module Storage =
     let indexKey = "rci:index"
     let settingsKey = "rci:settings"
-    let syncKey = "rci:sync"
     let investigationKey (iid: InvestigationId) = "rci:inv:" + Id.text iid
     let conflictKey (iid: InvestigationId) (version: int64) = "causa:conflict:" + Id.text iid + ":" + string version
 // ---------------------------------------------------------------------------
@@ -980,66 +997,16 @@ let private storageSet (op: PendingOp) (key: string) (value: string) (st: AppSta
     let c, st = Ids.correlation st op
     st, [ StorageSet(c, key, value) ]
 
-let private syncCode (status: SyncStatus) =
-    match status with
-    | LocalOnly -> "local"
-    | Synced -> "synced"
-    | Conflicted _ -> "conflicted"
-    // Sending and unknown outcomes restart as pending: never as synced (R10.6, R10.7).
-    | Pending | Sending | SyncUnknown -> "pending"
-
-/// Which repository and branch a sync status refers to.
-let remoteIdentity (config: RemoteConfig) = config.Owner + "/" + config.Repository + "@" + config.Branch
+/// Which workspace (repository, branch and run) provider records refer to.
+let remoteIdentity (config: RemoteConfig) =
+    CausaGitHub.Workspace.identity { Owner = config.Owner; Repo = config.Repository; Branch = config.Branch; RunId = config.RunId }
 
 let private currentIdentity (st: AppState) = st.Remote |> Option.map remoteIdentity |> Option.defaultValue ""
 
-/// "rci:sync": per investigation, the remote status and last known blob sha,
-/// plus the repository they were confirmed against.
-let syncDocument (st: AppState) : string =
-    JsonOut.render (
-        JObj
-            [ "schema", JStr "rci.sync/v1"
-              "remote", JStr(currentIdentity st)
-              "investigations",
-              JObj
-                  [ for KeyValue(iid, status) in st.Sync ->
-                        Id.text iid,
-                        JObj(
-                            [ "status", JStr(syncCode status) ]
-                            @ (match status with Conflicted d -> [ "detail", JStr d ] | _ -> [])
-                            @ (match Map.tryFind iid st.RemoteSha with Some sha -> [ "sha", JStr sha ] | None -> [])
-                        ) ] ]
-    )
-
-let private readSync (text: string) (st: AppState) : AppState =
-    let root = JsonIn.parse text
-    let st = { st with SyncRemote = JsonIn.child "remote" root |> JsonIn.str }
-    match JsonIn.child "investigations" root with
-    | Some(:? JsonObject as o) ->
-        o
-        |> Seq.fold
-            (fun (s: AppState) (KeyValue(key, value)) ->
-                match Id.tryParse<InvestigationTag> key, JsonIn.ofNullable value with
-                | Some _, None -> s
-                | Some iid, n ->
-                    let status =
-                        match JsonIn.child "status" n |> JsonIn.str with
-                        | Some "synced" -> Synced
-                        | Some "conflicted" -> Conflicted(JsonIn.child "detail" n |> JsonIn.str |> Option.defaultValue "Remote history differs.")
-                        | Some "local" -> LocalOnly
-                        | _ -> Pending
-                    let sha = JsonIn.child "sha" n |> JsonIn.str
-                    { s with
-                        Sync = s.Sync |> Map.add iid status
-                        RemoteSha = match sha with Some v -> s.RemoteSha |> Map.add iid v | None -> s.RemoteSha }
-                | None, _ -> s)
-            st
-    | _ -> st
-
-/// "rci:settings" holds the repository only. The access token is never
-/// persisted: it lives in engine memory for this session (R11.3).
+/// "rci:settings" holds the workspace only. The access token is never
+/// persisted: it lives in engine memory for this session (R11.3, CAUSA-PROV-36).
 let settingsDocument (config: RemoteConfig) : string =
-    JsonOut.render (JObj [ "owner", JStr config.Owner; "repository", JStr config.Repository; "branch", JStr config.Branch ])
+    JsonOut.render (JObj [ "owner", JStr config.Owner; "repository", JStr config.Repository; "branch", JStr config.Branch; "runId", JStr config.RunId ])
 
 let private readSettings (text: string) : RemoteConfig option =
     let root = JsonIn.parse text
@@ -1047,51 +1014,10 @@ let private readSettings (text: string) : RemoteConfig option =
     match field "owner", field "repository" with
     | Some owner, Some repo when owner <> "" && repo <> "" ->
         // A token stored by an older build is ignored, never adopted.
-        Some { Owner = owner; Repository = repo; Branch = field "branch" |> Option.defaultValue "main"; Token = "" }
+        Some { Owner = owner; Repository = repo; Branch = field "branch" |> Option.defaultValue "main"; RunId = field "runId" |> Option.defaultValue ""; Token = "" }
     | _ -> None
 
 let private hasToken (st: AppState) = st.Remote |> Option.exists (fun r -> r.Token <> "")
-
-/// Reset every investigation's remote state: nothing confirmed for another
-/// repository (or none) counts here (D-009/I-18).
-let private resetRemoteState (st: AppState) : AppState =
-    let status = if st.Remote.IsSome then Pending else LocalOnly
-    { st with
-        Sync = st.Investigations |> Map.map (fun _ _ -> status)
-        RemoteSha = Map.empty
-        SyncDetail = Map.empty
-        SentLength = Map.empty
-        SyncRemote = Some(currentIdentity st) }
-
-let private saveSyncState (st: AppState) = storageSet SaveSync Storage.syncKey (syncDocument st) st
-
-let private httpOf (c: string) (request: HttpRequest) = HttpCall(c, request.Method, request.Url, request.Headers, request.Body)
-
-let private put (iid: InvestigationId) (sha: string option) (st: AppState) : AppState * Effect list =
-    match st.Remote, Map.tryFind iid st.Investigations with
-    | Some config, Some events ->
-        let title = investigationOf st iid |> Option.map (fun i -> i.Title.Value) |> Option.defaultValue "investigation"
-        let request = GitHub.writeRequest config iid (EventCodec.encode iid events) sha ("Root-cause investigation: " + Words.clip 60 title + " (version " + string events.Length + ")")
-        let c, st = Ids.correlation st (RemoteWrite(iid, remoteIdentity config))
-        { st with Sync = st.Sync |> Map.add iid Sending; SentLength = st.SentLength |> Map.add iid events.Length }, [ httpOf c request ]
-    | _ -> st, []
-
-/// Send a pending investigation when online and configured; otherwise it stays pending.
-let private sendIfReady (iid: InvestigationId) (st: AppState) : AppState * Effect list =
-    match st.Remote, Map.tryFind iid st.Sync with
-    | Some config, Some Pending when st.Online && config.Token <> "" && Map.tryFind iid st.Formats = Some LegacyFormat ->
-        match Map.tryFind iid st.RemoteSha with
-        | Some sha -> put iid (Some sha) st
-        | None ->
-            let c, st = Ids.correlation st (RemoteRead(iid, remoteIdentity config))
-            { st with Sync = st.Sync |> Map.add iid Sending; SentLength = st.SentLength |> Map.add iid 0 }, [ httpOf c (GitHub.readRequest config iid) ]
-    | _ -> st, []
-
-let private sendAllPending (st: AppState) : AppState * Effect list =
-    st.Sync
-    |> Map.toList
-    |> List.filter (fun (_, s) -> s = Pending)
-    |> List.fold (fun (s, fx) (iid, _) -> let s, more = sendIfReady iid s in s, fx @ more) (st, [])
 
 /// After every successful command: save locally (investigation + index), then mark
 /// the remote copy pending and try to send it (R10.5, R10.6).
@@ -1119,6 +1045,283 @@ let private fileSetOf (st: AppState) (iid: InvestigationId) : Result<Causa.Contr
     | None, _ -> Causa.Contract.CausaError.fail Causa.Contract.Codes.schemaViolation "the Causa storage schemas are not loaded, so nothing can be verified or saved"
     | _, None -> Causa.Contract.CausaError.fail Causa.Contract.Codes.pathInvalid "no such investigation on this device"
 
+
+// ---------------------------------------------------------------------------
+// GitHub provider plumbing (CAUSA-PROV-13…26): a provider program runs one
+// step per effect; its continuation waits in Pending until the answer arrives.
+// ---------------------------------------------------------------------------
+
+let private stamp (st: AppState) = st.Now.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture)
+
+let private workspaceOf (cfg: RemoteConfig) : CausaGitHub.Workspace =
+    { Owner = cfg.Owner; Repo = cfg.Repository; Branch = cfg.Branch; RunId = cfg.RunId }
+
+/// The provider record of an investigation for the configured workspace; a record for another workspace does not count.
+let private recordOf (st: AppState) (iid: InvestigationId) : CausaGitHub.Record option =
+    match st.Remote, Map.tryFind iid st.Records with
+    | Some cfg, Some r when CausaGitHub.Workspace.identity r.Workspace = remoteIdentity cfg -> Some r
+    | _ -> None
+
+/// CAUSA-PROV-31 §4: text that leaves the adapter never carries the token.
+let private redact (st: AppState) (text: string) =
+    match st.Remote with
+    | Some cfg when cfg.Token <> "" -> text.Replace(cfg.Token, "[REDACTED]")
+    | _ -> text
+
+let private saveRecord (iid: InvestigationId) (r: CausaGitHub.Record) (st: AppState) : AppState * Effect list =
+    storageSet (SaveRecord iid) (CausaGitHub.Record.key (Id.text iid)) (CausaGitHub.Record.encode r) { st with Records = st.Records |> Map.add iid r }
+
+/// CAUSA-PROV-07 §1: every remote copy passes all 17 reader stages before it is used.
+let private verifier (st: AppState) (directoryId: string) (files: Causa.Contract.InvestigationFiles) : Result<unit, Causa.Contract.CausaError> =
+    match schemasOf st with
+    | None -> Causa.Contract.CausaError.fail Causa.Contract.Codes.schemaViolation "the Causa storage schemas are not loaded"
+    | Some _ when files.DirectoryId <> directoryId -> Causa.Contract.CausaError.fail Causa.Contract.Codes.pathInvalid "the files belong to another directory"
+    | Some schemas -> Causa.Contract.Store.validate schemas files |> Result.map ignore
+
+let private sessionOf (cfg: RemoteConfig) (st: AppState) : CausaGitHub.Session =
+    { Workspace = workspaceOf cfg
+      Token = cfg.Token
+      ApiBase = CausaGitHub.apiBase
+      Nonce = st.Entropy.ToString("N").Substring(0, 12) + "-" + string st.NextCorrelation }
+
+let private sameFiles (a: Causa.Contract.InvestigationFiles) (b: Causa.Contract.InvestigationFiles) =
+    a.Events = b.Events && a.Manifest = b.Manifest && a.Snapshot = b.Snapshot
+
+/// The frozen original's exact files, published first for a working copy (CAUSA-PROV-11).
+let private frozenFilesOf (st: AppState) (iid: InvestigationId) =
+    match demoOf st iid, schemasOf st, formatOf st iid with
+    | Some d, Some schemas, CausaFormat(Some _) -> Causa.Contract.Store.build schemas d.Loaded.Events |> Result.toOption |> Option.map fst
+    | _ -> None
+
+/// The state shown: a confirmed record whose investigation changed since is pending again (CAUSA-PROV-22 §3).
+let private shownState (st: AppState) (iid: InvestigationId) (r: CausaGitHub.Record) =
+    match r.Status, r.Confirmed, fileSetOf st iid with
+    | CausaGitHub.SyncConfirmed, Some c, Ok(files, _) when not (sameFiles c.Files files) -> CausaGitHub.SyncPending
+    | CausaGitHub.SyncConfirmed, None, _ -> CausaGitHub.SyncPending
+    | state, _, _ -> state
+
+type private Work =
+    | PublishFiles of Causa.Contract.InvestigationFiles * workingCopyOf: string option
+    | ResolveFiles of Causa.Contract.InvestigationFiles
+
+let private workFor (st: AppState) (iid: InvestigationId) (r: CausaGitHub.Record) : Work option =
+    match r.Status with
+    | CausaGitHub.SyncUnknown -> r.InFlight |> Option.map ResolveFiles
+    | CausaGitHub.SyncConflicted | CausaGitHub.SyncRefused | CausaGitHub.SyncFailed -> None
+    | CausaGitHub.SyncPending | CausaGitHub.SyncSending | CausaGitHub.SyncConfirmed ->
+        match fileSetOf st iid with
+        | Error _ -> None
+        | Ok(files, _) ->
+            match r.Confirmed, frozenFilesOf st iid with
+            | Some c, _ when sameFiles c.Files files -> None
+            | None, Some frozen when not (sameFiles frozen files) -> Some(PublishFiles(frozen, Some "causa-demo-v1"))
+            | None, Some _ -> Some(PublishFiles(files, Some "causa-demo-v1"))
+            | _ -> Some(PublishFiles(files, None))
+
+let private lineCount (bytes: byte[]) = bytes |> Array.sumBy (fun b -> if b = 10uy then 1 else 0)
+
+let private attemptOf (st: AppState) (session: CausaGitHub.Session) (iid: InvestigationId) (r: CausaGitHub.Record) (files: Causa.Contract.InvestigationFiles) (message: string) : CausaGitHub.Attempt =
+    { Session = session
+      InvestigationId = Id.text iid
+      Base = r.Confirmed
+      Files = files
+      Message = message
+      Now = stamp st
+      Verify = verifier st (Id.text iid)
+      Record =
+        fun marker ->
+            CausaGitHub.Record.key (Id.text iid),
+            CausaGitHub.Record.encode { r with Status = CausaGitHub.SyncSending; InFlight = Some files; Publish = Some marker } }
+
+let private applyOutcome (iid: InvestigationId) (outcome: CausaGitHub.Outcome) (st: AppState) : AppState * Effect list =
+    match recordOf st iid with
+    | None -> st, []
+    | Some r ->
+        let at = stamp st
+        let say = redact st
+        let move state cause detail (x: CausaGitHub.Record) = CausaGitHub.Record.transition state at cause (say detail) x
+        let r =
+            match outcome with
+            | CausaGitHub.Outcome.Confirmed c ->
+                { r with Confirmed = Some c; InFlight = None; Publish = None; Remote = None; LastError = None }
+                |> move CausaGitHub.SyncConfirmed "confirmed" ("commit " + c.Commit.Substring(0, min 7 c.Commit.Length) + " re-read by SHA")
+            | CausaGitHub.Outcome.BackToPending f ->
+                { r with InFlight = None; Publish = None; LastError = Some(say (CausaGitHub.Fault.describe f)) } |> move CausaGitHub.SyncPending f.Cause f.Detail
+            | CausaGitHub.Outcome.Failed f ->
+                { r with InFlight = None; Publish = None; LastError = Some(say (CausaGitHub.Fault.describe f)) } |> move CausaGitHub.SyncFailed f.Cause f.Detail
+            | CausaGitHub.Outcome.Unknown(cause, detail) -> { r with LastError = Some(say detail) } |> move CausaGitHub.SyncUnknown cause detail
+            | CausaGitHub.Outcome.Conflicted(cause, detail, remote) ->
+                { r with InFlight = None; Publish = None; Remote = remote; LastError = Some(say (cause + ": " + detail)) } |> move CausaGitHub.SyncConflicted cause detail
+            | CausaGitHub.Outcome.Refused(cause, detail) ->
+                { r with InFlight = None; Publish = None; LastError = Some(say (cause + ": " + detail)) } |> move CausaGitHub.SyncRefused cause detail
+        saveRecord iid r st
+
+/// Make GitHub's verified copy the investigation on this device (the person chose it, or it was recovered).
+/// What this device held is kept as a separate conflict copy, never silently dropped.
+let private adoptConfirmed (iid: InvestigationId) (c: CausaGitHub.Confirmed) (origin: string option) (st: AppState) : AppState * Effect list =
+    match schemasOf st |> Option.map (fun schemas -> Causa.Contract.Store.validate schemas c.Files) with
+    | Some(Ok loaded) ->
+        let previous = fileSetOf st iid |> Result.toOption |> Option.map fst |> Option.filter (fun f -> not (sameFiles f c.Files))
+        let st =
+            { st with
+                Investigations = st.Investigations |> Map.add iid loaded.Events
+                Formats = st.Formats |> Map.add iid (CausaFormat origin)
+                Local = st.Local |> Map.add iid Saving
+                Unreadable = st.Unreadable |> Map.remove iid
+                SaveConflicts = st.SaveConflicts |> Map.remove iid }
+        let c1, st = Ids.correlation st (SaveFileSet(iid, loaded.State.Version))
+        let st, keep =
+            match previous with
+            | Some f ->
+                let c2, st = Ids.correlation st SaveConflictCopy
+                st, [ StorageSet(c2, Storage.conflictKey iid (int64 (lineCount f.Events)), CausaData.encodeFileSet origin f) ]
+            | None -> st, []
+        let r =
+            match st.Remote, recordOf st iid with
+            | _, Some r -> r
+            | Some cfg, None -> CausaGitHub.Record.create (workspaceOf cfg) (Id.text iid)
+            | None, None -> CausaGitHub.Record.create { Owner = ""; Repo = ""; Branch = ""; RunId = "" } (Id.text iid)
+        let r =
+            { r with Confirmed = Some c; Remote = None; InFlight = None; Publish = None; LastError = None }
+            |> CausaGitHub.Record.transition CausaGitHub.SyncConfirmed (stamp st) "adopted" ("GitHub's copy at commit " + c.Commit.Substring(0, min 7 c.Commit.Length) + " was adopted")
+        let st, saveR = saveRecord iid r st
+        let st, idx = saveIndex st
+        st, [ StorageSet(c1, Storage.investigationKey iid, CausaData.encodeFileSet origin c.Files) ] @ keep @ saveR @ idx
+    | Some(Error e) -> { st with Notice = "GitHub's copy could not be verified and was not used: " + CausaData.describe e }, []
+    | None -> st, []
+
+let private originOf (st: AppState) (iid: InvestigationId) =
+    demoOf st iid |> Option.map (fun d -> CausaData.Pins.tag + "/" + d.ScenarioKey)
+
+let private recovered (result: Result<(string * Result<CausaGitHub.Confirmed option, CausaGitHub.Fault>) list, CausaGitHub.Fault>) (st: AppState) : AppState * Effect list =
+    match result with
+    | Error f -> { st with Notice = "The run on GitHub could not be listed: " + redact st (CausaGitHub.Fault.describe f) }, []
+    | Ok items ->
+        let st, fx, count, problems =
+            items
+            |> List.fold
+                (fun (s, fx, n, problems) (name, r) ->
+                    match Id.tryParse<InvestigationTag> name, r with
+                    | Some iid, Ok(Some c) when not (s.Investigations.ContainsKey iid) ->
+                        let s, more = adoptConfirmed iid c (originOf s iid) s
+                        s, fx @ more, n + 1, problems
+                    | _, Ok _ -> s, fx, n, problems
+                    | _, Error f -> s, fx, n, problems @ [ name + " (" + f.Cause + ")" ])
+                (st, [], 0, [])
+        let notice =
+            string count + " investigation(s) recovered from GitHub run " + (st.Remote |> Option.map (fun r -> r.RunId) |> Option.defaultValue "")
+            + (if problems.IsEmpty then "." else "; not loaded: " + String.Join(", ", problems) + ".")
+        { st with Notice = notice }, fx
+
+let private recoverProgram (st: AppState) (session: CausaGitHub.Session) : CausaGitHub.Remote<RemoteResult> =
+    let have = st.Investigations |> Map.toList |> List.map (fst >> Id.text) |> Set.ofList
+    CausaGitHub.list session
+    |> CausaGitHub.Remote.bind (fun listed ->
+        match listed with
+        | Error f -> CausaGitHub.Done(RecoverDone(Error f))
+        | Ok entries ->
+            let invalid =
+                entries
+                |> List.choose (fun (name, ok) ->
+                    match ok with
+                    | Error code -> Some(name, Error({ Kind = CausaGitHub.PathInvalid; Phase = "R"; Status = None; Cause = code; Detail = name + " is not an investigation directory" }: CausaGitHub.Fault))
+                    | Ok() -> None)
+            let wanted = entries |> List.filter (fun (name, ok) -> ok = Ok() && not (have.Contains name)) |> List.map fst
+            let rec loadAll acc ids =
+                match ids with
+                | [] -> CausaGitHub.Done(RecoverDone(Ok(invalid @ List.rev acc)))
+                | id :: rest -> CausaGitHub.load session id (verifier st id) |> CausaGitHub.Remote.bind (fun r -> loadAll ((id, r) :: acc) rest)
+            loadAll [] wanted)
+
+let private replyOf (outcome: HttpOutcome) : CausaGitHub.Reply =
+    match outcome with
+    | HttpSuccess(status, body, headers) -> CausaGitHub.Answered(status, body, headers)
+    | HttpFailure(_, Some status) -> CausaGitHub.Answered(status, "", Map.empty)
+    | HttpFailure(reason, None) -> CausaGitHub.NotSent reason
+    | HttpCancelled -> CausaGitHub.NotSent "cancelled"
+    | HttpOutcomeUnknown reason -> CausaGitHub.Unanswered reason
+
+/// Settings changed while a program was in flight: its answers are dropped; a publish that may have reached the
+/// PATCH is unknown, never confirmed (T19/T20 applied in memory).
+let private abandon (st: AppState) =
+    { st with Busy = false; Records = st.Records |> Map.map (fun _ r -> CausaGitHub.Record.recover (stamp st) r) }
+
+let rec private advance (iid: InvestigationId option) (identity: string) (program: CausaGitHub.Remote<RemoteResult>) (st: AppState) : AppState * Effect list =
+    match program with
+    | CausaGitHub.Done result -> finish iid result { st with Busy = false }
+    | CausaGitHub.Next(CausaGitHub.Call request, k) ->
+        let c, st = Ids.correlation st (RemoteStep(iid, identity, { Resume = k }))
+        { st with Busy = true }, [ HttpCall(c, request.Method, request.Url, request.Headers, request.Body) ]
+    | CausaGitHub.Next(CausaGitHub.Keep(key, value), k) ->
+        let c, st = Ids.correlation st (KeepMarker(iid, identity, { Resume = k }))
+        let st =
+            match iid, CausaGitHub.Record.decode value with
+            | Some i, Ok r -> { st with Records = st.Records |> Map.add i r }
+            | _ -> st
+        { st with Busy = true }, [ StorageSet(c, key, value) ]
+
+and private finish (iid: InvestigationId option) (result: RemoteResult) (st: AppState) : AppState * Effect list =
+    match result, iid with
+    | PublishDone outcome, Some i ->
+        let st, fx = applyOutcome i outcome st
+        let st, more =
+            match outcome with
+            // An ambiguous PATCH is resolved at once, by SHA reads only (CAUSA-PROV-24).
+            | CausaGitHub.Outcome.Unknown _ -> startResolve i st
+            | CausaGitHub.Outcome.Confirmed _ -> syncNext st
+            | _ -> syncNext { st with Attempted = st.Attempted |> Set.add i }
+        st, fx @ more
+    | ResolveDone outcome, Some i ->
+        let st, fx = applyOutcome i outcome st
+        let st = match outcome with CausaGitHub.Outcome.Confirmed _ -> st | _ -> { st with Attempted = st.Attempted |> Set.add i }
+        let st, more = syncNext st
+        st, fx @ more
+    | RecoverDone r, _ ->
+        let st, fx = recovered r st
+        let st, more = syncNext st
+        st, fx @ more
+    | _ -> st, []
+
+/// One provider program at a time: unknown outcomes are resolved before anything pending is sent (CAUSA-PROV-24 §5).
+and private syncNext (st: AppState) : AppState * Effect list =
+    match st.Remote, schemasOf st with
+    | Some cfg, Some _ when not st.Busy && st.Loaded && st.Online && cfg.Token <> "" && Result.isOk (CausaGitHub.Workspace.check (workspaceOf cfg)) ->
+        let candidates =
+            st.Investigations
+            |> Map.toList
+            |> List.map fst
+            |> List.filter (fun i -> formatOf st i <> LegacyFormat && not (st.Attempted.Contains i))
+            |> List.choose (fun i ->
+                let r = recordOf st i |> Option.defaultValue (CausaGitHub.Record.create (workspaceOf cfg) (Id.text i))
+                workFor st i r |> Option.map (fun w -> i, r, w))
+            |> List.sortBy (fun (_, _, w) -> match w with ResolveFiles _ -> 0 | PublishFiles _ -> 1)
+        match candidates with
+        | [] -> st, []
+        | (i, r, work) :: _ -> begin' cfg i r work st
+    | _ -> st, []
+
+and private startResolve (iid: InvestigationId) (st: AppState) : AppState * Effect list =
+    match st.Remote, recordOf st iid with
+    | Some cfg, Some r when r.Status = CausaGitHub.SyncUnknown && r.InFlight.IsSome && cfg.Token <> "" && st.Online ->
+        begin' cfg iid r (ResolveFiles r.InFlight.Value) st
+    | _ -> syncNext { st with Attempted = st.Attempted |> Set.add iid }
+
+and private begin' (cfg: RemoteConfig) (iid: InvestigationId) (r: CausaGitHub.Record) (work: Work) (st: AppState) : AppState * Effect list =
+    let session = sessionOf cfg st
+    let identity = remoteIdentity cfg
+    match work with
+    | ResolveFiles files -> advance (Some iid) identity (CausaGitHub.resolve (attemptOf st session iid r files "") |> CausaGitHub.Remote.map ResolveDone) st
+    | PublishFiles(files, copyOf) ->
+        let from = r.Confirmed |> Option.map (fun c -> lineCount c.Files.Events) |> Option.defaultValue 0
+        let upTo = lineCount files.Events
+        let message = CausaGitHub.commitMessage session.Workspace (Id.text iid) (int64 from) (int64 upTo) (upTo - from) copyOf
+        let r =
+            { r with InFlight = Some files; Publish = None; LastError = None }
+            |> CausaGitHub.Record.transition CausaGitHub.SyncSending (stamp st) "publish" ("publishing version " + string upTo)
+        let st, save = saveRecord iid r st
+        let st, fx = advance (Some iid) identity (CausaGitHub.publish (attemptOf st session iid r files message) |> CausaGitHub.Remote.map PublishDone) st
+        st, save @ fx
+
 let private persistAfterChange (iid: InvestigationId) (st: AppState) : AppState * Effect list =
     match Map.tryFind iid st.Investigations with
     | None -> st, []
@@ -1128,58 +1331,39 @@ let private persistAfterChange (iid: InvestigationId) (st: AppState) : AppState 
         let c, st = Ids.correlation st (CheckBeforeSave iid)
         let saveInv = [ StorageGet(c, Storage.investigationKey iid) ]
         let st, saveIndex = saveIndex st
-        match st.Remote with
-        | None -> st, saveInv @ saveIndex
-        | Some _ ->
-            let st =
-                match Map.tryFind iid st.Sync with
-                | Some Sending -> st // the write in flight is followed by another once it lands
-                | _ -> { st with Sync = st.Sync |> Map.add iid Pending }
-            let st, send = sendIfReady iid st
-            let st, saveSync = saveSyncState st
-            st, saveInv @ saveIndex @ saveSync @ send
+        // A change is a sync trigger (CAUSA-PROV-20 §5); a program in flight is followed by the next once it ends.
+        let st, sync = syncNext { st with Attempted = st.Attempted |> Set.remove iid }
+        st, saveInv @ saveIndex @ sync
 
 let private saveSettings (config: RemoteConfig option) (st: AppState) : AppState * Effect list =
-    let previous = st.Remote
-    let st = { st with Remote = config }
+    // Records stay bound to the workspace they were made for (CAUSA-PROV-01 §3); nothing is moved or deleted.
+    let st = (if st.Busy then abandon st else st) |> fun s -> { s with Remote = config; Attempted = Set.empty }
     match config with
     | None ->
         let c, st = Ids.correlation st SaveSettings
-        let st = resetRemoteState st
-        let st, saveSync = saveSyncState st
-        st, [ StorageRemove(c, Storage.settingsKey) ] @ saveSync
+        st, [ StorageRemove(c, Storage.settingsKey) ]
     | Some cfg ->
         let st, save = storageSet SaveSettings Storage.settingsKey (settingsDocument cfg) st
-        let sameRemote = previous |> Option.exists (fun p -> remoteIdentity p = remoteIdentity cfg && p.Token <> "")
-        let st =
-            if sameRemote then
-                // Same repository and branch: what GitHub confirmed still holds; the rest is pending.
-                { st with
-                    Sync =
-                        st.Investigations
-                        |> Map.fold
-                            (fun m iid _ ->
-                                match Map.tryFind iid m with
-                                | Some Synced | Some Sending | Some(Conflicted _) -> m
-                                | _ -> Map.add iid Pending m)
-                            st.Sync }
-            else resetRemoteState st
-        let st, send = sendAllPending st
-        let st, saveSync = saveSyncState st
-        st, save @ saveSync @ send
+        let st, sync = syncNext st
+        st, save @ sync
 
+/// "Check GitHub again": a failed record returns to pending (T18), an unknown one is resolved, then a sync cycle runs.
 let private retrySync (st: AppState) : AppState * Effect list =
-    match currentId st with
-    | Some iid ->
-        // Re-read GitHub before writing again: a conflict is never overwritten blindly.
-        let st =
-            match Map.tryFind iid st.Sync with
-            | Some(Conflicted _) | Some SyncUnknown | Some Pending -> { st with Sync = st.Sync |> Map.add iid Pending; RemoteSha = st.RemoteSha |> Map.remove iid; SyncDetail = st.SyncDetail |> Map.remove iid }
-            | _ -> st
-        let st, send = sendIfReady iid st
-        let st, save = saveSyncState st
-        { st with Notice = (if send.IsEmpty then "Cannot reach GitHub now; changes stay pending." else "Checking GitHub…") }, save @ send
-    | None -> st, []
+    match currentId st, st.Remote with
+    | Some iid, Some cfg ->
+        let st, save =
+            match recordOf st iid with
+            | Some r when r.Status = CausaGitHub.SyncFailed ->
+                saveRecord iid (CausaGitHub.Record.transition CausaGitHub.SyncPending (stamp st) "retry" "retried by the person after a failure" r) st
+            | _ -> st, []
+        let st, sync = syncNext { st with Attempted = Set.empty }
+        let notice =
+            if not st.Online then "Offline: changes stay on this device and are sent when the connection returns."
+            elif cfg.Token = "" then "Enter your access token in GitHub settings first; it is kept in memory for this session only."
+            elif sync.IsEmpty && not st.Busy then "Nothing to send to GitHub now."
+            else "Checking GitHub…"
+        { st with Notice = notice }, save @ sync
+    | _ -> st, []
 
 // ---------------------------------------------------------------------------
 // Commands: the only path is Decide.execute (stop-the-line rule)
@@ -1374,13 +1558,20 @@ let private createWorkingCopy (key: string option) (st: AppState) : AppState * E
     | None -> st, []
 
 let private settingsFromDrafts (st: AppState) : RemoteConfig option =
-    match optDraft st "setOwner", optDraft st "setRepo", optDraft st "setToken" with
+    // The run is kept across saves; a first save chooses one (CAUSA-PROV-02).
+    let runId =
+        st.Remote
+        |> Option.map (fun r -> r.RunId)
+        |> Option.filter CausaGitHub.Workspace.runIdValid
+        |> Option.defaultWith (fun () -> CausaGitHub.Workspace.newRunId "demo" st.Now st.Entropy)
+    let branch = (optDraft st "setBranch" |> Option.orElse (st.Remote |> Option.map (fun r -> r.Branch)) |> Option.defaultValue "main").Trim()
+    match optDraft st "setOwner" |> Option.orElse (st.Remote |> Option.map (fun r -> r.Owner)), optDraft st "setRepo" |> Option.orElse (st.Remote |> Option.map (fun r -> r.Repository)), optDraft st "setToken" with
     | Some owner, Some repo, Some token ->
-        Some { Owner = owner.Trim(); Repository = repo.Trim(); Branch = (optDraft st "setBranch" |> Option.defaultValue "main").Trim(); Token = token.Trim() }
+        Some { Owner = owner.Trim(); Repository = repo.Trim(); Branch = branch; RunId = runId; Token = token.Trim() }
     | Some owner, Some repo, None ->
         // No new token: keep the one held in memory for this session (if any).
         let token = st.Remote |> Option.map (fun r -> r.Token) |> Option.defaultValue ""
-        Some { Owner = owner.Trim(); Repository = repo.Trim(); Branch = (optDraft st "setBranch" |> Option.defaultValue "main").Trim(); Token = token }
+        Some { Owner = owner.Trim(); Repository = repo.Trim(); Branch = branch; RunId = runId; Token = token }
     | _ -> None
 
 /// UI events: field drafts ("f.<field>") and intents.
@@ -1499,13 +1690,40 @@ let private onEvent (name: string) (key: string option) (value: string option) (
     | "settings.save" ->
         match settingsFromDrafts st with
         | Some config ->
-            let notice =
-                if config.Token = "" then "Repository saved. Enter an access token to sync; it is kept in memory for this session only."
-                else "GitHub settings saved. The access token is kept in memory for this session only and is never saved on this device."
-            saveSettings (Some config) ({ st with Notice = notice } |> clear [ "setToken" ])
+            match CausaGitHub.Workspace.check { Owner = config.Owner; Repo = config.Repository; Branch = config.Branch; RunId = config.RunId } with
+            | Error reason -> incomplete st "SaveSettings" "SETTINGS.INVALID" "settings" reason
+            | Ok _ ->
+                let notice =
+                    if config.Token = "" then "Repository saved. Enter an access token to publish; it is kept in memory for this session only."
+                    else "GitHub settings saved. Working copies are published to run " + config.RunId + ". The access token is kept in memory for this session only and is never saved on this device."
+                saveSettings (Some config) ({ st with Notice = notice } |> clear [ "setToken" ])
         | None -> incomplete st "SaveSettings" "SETTINGS.INCOMPLETE" "settings" "Enter the owner, repository and an access token."
     | "settings.clear" -> saveSettings None ({ st with Notice = "GitHub settings removed. Investigations stay on this device." } |> clear [ "setOwner"; "setRepo"; "setBranch"; "setToken" ])
     | "sync.retry" -> retrySync st
+    | "sync.adopt" ->
+        // CAUSA-PROV-29: only on the person's explicit choice; this device's version is kept as a conflict copy.
+        match currentId st with
+        | Some iid ->
+            match recordOf st iid with
+            | Some r when r.Status = CausaGitHub.SyncConflicted && r.Remote.IsSome ->
+                let st, fx = adoptConfirmed iid r.Remote.Value (match formatOf st iid with CausaFormat o -> o | LegacyFormat -> None) st
+                { st with Notice = "GitHub's version is now the investigation on this device. Your previous version was kept as a separate conflict copy." }, fx
+            | _ -> st, []
+        | None -> st, []
+    | "sync.newRun" ->
+        // CAUSA-PROV-29 §5: continue in a new run; nothing in the previous run is changed.
+        match st.Remote with
+        | Some cfg ->
+            let runId = CausaGitHub.Workspace.newRunId "demo" st.Now st.Entropy
+            saveSettings (Some { cfg with RunId = runId }) { st with Notice = "New run " + runId + ": investigations are published there as new copies. Nothing in the previous run was changed." }
+        | None -> st, []
+    | "sync.recover" ->
+        match st.Remote with
+        | Some cfg when cfg.Token <> "" && st.Loaded && not st.Busy && (schemasOf st).IsSome ->
+            let st, fx = advance None (remoteIdentity cfg) (recoverProgram st (sessionOf cfg st)) st
+            { st with Notice = "Reading run " + cfg.RunId + " from GitHub…" }, fx
+        | Some cfg when cfg.Token = "" -> { st with Notice = "Enter your access token first; it is kept in memory for this session only." }, []
+        | _ -> { st with Notice = "GitHub is busy or not configured; try again in a moment." }, []
     | _ ->
         match suffix "hyp." name with
         | Some command -> hypothesisCommand command key st
@@ -1585,14 +1803,13 @@ let private ensureFactory (st: AppState) : AppState * Effect list =
 
 let private finishLoading (st: AppState) =
     let loading =
-        st.Pending |> Map.exists (fun _ op -> match op with LoadIndex | LoadInvestigation _ | LoadSync | LoadSettings | LoadDataset -> true | _ -> false)
+        st.Pending |> Map.exists (fun _ op -> match op with LoadIndex | LoadInvestigation _ | LoadRecord _ | LoadSettings | LoadDataset -> true | _ -> false)
     if loading || st.Loaded then st, []
     else
         let st = { st with Loaded = true }
-        // Statuses confirmed for another repository (or none) do not count now.
-        let st = if st.SyncRemote.IsSome && st.SyncRemote <> Some(currentIdentity st) then resetRemoteState st else st
         let st, index = if st.IndexDirty then saveIndex st else st, []
-        let st, send = sendAllPending st
+        // CAUSA-PROV-26 §4: after a restart, unknown outcomes are resolved before anything pending is sent.
+        let st, send = syncNext st
         st, index @ send
 
 /// Adopt a stored Causa file set only if every reader stage passes; otherwise it is reported and left untouched.
@@ -1656,15 +1873,30 @@ let private onStorage (op: PendingOp) (result: Result<string option, string>) (s
     | SaveConflictCopy, _ -> st, []
     | LoadInvestigation iid, Ok(Some text) when CausaData.isFileSet text -> finishLoading (adoptFileSet iid text st)
     | LoadSettings, Ok(Some text) ->
-        let remote = readSettings text
+        // Settings from before Causa storage have no run: one is chosen now (CAUSA-PROV-02) and saved.
+        let remote =
+            readSettings text
+            |> Option.map (fun cfg -> if CausaGitHub.Workspace.runIdValid cfg.RunId then cfg else { cfg with RunId = CausaGitHub.Workspace.newRunId "demo" st.Now st.Entropy })
         // A token persisted by an older build is erased from this device (R11.3).
         let st, scrub =
-            match remote, JsonIn.child "token" (JsonIn.parse text) with
-            | Some cfg, Some _ -> storageSet SaveSettings Storage.settingsKey (settingsDocument cfg) st
+            match remote, JsonIn.child "token" (JsonIn.parse text), JsonIn.child "runId" (JsonIn.parse text) |> JsonIn.str with
+            | Some cfg, Some _, _ -> storageSet SaveSettings Storage.settingsKey (settingsDocument cfg) st
+            | Some cfg, None, stored when stored <> Some cfg.RunId -> storageSet SaveSettings Storage.settingsKey (settingsDocument cfg) st
             | _ -> st, []
         let st, more = finishLoading { st with Remote = remote }
         st, scrub @ more
-    | LoadSync, Ok(Some text) -> finishLoading (readSync text st)
+    | LoadRecord iid, Ok(Some text) ->
+        match CausaGitHub.Record.decode text with
+        | Ok r ->
+            // T19/T20: a publish interrupted by the restart is pending, or unknown once its PATCH may have been sent.
+            let recovered = CausaGitHub.Record.recover (stamp st) r
+            let st = { st with Records = st.Records |> Map.add iid recovered }
+            let st, save = if recovered.Status <> r.Status then saveRecord iid recovered st else st, []
+            let st, more = finishLoading st
+            st, save @ more
+        | Error e -> finishLoading { st with Notice = "The GitHub sync state of one investigation could not be read (" + e + "); it is left untouched." }
+    | LoadRecord _, (Ok None | Error _) -> finishLoading st
+    | SaveRecord _, Error reason -> { st with Notice = "Saving the GitHub sync state on this device failed (" + reason + ")." }, []
     | LoadIndex, Ok(Some text) ->
         match IndexCodec.decode text with
         | Ok entries ->
@@ -1674,7 +1906,8 @@ let private onStorage (op: PendingOp) (result: Result<string option, string>) (s
                 |> List.fold
                     (fun (s, fx) (e: IndexCodec.Entry) ->
                         let c, s = Ids.correlation s (LoadInvestigation e.Id)
-                        s, fx @ [ StorageGet(c, Storage.investigationKey e.Id) ])
+                        let r, s = Ids.correlation s (LoadRecord e.Id)
+                        s, fx @ [ StorageGet(c, Storage.investigationKey e.Id); StorageGet(r, CausaGitHub.Record.key (Id.text e.Id)) ])
                     (st, [])
             let st, more = finishLoading st
             st, effects @ more
@@ -1690,65 +1923,13 @@ let private onStorage (op: PendingOp) (result: Result<string option, string>) (s
         | Ok _ -> finishLoading { st with Unreadable = st.Unreadable |> Map.add iid "the stored document names a different investigation" }
         | Error e -> finishLoading { st with Unreadable = st.Unreadable |> Map.add iid e }
     | LoadInvestigation iid, Ok None -> finishLoading { st with Unreadable = st.Unreadable |> Map.add iid "its stored document is missing" }
-    | (LoadSettings | LoadSync | LoadIndex), Ok None -> finishLoading st
-    | (LoadSettings | LoadSync | LoadIndex | LoadInvestigation _), Error reason ->
+    | (LoadSettings | LoadIndex), Ok None -> finishLoading st
+    | (LoadSettings | LoadIndex | LoadInvestigation _), Error reason ->
         finishLoading { st with Notice = "This device's storage is unavailable (" + reason + "); work will not survive a reload." }
     | SaveInvestigation iid, Ok _ -> { st with Local = st.Local |> Map.add iid SavedLocally }, []
     | SaveInvestigation iid, Error reason -> { st with Local = st.Local |> Map.add iid (SaveFailed reason) }, []
-    | (SaveIndex | SaveSync | SaveSettings), Error reason -> { st with Notice = "Saving on this device failed (" + reason + ")." }, []
+    | (SaveIndex | SaveSettings), Error reason -> { st with Notice = "Saving on this device failed (" + reason + ")." }, []
     | _ -> st, []
-
-let private onRemoteRead (iid: InvestigationId) (outcome: HttpOutcome) (st: AppState) : AppState * Effect list =
-    let pending detail = { st with Sync = st.Sync |> Map.add iid Pending; SyncDetail = st.SyncDetail |> Map.add iid detail }, []
-    let local = Map.tryFind iid st.Investigations |> Option.defaultValue []
-    let st, effects =
-        match outcome with
-        | HttpSuccess(status, body) ->
-            match GitHub.interpretRead status body with
-            | Ok None -> put iid None { st with RemoteSha = st.RemoteSha |> Map.remove iid }
-            | Ok(Some(sha, text)) ->
-                let st = { st with RemoteSha = st.RemoteSha |> Map.add iid sha }
-                match EventCodec.decode text with
-                | Ok(_, remote) ->
-                    match Reconcile.plan local remote with
-                    | Reconcile.UpToDate -> { st with Sync = st.Sync |> Map.add iid Synced; SyncDetail = st.SyncDetail |> Map.remove iid }, []
-                    | Reconcile.PushLocal -> put iid (Some sha) st
-                    | Reconcile.AdoptRemote when not (History.validate remote).IsEmpty ->
-                        let codes = History.validate remote |> List.map (fun e -> e.Code) |> List.distinct
-                        { st with Sync = st.Sync |> Map.add iid (Conflicted("the copy on GitHub could not be verified (" + Words.join ", " codes + ") and was not adopted")) }, []
-                    | Reconcile.AdoptRemote ->
-                        let st = { st with Investigations = st.Investigations |> Map.add iid remote; Sync = st.Sync |> Map.add iid Synced; Notice = "Newer history from GitHub was loaded." }
-                        let st, a = storageSet (SaveInvestigation iid) (Storage.investigationKey iid) (EventCodec.encode iid remote) st
-                        let st, b = saveIndex st
-                        st, a @ b
-                    | Reconcile.Diverged detail -> { st with Sync = st.Sync |> Map.add iid (Conflicted detail) }, []
-                | Error e -> { st with Sync = st.Sync |> Map.add iid (Conflicted("the copy on GitHub could not be read: " + e)) }, []
-            | Error e -> pending e
-        | HttpFailure _ | HttpCancelled | HttpOutcomeUnknown _ -> pending "GitHub could not be reached; changes stay pending and will be sent when back online."
-    let st, save = saveSyncState st
-    st, effects @ save
-
-let private onRemoteWrite (iid: InvestigationId) (outcome: HttpOutcome) (st: AppState) : AppState * Effect list =
-    let pending detail (s: AppState) = { s with Sync = s.Sync |> Map.add iid Pending; SyncDetail = s.SyncDetail |> Map.add iid detail }, []
-    let st, effects =
-        match outcome with
-        | HttpSuccess(status, body) ->
-            match GitHub.interpretWrite status body with
-            | Written sha ->
-                let st = { st with RemoteSha = st.RemoteSha |> Map.add iid sha; SyncDetail = st.SyncDetail |> Map.remove iid }
-                let sent = Map.tryFind iid st.SentLength |> Option.defaultValue 0
-                let now = Map.tryFind iid st.Investigations |> Option.map List.length |> Option.defaultValue 0
-                if now > sent then sendIfReady iid { st with Sync = st.Sync |> Map.add iid Pending }
-                else { st with Sync = st.Sync |> Map.add iid Synced }, []
-            | RemoteConflict detail -> { st with Sync = st.Sync |> Map.add iid (Conflicted detail) }, []
-            | AuthFailed detail -> pending ("GitHub refused the access token (" + detail + "). Changes stay pending.") st
-            | WriteFailed detail -> pending ("GitHub did not accept the write (" + detail + "). Changes stay pending.") st
-        | HttpFailure _ | HttpCancelled -> pending "GitHub could not be reached; changes stay pending and will be sent when back online." st
-        | HttpOutcomeUnknown _ ->
-            // The write may or may not have landed: re-read before writing again.
-            pending "It is unknown whether GitHub received the last change; it will be checked again." { st with RemoteSha = st.RemoteSha |> Map.remove iid }
-    let st, save = saveSyncState st
-    st, effects @ save
 
 // ---------------------------------------------------------------------------
 // Projection
@@ -1847,19 +2028,47 @@ let private placeholder: Investigation option =
     | None -> None
 
 let private remoteText (st: AppState) (iid: InvestigationId) =
-    match st.Remote with
-    | None -> "Local only — not synced to GitHub", "unknown"
-    | Some cfg ->
-        let where = " (" + cfg.Owner + "/" + cfg.Repository + ")"
-        match Map.tryFind iid st.Sync |> Option.defaultValue Pending with
-        | Synced -> "Saved to GitHub" + where, "ok"
-        | Pending when cfg.Token = "" -> "Changes pending upload to GitHub (not yet synced) — enter your access token in GitHub settings; it is not kept after a reload", "attention"
-        | Pending when not st.Online -> "Offline — changes pending upload to GitHub (not yet synced)", "attention"
-        | Pending -> "Changes pending upload to GitHub (not yet synced)", "attention"
-        | Sending -> "Uploading to GitHub… (not yet confirmed)", "attention"
-        | Conflicted d -> "Conflict with GitHub: " + d + ". Nothing was overwritten.", "blocked"
-        | SyncUnknown -> "Unknown whether GitHub has the latest change (not confirmed)", "attention"
-        | LocalOnly -> "Local only — not synced to GitHub", "unknown"
+    match st.Remote, formatOf st iid with
+    | None, _ -> "Local only — not connected to GitHub", "unknown"
+    | Some _, LegacyFormat -> "Earlier format — read-only on this device and not published", "unknown"
+    | Some cfg, _ ->
+        let where = " (" + cfg.Owner + "/" + cfg.Repository + "@" + cfg.Branch + ", run " + cfg.RunId + ")"
+        let state = recordOf st iid |> Option.map (shownState st iid) |> Option.defaultValue CausaGitHub.SyncPending
+        let tone =
+            match state with
+            | CausaGitHub.SyncConfirmed -> "ok"
+            | CausaGitHub.SyncConflicted | CausaGitHub.SyncRefused | CausaGitHub.SyncFailed -> "blocked"
+            | _ -> "attention"
+        let label = CausaGitHub.SyncState.label state
+        match state with
+        | CausaGitHub.SyncPending when cfg.Token = "" -> label + " — enter your access token in GitHub settings; it is not kept after a reload", tone
+        | CausaGitHub.SyncPending when not st.Online -> label + " — offline", tone
+        | _ -> label + where, tone
+
+let private syncKeys (st: AppState) (iid: InvestigationId) : (string * J) list =
+    let record = recordOf st iid
+    let state = record |> Option.map (shownState st iid)
+    let detail = record |> Option.bind (fun r -> r.LastError) |> Option.map (redact st)
+    let log =
+        record
+        |> Option.map (fun r -> r.Log |> List.rev |> List.truncate 8)
+        |> Option.defaultValue []
+        |> List.mapi (fun i e -> item [ "id", s (string i); "status", s (CausaGitHub.SyncState.wire e.Status); "at", s e.At; "cause", s e.Cause; "detail", s (redact st e.Detail) ])
+    let path =
+        match st.Remote with
+        | Some cfg -> CausaGitHub.Workspace.prefix (workspaceOf cfg) (Id.text iid)
+        | None -> ""
+    [ "syncState", s (state |> Option.map CausaGitHub.SyncState.wire |> Option.defaultValue (if st.Remote.IsSome then "pending" else "local"))
+      "syncDetail", s (detail |> Option.defaultValue "")
+      "hasSyncDetail", b detail.IsSome
+      "canRetrySync",
+      b (st.Remote.IsSome && formatOf st iid <> LegacyFormat && (match state with Some CausaGitHub.SyncConfirmed | Some CausaGitHub.SyncSending | Some CausaGitHub.SyncConflicted | Some CausaGitHub.SyncRefused -> false | _ -> true))
+      "canAdoptRemote", b (record |> Option.exists (fun r -> r.Status = CausaGitHub.SyncConflicted && r.Remote.IsSome))
+      "canStartNewRun", b (match state with Some CausaGitHub.SyncConflicted | Some CausaGitHub.SyncRefused -> true | _ -> false)
+      "syncPath", s path
+      "hasSyncPath", b (path <> "")
+      "syncLog", JArr log
+      "hasSyncLog", b (not log.IsEmpty) ]
 
 let private localText (st: AppState) (iid: InvestigationId) =
     match Map.tryFind iid st.Local with
@@ -1887,7 +2096,6 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
     let observation = inv.Observations |> Map.toList |> List.map snd |> List.sortBy (fun o -> o.Provenance.RecordedAt) |> List.tryHead
     let resolution = if real then Policy.resolutionBlockers inv else []
     let remote, remoteTone = remoteText st iid
-    let syncStatus = Map.tryFind iid st.Sync
     let hypothesisItems =
         hypotheses
         |> List.map (fun h ->
@@ -2248,9 +2456,6 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
       "localStatus", s (localText st iid)
       "remoteStatus", s remote
       "remoteTone", s remoteTone
-      "syncDetail", s (Map.tryFind iid st.SyncDetail |> Option.defaultValue "")
-      "hasSyncDetail", b (Map.containsKey iid st.SyncDetail)
-      "canRetrySync", b (st.Remote.IsSome && (match syncStatus with Some Synced | Some Sending -> false | _ -> true))
       "hypotheses", JArr hypothesisItems
       "hasHypotheses", b (not hypothesisItems.IsEmpty)
       "hypothesisChanges", JArr hypothesisChanges
@@ -2311,6 +2516,7 @@ let private workspaceKeys (st: AppState) (inv: Investigation) (events: Event lis
           else "Cannot be resolved yet — " + string resolution.Length + " thing(s) still need doing:"
       ) ]
     @ lifecycleFlags
+    @ syncKeys st iid
 
 let private reportKeys (inv: Investigation) (events: Event list) (real: bool) : (string * J) list =
     match real with
@@ -2667,14 +2873,17 @@ let project (st: AppState) : (string * J) list =
       "connection", s (if st.Online then "Online" else "Offline — work continues on this device")
       "isOffline", b (not st.Online)
       "remoteConfigured", b st.Remote.IsSome
+      "settingsRunId", s (st.Remote |> Option.map (fun r -> r.RunId) |> Option.defaultValue "")
+      "settingsWorkspacePath", s (st.Remote |> Option.map (fun r -> "workspaces/demo/" + r.RunId + "/investigations/<investigation id>/") |> Option.defaultValue "")
+      "canRecover", b (st.Remote |> Option.exists (fun r -> r.Token <> ""))
       "needsToken", b (st.Remote.IsSome && not (hasToken st))
       "startDisabled", b (not st.Loaded)
       "settingsSummary",
       s (
           match st.Remote with
           | Some r when r.Token = "" ->
-              "GitHub repository " + r.Owner + "/" + r.Repository + " (branch " + r.Branch + "). No access token in this session: enter it to sync. Tokens are kept in memory only and are asked for again after a reload."
-          | Some r -> "Syncing to GitHub repository " + r.Owner + "/" + r.Repository + " (branch " + r.Branch + "). The access token is kept in memory for this session only; it is never saved, shown or put in links."
+              "GitHub repository " + r.Owner + "/" + r.Repository + " (branch " + r.Branch + ", run " + r.RunId + "). No access token in this session: enter it to publish. Tokens are kept in memory only and are asked for again after a reload."
+          | Some r -> "Publishing working copies to GitHub repository " + r.Owner + "/" + r.Repository + " (branch " + r.Branch + ", run " + r.RunId + "), one commit per change, each confirmed by re-reading the commit. The access token is kept in memory for this session only; it is never saved, shown or put in links."
           | None -> "Not connected to GitHub. Investigations are saved on this device only."
       ) ]
     @ homeKeys st
@@ -2695,11 +2904,10 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
         let lifecycle = match reply with Accepted(_, _, selected) -> not selected.IsEmpty | _ -> false
         let st = { st with Screen = ScreenRoute.parse hash; LifecycleNegotiated = lifecycle; BaseUrl = baseUrl }
         let c1, st = Ids.correlation st LoadSettings
-        let c2, st = Ids.correlation st LoadSync
         let c3, st = Ids.correlation st LoadIndex
         let c4, st = Ids.correlation st LoadDataset
         let loads =
-            [ StorageGet(c1, Storage.settingsKey); StorageGet(c2, Storage.syncKey); StorageGet(c3, Storage.indexKey)
+            [ StorageGet(c1, Storage.settingsKey); StorageGet(c3, Storage.indexKey)
               HttpCall(c4, "GET", "./data/" + CausaData.Pins.tag + ".bundle.json", [], None) ]
         let st, subscribe =
             if lifecycle then
@@ -2713,27 +2921,34 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
         st, fx, NoHandshake
     | StorageDone(c, result) ->
         match Map.tryFind c st.Pending with
+        | Some(KeepMarker(iid, identity, resume)) ->
+            let st = { st with Pending = st.Pending |> Map.remove c }
+            if identity <> currentIdentity st then abandon st, [], NoHandshake
+            else
+                let reply = match result with Ok _ -> CausaGitHub.Answered(200, "", Map.empty) | Error reason -> CausaGitHub.NotSent reason
+                let st, fx = advance iid identity (resume.Resume reply) st
+                st, fx, NoHandshake
         | Some op ->
             let st, fx = onStorage op result { st with Pending = st.Pending |> Map.remove c }
             st, fx, NoHandshake
         | None -> st, [], NoHandshake
     | HttpDone(c, outcome) ->
         match Map.tryFind c st.Pending with
-        | Some(RemoteRead(iid, remote)) when remote = currentIdentity st ->
-            let st, fx = onRemoteRead iid outcome { st with Pending = st.Pending |> Map.remove c }
-            st, fx, NoHandshake
-        | Some(RemoteWrite(iid, remote)) when remote = currentIdentity st ->
-            let st, fx = onRemoteWrite iid outcome { st with Pending = st.Pending |> Map.remove c }
-            st, fx, NoHandshake
+        | Some(RemoteStep(iid, identity, resume)) ->
+            let st = { st with Pending = st.Pending |> Map.remove c }
+            if identity <> currentIdentity st then abandon st, [], NoHandshake
+            else
+                let st, fx = advance iid identity (resume.Resume (replyOf outcome)) st
+                st, fx, NoHandshake
         | Some LoadDataset ->
             let demo =
                 match outcome with
-                | HttpSuccess(200, body) ->
+                | HttpSuccess(200, body, _) ->
                     match CausaData.decodeBundle body with
                     | Ok(tag, _) when tag <> CausaData.Pins.tag -> DemoFailed("the data bundle is " + tag + ", not " + CausaData.Pins.tag)
                     | Ok(_, files) -> (match CausaData.loadDataset files with Ok d -> DemoReady d | Error e -> DemoFailed(CausaData.describe e))
                     | Error e -> DemoFailed(CausaData.describe e)
-                | HttpSuccess(status, _) -> DemoFailed("the server answered " + string status)
+                | HttpSuccess(status, _, _) -> DemoFailed("the server answered " + string status)
                 | HttpFailure(reason, _) -> DemoFailed("the request failed (" + reason + ")")
                 | HttpCancelled -> DemoFailed "the request was cancelled"
                 | HttpOutcomeUnknown reason -> DemoFailed reason
@@ -2743,8 +2958,8 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
         | Some FactoryLoad ->
             let factory =
                 match outcome with
-                | HttpSuccess(200, body) -> (match decodeFactory body with Ok f -> FactoryLoaded f | Error e -> FactoryFailed e)
-                | HttpSuccess(status, _) -> FactoryFailed("the server answered " + string status)
+                | HttpSuccess(200, body, _) -> (match decodeFactory body with Ok f -> FactoryLoaded f | Error e -> FactoryFailed e)
+                | HttpSuccess(status, _, _) -> FactoryFailed("the server answered " + string status)
                 | HttpFailure(reason, _) -> FactoryFailed("the request failed (" + reason + ")")
                 | HttpCancelled -> FactoryFailed "the request was cancelled"
                 | HttpOutcomeUnknown reason -> FactoryFailed reason
@@ -2752,7 +2967,7 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
         | _ -> { st with Pending = st.Pending |> Map.remove c }, [], NoHandshake
     | CapabilityDone(c, online) ->
         let st = { st with Pending = st.Pending |> Map.remove c; Online = Option.defaultValue st.Online online }
-        let st, fx = if st.Loaded then sendAllPending st else st, []
+        let st, fx = if st.Loaded then syncNext st else st, []
         st, fx, NoHandshake
     | NavigationDone c -> { st with Pending = st.Pending |> Map.remove c }, [], NoHandshake
     | ClipboardDone(c, failure) ->
@@ -2767,8 +2982,9 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
         let st, fx = ensureFactory { st with Screen = ScreenRoute.parse hash; Refusals = []; Notice = "" }
         st, fx, NoHandshake
     | ConnectivityChanged online ->
-        let st = { st with Online = online }
-        let st, fx = if online && st.Loaded then sendAllPending st else st, []
+        // Coming back online is a sync trigger (CAUSA-PROV-20 §5).
+        let st = { st with Online = online; Attempted = (if online then Set.empty else st.Attempted) }
+        let st, fx = if online && st.Loaded then syncNext st else st, []
         st, fx, NoHandshake
     | Unrecognized _ -> st, [], NoHandshake
 
