@@ -64,7 +64,7 @@ test("AC-09 (fake GitHub) a change is saved only after the commit is re-read; of
   expect(await page.content()).not.toContain(token);
 });
 
-test("AC-09 (fake GitHub) another writer's change is a conflict: nothing is overwritten and GitHub's version is used only on request", async ({ page }) => {
+test("AC-09 (fake GitHub) another writer's change to the investigation directory is a conflict, never shown as saved, and is never overwritten", async ({ page }) => {
   const github = createFake({ token, branch });
   await github.install(page);
   const runId = await configure(page);

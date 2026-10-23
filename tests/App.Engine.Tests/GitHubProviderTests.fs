@@ -257,7 +257,9 @@ let ``[AC-PROV-13] the token appears only in Authorization headers to the API or
 
 [<Fact>]
 let ``[AC-PROV-14] a create whose directory already exists is refused with CAUSA.VERSION_STALE and nothing is written`` () =
-    let _, s = published "api-latency" (seeded ())
+    // Someone else's create is already there: the frozen history plus their own event.
+    let theirs = appendedOf "api-latency" "their create"
+    let _, s = run (seeded ()) (publish (attempt "api-latency" None theirs))
     let existing = (fileAt s branch (prefixOf "api-latency" + "events.ndjson")).Value
     let before = head s
     let different = appendedOf "api-latency" "a different create"
@@ -269,6 +271,37 @@ let ``[AC-PROV-14] a create whose directory already exists is refused with CAUSA
     Assert.Equal(before, head s)
     Assert.Equal<byte[]>(existing, (fileAt s branch (prefixOf "api-latency" + "events.ndjson")).Value)
     Assert.Equal(patchesBefore, (patches s).Length)
+
+[<Fact>]
+let ``[CAUSA-PROV-10 §4] [CAUSA-PROV-24 (c)] this client's own earlier write that landed late is built on, not refused or overwritten`` () =
+    // An earlier create of ours landed although its outcome was lost (the frozen copy); the next attempt still has no
+    // confirmed copy and carries one more event. GitHub's copy is a verified byte prefix of it: publishing continues.
+    let _, s = published "api-latency" (seeded ())
+    let first = head s
+    let next = appendedOf "api-latency" "after a lost confirmation"
+    let outcome, s = run s (publish (attempt "api-latency" None next))
+    let c = confirmed outcome
+    Assert.Equal<string list>([ first ], parentsOf s c.Commit)
+    Assert.Equal<byte[]>(next.Events, (fileAt s branch (prefixOf "api-latency" + "events.ndjson")).Value)
+
+[<Fact>]
+let ``[CAUSA-PROV-29 §5] a rewritten history is conflicted without an adoptable copy`` () =
+    let c1, s = published "api-latency" (seeded ())
+    // Someone rewinds GitHub's copy to a shorter, still valid history: the confirmed events are no longer its prefix.
+    let shorter =
+        match Store.build ds.Value.Schemas ((frozen "api-latency").Loaded.Events |> List.take 10) with
+        | Ok(f, _) -> f
+        | Error e -> failwith e.Detail
+    let p = prefixOf "api-latency"
+    let s, _ = commitFiles branch "rewrite" [ p + "events.ndjson", shorter.Events; p + "manifest.json", shorter.Manifest; p + "snapshot.json", shorter.Snapshot ] s
+    let before = head s
+    let outcome, s = run s (publish (attempt "api-latency" (Some c1) (appendedOf "api-latency" "ours")))
+    match outcome with
+    | Outcome.Conflicted(cause, _, remote) ->
+        Assert.Equal(Codes.historyRewritten, cause)
+        Assert.True(remote.IsNone) // nothing to adopt: only discard, export or a new run (CAUSA-PROV-29 §5)
+    | other -> failwithf "expected conflicted, got %A" other
+    Assert.Equal(before, head s)
 
 [<Fact>]
 let ``[AC-PROV-15 partial] working copies of all five frozen investigations: every copied file equals the frozen bytes and frozen trees are unchanged`` () =

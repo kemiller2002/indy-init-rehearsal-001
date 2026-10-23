@@ -146,6 +146,8 @@ type FaultKind =
     | PathFrozen
     | PathInvalid
     | Truncated
+    /// 404 for a SHA-addressed object that was just read or created: replication lag, not absence (CAUSA-PROV-06 §3).
+    | Lag
 
 type Fault =
     { Kind: FaultKind
@@ -167,6 +169,7 @@ module Fault =
         | NonFastForward -> "conflict"
         | NotFound | Redirected | Rejected | ObjectMissing -> "configuration"
         | Unreadable | ByteMismatch | PathFrozen | PathInvalid | Truncated -> "integrity"
+        | Lag -> "unavailable"
 
     let describe (f: Fault) =
         category f + ": " + f.Detail + (match f.Status with Some s -> " (HTTP " + string s + ")" | None -> "")
@@ -291,6 +294,10 @@ type TreeEntry =
 
 type CommitInfo = { Tree: string; Parents: string list }
 
+/// A 404 for an object addressed by SHA (one this client just read as a ref target or created) is replication lag.
+let private lagging (m: Remote<Result<'a, Fault>>) =
+    m |> Remote.map (Result.mapError (fun f -> if f.Kind = NotFound then { f with Kind = Lag; Cause = "lag-404" } else f))
+
 [<RequireQualifiedAccess>]
 module Git =
     /// CAUSA-PROV-05 step 1 / CAUSA-PROV-06 §2: the one branch-addressed read, never served from a cache. The kernel
@@ -311,6 +318,7 @@ module Git =
                 Ok { Tree = tree; Parents = [ for p in ps.EnumerateArray() -> match str "sha" p with Ok s -> s | Error _ -> "" ] }
             | Error m, _ -> Error m
             | _ -> Error "missing parents")
+        |> lagging
 
     /// Non-recursive tree read; a truncated listing is never treated as complete (CAUSA-PROV-05 §3).
     let tree (phase: string) (s: Session) (sha: string) : Remote<Result<TreeEntry list, Fault>> =
@@ -326,6 +334,7 @@ module Git =
                             Type = str "type" x |> Result.defaultValue ""
                             Sha = str "sha" x |> Result.defaultValue "" } ]))
         |> Remote.map (Result.mapError (fun f -> if f.Detail.EndsWith("truncated", StringComparison.Ordinal) then { f with Kind = Truncated; Cause = "truncated" } else f))
+        |> lagging
 
     /// CAUSA-PROV-05 step 5: base64 only, the size must match and the bytes must hash to the requested blob id.
     let blob (phase: string) (s: Session) (sha: string) : Remote<Result<byte[], Fault>> =
@@ -338,6 +347,7 @@ module Git =
                 else Ok bytes
             | Ok other, _, _ -> Error("unsupported blob encoding " + other)
             | Error m, _, _ | _, Error m, _ | _, _, Error m -> Error m)
+        |> lagging
 
     /// CAUSA-PROV-14: base64 of the exact bytes; the returned id must equal the locally computed git blob id.
     let createBlob (s: Session) (bytes: byte[]) : Remote<Result<string, Fault>> =
@@ -576,32 +586,38 @@ let maxRounds = 5
 let private startsWith (whole: byte[]) (prefix: byte[]) = whole.AsSpan().StartsWith(prefix.AsSpan())
 
 /// CAUSA-PROV-27 §4 / CAUSA-PROV-07 §2: the investigation changed at `head`; classify without writing anything.
-let private changedAt (a: Attempt) (head: AtCommit) : Remote<Outcome> =
+/// If GitHub's copy is a verified prefix of what this attempt writes (and extends the confirmed copy), it is this
+/// client's own earlier write that landed late (CAUSA-PROV-24 (c), CAUSA-PROV-28 §2): publishing continues on it.
+/// A rewritten or invalid remote is never offered for adoption (CAUSA-PROV-29 §5).
+let private changedAt (a: Attempt) (atBase: Confirmed option) (head: AtCommit) (continueOn: Confirmed -> Remote<Outcome>) : Remote<Outcome> =
     let s = a.Session
     match head.Dir with
     | None ->
-        match a.Base with
+        match atBase with
         | Some _ -> Done(Conflicted(Codes.historyRewritten, "the investigation is no longer on the branch", None))
         | None -> Done(BackToPending(integrity NonFastForward "R" "head-moved" "the branch moved"))
     | Some dir ->
         readFiles "R" s a.InvestigationId dir
-        |> Remote.map (fun read ->
+        |> Remote.bind (fun read ->
             match read with
-            | Error f when f.Kind = PathInvalid -> Conflicted(Codes.pathInvalid, f.Detail, None)
-            | Error f when a.Base.IsNone -> Refused(Codes.versionStale, "the investigation directory already exists on the branch (" + f.Detail + ")")
-            | Error f -> BackToPending f
+            | Error f when f.Kind = PathInvalid && atBase.IsNone -> Done(Refused(Codes.versionStale, "the investigation directory already exists on the branch (" + f.Detail + ")"))
+            | Error f when f.Kind = PathInvalid -> Done(Conflicted(Codes.pathInvalid, f.Detail, None))
+            | Error f -> Done(BackToPending f)
             | Ok remote ->
                 let remoteCopy = { Commit = head.Commit; Tree = head.Tree; Files = remote }
+                let extendsBase = atBase |> Option.forall (fun b -> startsWith remote.Events b.Files.Events)
                 if remote.Events = a.Files.Events && remote.Manifest = a.Files.Manifest && remote.Snapshot = a.Files.Snapshot then
                     // The same bytes are already there: a write of ours landed whose confirmation was lost.
-                    Confirmed remoteCopy
+                    Done(Confirmed remoteCopy)
                 else
-                    match a.Base, a.Verify remote with
-                    | None, _ -> Refused(Codes.versionStale, "the investigation directory already exists on the branch; nothing was written")
-                    | Some _, Error e -> Conflicted(e.Code, "GitHub's copy fails verification: " + e.Detail, None)
-                    | Some b, Ok() when not (startsWith remote.Events b.Files.Events) ->
-                        Conflicted(Codes.historyRewritten, "GitHub's events.ndjson no longer starts with the confirmed history", Some remoteCopy)
-                    | Some _, Ok() -> Conflicted(Codes.versionStale, "someone else appended to this investigation on GitHub", Some remoteCopy))
+                    match a.Verify remote with
+                    | Error e when atBase.IsNone -> Done(Refused(Codes.versionStale, "the investigation directory already exists on the branch and fails verification (" + e.Code + ")"))
+                    | Error e -> Done(Conflicted(e.Code, "GitHub's copy fails verification: " + e.Detail, None))
+                    | Ok() when extendsBase && startsWith a.Files.Events remote.Events -> continueOn remoteCopy
+                    | Ok() when atBase.IsNone -> Done(Refused(Codes.versionStale, "the investigation directory already exists on the branch; nothing was written"))
+                    | Ok() when not extendsBase ->
+                        Done(Conflicted(Codes.historyRewritten, "GitHub's events.ndjson no longer starts with the confirmed history", None))
+                    | Ok() -> Done(Conflicted(Codes.versionStale, "someone else appended to this investigation on GitHub", Some remoteCopy)))
 
 /// CAUSA-PROV-17: read commit C by SHA and compare every written byte.
 let private confirm (a: Attempt) (c: string) (nt: string) (tc: string) : Remote<Outcome> =
@@ -627,6 +643,7 @@ let private beforePatch (f: Fault) : Outcome =
     match f.Kind with
     | RateLimited _ | ServerError | NoResponse | NotDelivered | ObjectMissing | Unreadable | Truncated -> BackToPending f
     | NotFound when f.Phase = "O" -> BackToPending f // an object this client just created: replication lag
+    | Lag -> BackToPending f // a SHA this client just read or created (CAUSA-PROV-06 §3)
     | _ -> Failed f
 
 /// CAUSA-PROV-13: steps 1–10 of one atomic append, with bounded rebases when only other paths moved (CAUSA-PROV-27 §3).
@@ -635,9 +652,14 @@ let publish (a: Attempt) : Remote<Outcome> =
     let orFault (onFault: Fault -> Outcome) (m: Remote<Result<'x, Fault>>) (f: 'x -> Remote<Outcome>) : Remote<Outcome> =
         m |> Remote.bind (function Ok x -> f x | Error e -> Done(onFault e))
     let expected = shasOf a.Files
-    let rec fromHead (round: int) (tc: string) : Remote<Outcome> =
+    /// Rebase onto the head with `confirmed` as the copy this attempt builds on (bounded, CAUSA-PROV-20 §6).
+    let rec again (round: int) (confirmed: Confirmed option) (headSha: string) : Remote<Outcome> =
+        if round >= maxRounds then Done(BackToPending(integrity NonFastForward "R" "branch-busy" "the branch kept moving; try again shortly"))
+        else fromHead (round + 1) confirmed headSha
+    and fromHead (round: int) (confirmed: Confirmed option) (tc: string) : Remote<Outcome> =
         orFault beforePatch (at "R" s a.InvestigationId tc) (fun atBase ->
-            if not (sameAs atBase.Dir (a.Base |> Option.map (fun b -> b.Files))) then changedAt a atBase
+            if not (sameAs atBase.Dir (confirmed |> Option.map (fun b -> b.Files))) then
+                changedAt a confirmed atBase (fun own -> again round (Some own) tc)
             else
                 let build =
                     git {
@@ -657,18 +679,17 @@ let publish (a: Attempt) : Remote<Outcome> =
                         function
                         | Answered _ ->
                             orFault beforePatch (Git.head "R" s (2 * round)) (fun now ->
-                                if now <> tc then moved round atBase now
-                                else Next(Git.patchRequest s c, patched round atBase nt tc c))
+                                if now <> tc then moved round confirmed atBase now
+                                else Next(Git.patchRequest s c, patched round confirmed atBase nt tc c))
                         | reply -> Done(BackToPending(noAnswer "O" reply))
                     )))
     /// CAUSA-PROV-27: the head is no longer Tc. Unchanged investigation → rebase; changed → conflict.
-    and moved (round: int) (atBase: AtCommit) (newHead: string) : Remote<Outcome> =
+    and moved (round: int) (confirmed: Confirmed option) (atBase: AtCommit) (newHead: string) : Remote<Outcome> =
         orFault beforePatch (at "R" s a.InvestigationId newHead) (fun now ->
             let unchanged = (atBase.Dir |> Option.map (fun d -> d.DirSha)) = (now.Dir |> Option.map (fun d -> d.DirSha))
-            if not unchanged then changedAt a now
-            elif round >= maxRounds then Done(BackToPending(integrity NonFastForward "R" "branch-busy" "the branch kept moving; try again shortly"))
-            else fromHead (round + 1) newHead)
-    and patched (round: int) (atBase: AtCommit) (nt: string) (tc: string) (c: string) (reply: Reply) : Remote<Outcome> =
+            if not unchanged then changedAt a confirmed now (fun own -> again round (Some own) newHead)
+            else again round confirmed newHead)
+    and patched (round: int) (confirmed: Confirmed option) (atBase: AtCommit) (nt: string) (tc: string) (c: string) (reply: Reply) : Remote<Outcome> =
         match reply with
         | Answered(200, body, _) ->
             let landed =
@@ -680,7 +701,7 @@ let publish (a: Attempt) : Remote<Outcome> =
         | Answered(status, body, h) ->
             let f = classify "U" status body h
             match f.Kind with
-            | NonFastForward -> orFault beforePatch (Git.head "R" s (2 * round + 1)) (moved round atBase)
+            | NonFastForward -> orFault beforePatch (Git.head "R" s (2 * round + 1)) (moved round confirmed atBase)
             | ServerError | Unreadable -> Done(Unknown(f.Cause, Fault.describe f))
             | RateLimited _ | ObjectMissing -> Done(BackToPending f)
             | _ -> Done(Failed f)
@@ -693,7 +714,7 @@ let publish (a: Attempt) : Remote<Outcome> =
         | Some b when not (startsWith a.Files.Events b.Files.Events) ->
             // CONTRACT §9.3: a writer only ever appends to the confirmed history; nothing is sent.
             Done(Failed(integrity Unreadable "R" Codes.historyRewritten "the files to publish do not extend the confirmed history"))
-        | _ -> orFault beforePatch (Git.head "R" s 0) (fromHead 1)
+        | _ -> orFault beforePatch (Git.head "R" s 0) (fromHead 1 a.Base)
 
 /// CAUSA-PROV-24: after an ambiguous PATCH, classify the remote without writing anything.
 let resolve (a: Attempt) : Remote<Outcome> =
@@ -709,24 +730,25 @@ let resolve (a: Attempt) : Remote<Outcome> =
     }
     |> Remote.map (fun read ->
         match read with
+        | Error f when f.Kind = PathInvalid -> Conflicted(Codes.pathInvalid, "GitHub's copy is not a valid investigation directory: " + f.Detail, None)
         | Error f -> Unknown(f.Cause, "still unknown: " + Fault.describe f)
         | Ok(now, remote) ->
             let cb = a.Base |> Option.map (fun b -> b.Files.Events) |> Option.defaultValue [||]
-            let r = remote |> Option.map (fun f -> f.Events)
-            match remote, r with
-            | Some f, Some events when events = a.Files.Events && f.Manifest = a.Files.Manifest && f.Snapshot = a.Files.Snapshot ->
-                Confirmed { Commit = now.Commit; Tree = now.Tree; Files = f } // (a)
-            | Some f, Some events when startsWith events a.Files.Events && events.Length > a.Files.Events.Length ->
+            let notLanded = BackToPending(integrity NotDelivered "C" "not-landed" "the write did not land")
+            match remote with
+            | None when cb.Length = 0 -> notLanded // (c), create
+            | None -> Conflicted(Codes.historyRewritten, "the investigation is no longer on the branch", None)
+            | Some f ->
                 match a.Verify f with
-                | Ok() -> Confirmed { Commit = now.Commit; Tree = now.Tree; Files = a.Files } // (b): ours landed, others appended after
                 | Error e -> Conflicted(e.Code, "GitHub's copy fails verification: " + e.Detail, None)
-            | None, _ when cb.Length = 0 -> BackToPending(integrity NotDelivered "C" "not-landed" "the write did not land") // (c), create
-            | Some _, Some events when events = cb && a.Base.IsSome -> BackToPending(integrity NotDelivered "C" "not-landed" "the write did not land") // (c)
-            | Some f, Some events ->
-                let copy = { Commit = now.Commit; Tree = now.Tree; Files = f }
-                if not (startsWith events cb) then Conflicted(Codes.historyRewritten, "GitHub's events.ndjson no longer starts with the confirmed history", Some copy)
-                else Conflicted(Codes.versionStale, "someone else appended to this investigation and this write did not land", Some copy)
-            | _ -> Conflicted(Codes.historyRewritten, "the investigation is no longer on the branch", None))
+                | Ok() ->
+                    let copy = { Commit = now.Commit; Tree = now.Tree; Files = f }
+                    if f.Events = a.Files.Events && f.Manifest = a.Files.Manifest && f.Snapshot = a.Files.Snapshot then Confirmed copy // (a)
+                    elif startsWith f.Events a.Files.Events then Confirmed { copy with Files = a.Files } // (b): ours landed, others appended after
+                    elif not (startsWith f.Events cb) then
+                        Conflicted(Codes.historyRewritten, "GitHub's events.ndjson no longer starts with the confirmed history", None)
+                    elif startsWith a.Files.Events f.Events then notLanded // (c): only the confirmed copy, or an earlier write of ours, is there
+                    else Conflicted(Codes.versionStale, "someone else appended to this investigation and this write did not land", Some copy))
 
 /// Read one investigation at the current head (to adopt GitHub's copy or recover it on another device).
 let load (s: Session) (iid: string) (verify: InvestigationFiles -> Result<unit, CausaError>) : Remote<Result<Confirmed option, Fault>> =
@@ -879,6 +901,21 @@ module Record =
                         | _ -> []
                       LastError = match r.TryGetProperty "lastError" with | true, v when v.ValueKind = JsonValueKind.String -> v.GetString() |> Option.ofObj | _ -> None }
             | _ -> Error "unsupported record"
+        with ex -> Error ex.Message
+
+    /// One stored value per investigation holds its record for every workspace it was ever bound to, so changing the
+    /// repository, branch or run never moves, overwrites or deletes another workspace's record (CAUSA-PROV-01 §3).
+    let encodeBook (records: Record list) : string =
+        "{\"recordBook\":1,\"records\":[" + String.Join(",", records |> List.map encode) + "]}"
+
+    let decodeBook (text: string) : Result<Record list, string> =
+        try
+            use doc = JsonDocument.Parse text
+            match doc.RootElement.TryGetProperty "recordBook" with
+            | true, _ ->
+                [ for e in doc.RootElement.GetProperty("records").EnumerateArray() -> decode (e.GetRawText()) ]
+                |> List.fold (fun acc r -> match acc, r with | Ok xs, Ok x -> Ok(xs @ [ x ]) | Error e, _ | _, Error e -> Error e) (Ok [])
+            | _ -> decode text |> Result.map List.singleton // a single record, as the first builds stored it
         with ex -> Error ex.Message
 
     /// CAUSA-PROV-26 §2 (T19/T20): after a restart, `sending` is `unknown` if the PATCH may have been sent.

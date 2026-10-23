@@ -152,6 +152,11 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_NAME: verification/playwright.json
         run: npx playwright test --reporter=list,json
 
+      # Every browser project must have executed tests: a project that selects nothing is not a pass.
+      - name: Browser projects executed
+        if: always()
+        run: python3 scripts/browser-project-counts.py verification/playwright.json
+
       # Requirement traceability on this exact commit (EX-INDY-INIT-2026-R001):
       # a requirement counts as Verified only from these CI results.
       - name: Requirement traceability

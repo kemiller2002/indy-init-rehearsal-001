@@ -760,7 +760,11 @@ type PendingOp =
     | CheckBeforeSave of InvestigationId
     /// Write a Causa v1 file set at this aggregate version.
     | SaveFileSet of InvestigationId * version: int64
-    | SaveConflictCopy
+    /// A separate copy of a version this device would otherwise lose; its result is reported, never assumed.
+    | SaveConflictCopy of InvestigationId
+    /// Adopting GitHub's verified copy: read the device copy, keep every replaced version as a conflict copy, then replace.
+    | AdoptRead of InvestigationId * CausaGitHub.Confirmed * origin: string option
+    | AdoptCopy of InvestigationId * CausaGitHub.Confirmed * origin: string option * remaining: string list
     | SaveIndex
     | SaveSettings
     /// The provider record of one investigation (CAUSA-PROV-25), adapter-private.
@@ -768,9 +772,9 @@ type PendingOp =
     | SaveRecord of InvestigationId
     /// One step of a provider program. The workspace identity travels with it: an answer for another workspace
     /// (settings changed meanwhile) is never adopted (D-009).
-    | RemoteStep of InvestigationId option * workspace: string * Resume
+    | RemoteStep of InvestigationId option * workspace: string * flight: int64 * Resume
     /// The durable step-7 marker of a publish; the PATCH is sent only once it is stored.
-    | KeepMarker of InvestigationId option * workspace: string * Resume
+    | KeepMarker of InvestigationId option * workspace: string * flight: int64 * Resume
     | Subscribe
     | NavigationAck
     | CopyLink of url: string
@@ -810,10 +814,17 @@ type AppState =
       /// origin + path of the page, for absolute share links (never carries a query).
       BaseUrl: string
       Factory: FactoryState
-      /// GitHub provider records (CAUSA-PROV-25), by investigation; a record for another workspace does not count.
-      Records: Map<InvestigationId, CausaGitHub.Record>
-      /// One provider program in flight per client (CAUSA-PROV-20 §7).
-      Busy: bool
+      /// GitHub provider records (CAUSA-PROV-25), by investigation and workspace identity; only the configured
+      /// workspace's record counts, the others are kept untouched (CAUSA-PROV-01 §3).
+      Records: Map<InvestigationId * string, CausaGitHub.Record>
+      /// Stored sync records that could not be read: left untouched, and their investigation is not published.
+      RecordUnreadable: Set<InvestigationId>
+      /// The provider program in flight, by generation (CAUSA-PROV-20 §7: one per client). Answers for any other
+      /// generation are dropped.
+      Flight: int64 option
+      Generation: int64
+      /// GitHub refused the token (401): nothing is sent until it is entered again (CAUSA-PROV-19).
+      AuthHalted: bool
       /// Investigations whose publish was tried in this sync cycle without confirmation; retried on the next trigger.
       Attempted: Set<InvestigationId>
       Remote: RemoteConfig option
@@ -852,7 +863,10 @@ let initial: AppState =
       BaseUrl = ""
       Factory = FactoryNotRequested
       Records = Map.empty
-      Busy = false
+      RecordUnreadable = Set.empty
+      Flight = None
+      Generation = 0L
+      AuthHalted = false
       Attempted = Set.empty
       Remote = None
       StoredIndex = Map.empty
@@ -890,7 +904,8 @@ module Storage =
     let indexKey = "rci:index"
     let settingsKey = "rci:settings"
     let investigationKey (iid: InvestigationId) = "rci:inv:" + Id.text iid
-    let conflictKey (iid: InvestigationId) (version: int64) = "causa:conflict:" + Id.text iid + ":" + string version
+    /// Unique per copy (version, time and correlation), so a later copy never overwrites an earlier one.
+    let conflictKey (iid: InvestigationId) (suffix: string) = "causa:conflict:" + Id.text iid + ":" + suffix
 // ---------------------------------------------------------------------------
 // Reading the current investigation and the drafts
 // ---------------------------------------------------------------------------
@@ -1058,9 +1073,14 @@ let private workspaceOf (cfg: RemoteConfig) : CausaGitHub.Workspace =
 
 /// The provider record of an investigation for the configured workspace; a record for another workspace does not count.
 let private recordOf (st: AppState) (iid: InvestigationId) : CausaGitHub.Record option =
-    match st.Remote, Map.tryFind iid st.Records with
-    | Some cfg, Some r when CausaGitHub.Workspace.identity r.Workspace = remoteIdentity cfg -> Some r
-    | _ -> None
+    st.Remote |> Option.bind (fun cfg -> Map.tryFind (iid, remoteIdentity cfg) st.Records)
+
+let private withRecord (iid: InvestigationId) (r: CausaGitHub.Record) (st: AppState) =
+    { st with Records = st.Records |> Map.add (iid, CausaGitHub.Workspace.identity r.Workspace) r }
+
+/// Every workspace's record of one investigation, as stored together under its key.
+let private bookOf (st: AppState) (iid: InvestigationId) =
+    st.Records |> Map.toList |> List.filter (fun ((i, _), _) -> i = iid) |> List.map snd
 
 /// CAUSA-PROV-31 §4: text that leaves the adapter never carries the token.
 let private redact (st: AppState) (text: string) =
@@ -1069,7 +1089,10 @@ let private redact (st: AppState) (text: string) =
     | _ -> text
 
 let private saveRecord (iid: InvestigationId) (r: CausaGitHub.Record) (st: AppState) : AppState * Effect list =
-    storageSet (SaveRecord iid) (CausaGitHub.Record.key (Id.text iid)) (CausaGitHub.Record.encode r) { st with Records = st.Records |> Map.add iid r }
+    if st.RecordUnreadable.Contains iid then st, [] // never written over a stored record that could not be read
+    else
+        let st = withRecord iid r st
+        storageSet (SaveRecord iid) (CausaGitHub.Record.key (Id.text iid)) (CausaGitHub.Record.encodeBook (bookOf st iid)) st
 
 /// CAUSA-PROV-07 §1: every remote copy passes all 17 reader stages before it is used.
 let private verifier (st: AppState) (directoryId: string) (files: Causa.Contract.InvestigationFiles) : Result<unit, Causa.Contract.CausaError> =
@@ -1088,9 +1111,20 @@ let private sameFiles (a: Causa.Contract.InvestigationFiles) (b: Causa.Contract.
     a.Events = b.Events && a.Manifest = b.Manifest && a.Snapshot = b.Snapshot
 
 /// The frozen original's exact files, published first for a working copy (CAUSA-PROV-11).
+/// Its bytes must hash to the digests the verified root manifest recorded (CAUSA-PROV-11 §2), or nothing is published.
 let private frozenFilesOf (st: AppState) (iid: InvestigationId) =
+    let digest (b: byte[]) = Causa.Contract.Json.sha256Hex b
+    // manifest.json and snapshot.json are hashed without their final LF (CONTRACT §10).
+    let withoutLf (b: byte[]) = if b.Length > 0 && b[b.Length - 1] = 10uy then b[.. b.Length - 2] else b
     match demoOf st iid, schemasOf st, formatOf st iid with
-    | Some d, Some schemas, CausaFormat(Some _) -> Causa.Contract.Store.build schemas d.Loaded.Events |> Result.toOption |> Option.map fst
+    | Some d, Some schemas, CausaFormat(Some _) ->
+        Causa.Contract.Store.build schemas d.Loaded.Events
+        |> Result.toOption
+        |> Option.map fst
+        |> Option.filter (fun f ->
+            digest f.Events = d.Loaded.EventsSha256
+            && digest (withoutLf f.Manifest) = d.Loaded.ManifestSha256
+            && digest (withoutLf f.Snapshot) = d.Loaded.SnapshotSha256)
     | _ -> None
 
 /// The state shown: a confirmed record whose investigation changed since is pending again (CAUSA-PROV-22 §3).
@@ -1130,8 +1164,9 @@ let private attemptOf (st: AppState) (session: CausaGitHub.Session) (iid: Invest
       Verify = verifier st (Id.text iid)
       Record =
         fun marker ->
-            CausaGitHub.Record.key (Id.text iid),
-            CausaGitHub.Record.encode { r with Status = CausaGitHub.SyncSending; InFlight = Some files; Publish = Some marker } }
+            let marked = { r with Status = CausaGitHub.SyncSending; InFlight = Some files; Publish = Some marker }
+            let others = bookOf st iid |> List.filter (fun x -> CausaGitHub.Workspace.identity x.Workspace <> CausaGitHub.Workspace.identity r.Workspace)
+            CausaGitHub.Record.key (Id.text iid), CausaGitHub.Record.encodeBook (others @ [ marked ]) }
 
 let private applyOutcome (iid: InvestigationId) (outcome: CausaGitHub.Outcome) (st: AppState) : AppState * Effect list =
     match recordOf st iid with
@@ -1156,12 +1191,27 @@ let private applyOutcome (iid: InvestigationId) (outcome: CausaGitHub.Outcome) (
                 { r with InFlight = None; Publish = None; LastError = Some(say (cause + ": " + detail)) } |> move CausaGitHub.SyncRefused cause detail
         saveRecord iid r st
 
+/// The record of an investigation for the configured workspace, or a fresh one.
+let private recordOrNew (st: AppState) (iid: InvestigationId) =
+    match st.Remote, recordOf st iid with
+    | _, Some r -> Some r
+    | Some cfg, None -> Some(CausaGitHub.Record.create (workspaceOf cfg) (Id.text iid))
+    | None, None -> None
+
 /// Make GitHub's verified copy the investigation on this device (the person chose it, or it was recovered).
-/// What this device held is kept as a separate conflict copy, never silently dropped.
+/// First the device copy is read; every version this would replace (the device's and this window's) is written as
+/// its own conflict copy; only when every copy is stored is the investigation replaced (nothing lost silently).
 let private adoptConfirmed (iid: InvestigationId) (c: CausaGitHub.Confirmed) (origin: string option) (st: AppState) : AppState * Effect list =
     match schemasOf st |> Option.map (fun schemas -> Causa.Contract.Store.validate schemas c.Files) with
+    | Some(Ok _) ->
+        let r, st = Ids.correlation st (AdoptRead(iid, c, origin))
+        st, [ StorageGet(r, Storage.investigationKey iid) ]
+    | Some(Error e) -> { st with Notice = "GitHub's copy could not be verified and was not used: " + CausaData.describe e }, []
+    | None -> st, []
+
+let private finishAdopt (iid: InvestigationId) (c: CausaGitHub.Confirmed) (origin: string option) (st: AppState) : AppState * Effect list =
+    match schemasOf st |> Option.map (fun schemas -> Causa.Contract.Store.validate schemas c.Files) with
     | Some(Ok loaded) ->
-        let previous = fileSetOf st iid |> Result.toOption |> Option.map fst |> Option.filter (fun f -> not (sameFiles f c.Files))
         let st =
             { st with
                 Investigations = st.Investigations |> Map.add iid loaded.Events
@@ -1170,40 +1220,74 @@ let private adoptConfirmed (iid: InvestigationId) (c: CausaGitHub.Confirmed) (or
                 Unreadable = st.Unreadable |> Map.remove iid
                 SaveConflicts = st.SaveConflicts |> Map.remove iid }
         let c1, st = Ids.correlation st (SaveFileSet(iid, loaded.State.Version))
-        let st, keep =
-            match previous with
-            | Some f ->
-                let c2, st = Ids.correlation st SaveConflictCopy
-                st, [ StorageSet(c2, Storage.conflictKey iid (int64 (lineCount f.Events)), CausaData.encodeFileSet origin f) ]
+        let st, saveR =
+            match recordOrNew st iid with
+            | Some r ->
+                let r =
+                    { r with Confirmed = Some c; Remote = None; InFlight = None; Publish = None; LastError = None }
+                    |> CausaGitHub.Record.transition CausaGitHub.SyncConfirmed (stamp st) "adopted" ("GitHub's copy at commit " + c.Commit.Substring(0, min 7 c.Commit.Length) + " was adopted")
+                saveRecord iid r st
             | None -> st, []
-        let r =
-            match st.Remote, recordOf st iid with
-            | _, Some r -> r
-            | Some cfg, None -> CausaGitHub.Record.create (workspaceOf cfg) (Id.text iid)
-            | None, None -> CausaGitHub.Record.create { Owner = ""; Repo = ""; Branch = ""; RunId = "" } (Id.text iid)
-        let r =
-            { r with Confirmed = Some c; Remote = None; InFlight = None; Publish = None; LastError = None }
-            |> CausaGitHub.Record.transition CausaGitHub.SyncConfirmed (stamp st) "adopted" ("GitHub's copy at commit " + c.Commit.Substring(0, min 7 c.Commit.Length) + " was adopted")
-        let st, saveR = saveRecord iid r st
         let st, idx = saveIndex st
-        st, [ StorageSet(c1, Storage.investigationKey iid, CausaData.encodeFileSet origin c.Files) ] @ keep @ saveR @ idx
-    | Some(Error e) -> { st with Notice = "GitHub's copy could not be verified and was not used: " + CausaData.describe e }, []
-    | None -> st, []
+        { st with Notice = (if st.Notice.StartsWith("Using GitHub's version", StringComparison.Ordinal) then "GitHub's version is now the investigation on this device; the version it replaced is kept as a separate conflict copy." else st.Notice) },
+        [ StorageSet(c1, Storage.investigationKey iid, CausaData.encodeFileSet origin c.Files) ] @ saveR @ idx
+    | _ -> { st with Notice = "GitHub's copy could not be verified and was not used." }, []
 
-let private originOf (st: AppState) (iid: InvestigationId) =
-    demoOf st iid |> Option.map (fun d -> CausaData.Pins.tag + "/" + d.ScenarioKey)
+/// Write the next conflict copy of an adoption, or finish it once all are stored.
+let private adoptCopies (iid: InvestigationId) (c: CausaGitHub.Confirmed) (origin: string option) (copies: string list) (st: AppState) : AppState * Effect list =
+    match copies with
+    | [] -> finishAdopt iid c origin st
+    | text :: rest ->
+        let key = Storage.conflictKey iid (stamp st + "-" + string st.NextCorrelation)
+        let w, st = Ids.correlation st (AdoptCopy(iid, c, origin, rest))
+        st, [ StorageSet(w, key, text) ]
+
+/// The device copy was read: keep it, and this window's version, unless either is what is being adopted.
+let private onAdoptRead (iid: InvestigationId) (c: CausaGitHub.Confirmed) (origin: string option) (stored: string option) (st: AppState) : AppState * Effect list =
+    let adopted = CausaData.encodeFileSet origin c.Files
+    let isAdopted (text: string) =
+        match CausaData.decodeFileSet text with
+        | Ok(f, _) -> sameFiles f c.Files
+        | Error _ -> false
+    let memory = fileSetOf st iid |> Result.toOption |> Option.map (fun (f, _) -> CausaData.encodeFileSet (match formatOf st iid with CausaFormat o -> o | LegacyFormat -> None) f)
+    let copies =
+        [ stored; memory ]
+        |> List.choose id
+        |> List.filter (fun t -> t <> adopted && not (isAdopted t))
+        |> List.distinct
+    adoptCopies iid c origin copies st
+
+/// The frozen original as recorded, if this history really starts with it (byte prefix), else no origin.
+let private originOf (st: AppState) (iid: InvestigationId) (files: Causa.Contract.InvestigationFiles) =
+    match demoOf st iid, schemasOf st with
+    | Some d, Some schemas ->
+        Causa.Contract.Store.build schemas d.Loaded.Events
+        |> Result.toOption
+        |> Option.filter (fun (frozen, _) -> files.Events.AsSpan().StartsWith(frozen.Events.AsSpan()))
+        |> Option.map (fun _ -> CausaData.Pins.tag + "/" + d.ScenarioKey)
+    | _ -> None
+
+/// Investigations this device already holds in any form: loaded, waiting for the schemas, or unreadable.
+/// Recovery never writes over any of them.
+let private heldOnDevice (st: AppState) =
+    Set.unionMany
+        [ st.Investigations |> Map.toList |> List.map fst |> Set.ofList
+          st.Unreadable |> Map.toList |> List.map fst |> Set.ofList
+          st.Deferred |> Map.toList |> List.map fst |> Set.ofList
+          st.StoredIndex |> Map.toList |> List.map fst |> Set.ofList ]
 
 let private recovered (result: Result<(string * Result<CausaGitHub.Confirmed option, CausaGitHub.Fault>) list, CausaGitHub.Fault>) (st: AppState) : AppState * Effect list =
     match result with
     | Error f -> { st with Notice = "The run on GitHub could not be listed: " + redact st (CausaGitHub.Fault.describe f) }, []
     | Ok items ->
+        let held = heldOnDevice st
         let st, fx, count, problems =
             items
             |> List.fold
                 (fun (s, fx, n, problems) (name, r) ->
                     match Id.tryParse<InvestigationTag> name, r with
-                    | Some iid, Ok(Some c) when not (s.Investigations.ContainsKey iid) ->
-                        let s, more = adoptConfirmed iid c (originOf s iid) s
+                    | Some iid, Ok(Some c) when not (held.Contains iid) ->
+                        let s, more = adoptConfirmed iid c (originOf s iid c.Files) s
                         s, fx @ more, n + 1, problems
                     | _, Ok _ -> s, fx, n, problems
                     | _, Error f -> s, fx, n, problems @ [ name + " (" + f.Cause + ")" ])
@@ -1214,7 +1298,7 @@ let private recovered (result: Result<(string * Result<CausaGitHub.Confirmed opt
         { st with Notice = notice }, fx
 
 let private recoverProgram (st: AppState) (session: CausaGitHub.Session) : CausaGitHub.Remote<RemoteResult> =
-    let have = st.Investigations |> Map.toList |> List.map (fst >> Id.text) |> Set.ofList
+    let have = heldOnDevice st |> Set.map Id.text
     CausaGitHub.list session
     |> CausaGitHub.Remote.bind (fun listed ->
         match listed with
@@ -1241,29 +1325,35 @@ let private replyOf (outcome: HttpOutcome) : CausaGitHub.Reply =
     | HttpCancelled -> CausaGitHub.NotSent "cancelled"
     | HttpOutcomeUnknown reason -> CausaGitHub.Unanswered reason
 
-/// Settings changed while a program was in flight: its answers are dropped; a publish that may have reached the
-/// PATCH is unknown, never confirmed (T19/T20 applied in memory).
+/// The workspace changed while a program was in flight: its later answers are dropped (by generation); a publish that
+/// may have reached the PATCH is unknown, never confirmed (T19/T20 applied in memory).
 let private abandon (st: AppState) =
-    { st with Busy = false; Records = st.Records |> Map.map (fun _ r -> CausaGitHub.Record.recover (stamp st) r) }
+    { st with Flight = None; Records = st.Records |> Map.map (fun _ r -> CausaGitHub.Record.recover (stamp st) r) }
 
-let rec private advance (iid: InvestigationId option) (identity: string) (program: CausaGitHub.Remote<RemoteResult>) (st: AppState) : AppState * Effect list =
+let rec private advance (iid: InvestigationId option) (identity: string) (flight: int64) (program: CausaGitHub.Remote<RemoteResult>) (st: AppState) : AppState * Effect list =
     match program with
-    | CausaGitHub.Done result -> finish iid result { st with Busy = false }
+    | CausaGitHub.Done result -> finish iid result { st with Flight = None }
     | CausaGitHub.Next(CausaGitHub.Call request, k) ->
-        let c, st = Ids.correlation st (RemoteStep(iid, identity, { Resume = k }))
-        { st with Busy = true }, [ HttpCall(c, request.Method, request.Url, request.Headers, request.Body) ]
+        let c, st = Ids.correlation st (RemoteStep(iid, identity, flight, { Resume = k }))
+        { st with Flight = Some flight }, [ HttpCall(c, request.Method, request.Url, request.Headers, request.Body) ]
     | CausaGitHub.Next(CausaGitHub.Keep(key, value), k) ->
-        let c, st = Ids.correlation st (KeepMarker(iid, identity, { Resume = k }))
+        let c, st = Ids.correlation st (KeepMarker(iid, identity, flight, { Resume = k }))
         let st =
-            match iid, CausaGitHub.Record.decode value with
-            | Some i, Ok r -> { st with Records = st.Records |> Map.add i r }
-            | _ -> st
-        { st with Busy = true }, [ StorageSet(c, key, value) ]
+            match CausaGitHub.Record.decodeBook value with
+            | Ok records -> records |> List.fold (fun s r -> withRecord (Id.create (Guid r.InvestigationId)) r s) st
+            | Error _ -> st
+        { st with Flight = Some flight }, [ StorageSet(c, key, value) ]
 
 and private finish (iid: InvestigationId option) (result: RemoteResult) (st: AppState) : AppState * Effect list =
+    let halt (outcome: CausaGitHub.Outcome) (s: AppState) =
+        match outcome with
+        | CausaGitHub.Outcome.Failed f when f.Kind = CausaGitHub.Authentication ->
+            { s with AuthHalted = true; Notice = "GitHub refused the access token. Nothing more is sent until it is entered again in GitHub settings." }
+        | _ -> s
     match result, iid with
     | PublishDone outcome, Some i ->
         let st, fx = applyOutcome i outcome st
+        let st = halt outcome st
         let st, more =
             match outcome with
             // An ambiguous PATCH is resolved at once, by SHA reads only (CAUSA-PROV-24).
@@ -1273,6 +1363,7 @@ and private finish (iid: InvestigationId option) (result: RemoteResult) (st: App
         st, fx @ more
     | ResolveDone outcome, Some i ->
         let st, fx = applyOutcome i outcome st
+        let st = halt outcome st
         let st = match outcome with CausaGitHub.Outcome.Confirmed _ -> st | _ -> { st with Attempted = st.Attempted |> Set.add i }
         let st, more = syncNext st
         st, fx @ more
@@ -1283,14 +1374,17 @@ and private finish (iid: InvestigationId option) (result: RemoteResult) (st: App
     | _ -> st, []
 
 /// One provider program at a time: unknown outcomes are resolved before anything pending is sent (CAUSA-PROV-24 §5).
+/// Not published: earlier-format copies, investigations whose stored sync record is unreadable, and those whose
+/// local save was refused because another window changed them (the device and this window disagree).
 and private syncNext (st: AppState) : AppState * Effect list =
     match st.Remote, schemasOf st with
-    | Some cfg, Some _ when not st.Busy && st.Loaded && st.Online && cfg.Token <> "" && Result.isOk (CausaGitHub.Workspace.check (workspaceOf cfg)) ->
+    | Some cfg, Some _ when st.Flight.IsNone && not st.AuthHalted && st.Loaded && st.Online && cfg.Token <> "" && Result.isOk (CausaGitHub.Workspace.check (workspaceOf cfg)) ->
         let candidates =
             st.Investigations
             |> Map.toList
             |> List.map fst
-            |> List.filter (fun i -> formatOf st i <> LegacyFormat && not (st.Attempted.Contains i))
+            |> List.filter (fun i ->
+                formatOf st i <> LegacyFormat && not (st.Attempted.Contains i) && not (st.RecordUnreadable.Contains i) && not (st.SaveConflicts.ContainsKey i))
             |> List.choose (fun i ->
                 let r = recordOf st i |> Option.defaultValue (CausaGitHub.Record.create (workspaceOf cfg) (Id.text i))
                 workFor st i r |> Option.map (fun w -> i, r, w))
@@ -1302,15 +1396,17 @@ and private syncNext (st: AppState) : AppState * Effect list =
 
 and private startResolve (iid: InvestigationId) (st: AppState) : AppState * Effect list =
     match st.Remote, recordOf st iid with
-    | Some cfg, Some r when r.Status = CausaGitHub.SyncUnknown && r.InFlight.IsSome && cfg.Token <> "" && st.Online ->
+    | Some cfg, Some r when r.Status = CausaGitHub.SyncUnknown && r.InFlight.IsSome && cfg.Token <> "" && st.Online && not st.AuthHalted ->
         begin' cfg iid r (ResolveFiles r.InFlight.Value) st
     | _ -> syncNext { st with Attempted = st.Attempted |> Set.add iid }
 
 and private begin' (cfg: RemoteConfig) (iid: InvestigationId) (r: CausaGitHub.Record) (work: Work) (st: AppState) : AppState * Effect list =
     let session = sessionOf cfg st
     let identity = remoteIdentity cfg
+    let flight = st.Generation + 1L
+    let st = { st with Generation = flight; Flight = Some flight }
     match work with
-    | ResolveFiles files -> advance (Some iid) identity (CausaGitHub.resolve (attemptOf st session iid r files "") |> CausaGitHub.Remote.map ResolveDone) st
+    | ResolveFiles files -> advance (Some iid) identity flight (CausaGitHub.resolve (attemptOf st session iid r files "") |> CausaGitHub.Remote.map ResolveDone) st
     | PublishFiles(files, copyOf) ->
         let from = r.Confirmed |> Option.map (fun c -> lineCount c.Files.Events) |> Option.defaultValue 0
         let upTo = lineCount files.Events
@@ -1319,8 +1415,14 @@ and private begin' (cfg: RemoteConfig) (iid: InvestigationId) (r: CausaGitHub.Re
             { r with InFlight = Some files; Publish = None; LastError = None }
             |> CausaGitHub.Record.transition CausaGitHub.SyncSending (stamp st) "publish" ("publishing version " + string upTo)
         let st, save = saveRecord iid r st
-        let st, fx = advance (Some iid) identity (CausaGitHub.publish (attemptOf st session iid r files message) |> CausaGitHub.Remote.map PublishDone) st
+        let st, fx = advance (Some iid) identity flight (CausaGitHub.publish (attemptOf st session iid r files message) |> CausaGitHub.Remote.map PublishDone) st
         st, save @ fx
+
+/// Start the recovery program (one program at a time).
+let private startRecover (cfg: RemoteConfig) (st: AppState) : AppState * Effect list =
+    let flight = st.Generation + 1L
+    let st = { st with Generation = flight; Flight = Some flight }
+    advance None (remoteIdentity cfg) flight (recoverProgram st (sessionOf cfg st)) st
 
 let private persistAfterChange (iid: InvestigationId) (st: AppState) : AppState * Effect list =
     match Map.tryFind iid st.Investigations with
@@ -1337,15 +1439,31 @@ let private persistAfterChange (iid: InvestigationId) (st: AppState) : AppState 
 
 let private saveSettings (config: RemoteConfig option) (st: AppState) : AppState * Effect list =
     // Records stay bound to the workspace they were made for (CAUSA-PROV-01 §3); nothing is moved or deleted.
-    let st = (if st.Busy then abandon st else st) |> fun s -> { s with Remote = config; Attempted = Set.empty }
+    // A program in flight keeps running when only the token changes; it is abandoned when the workspace changes.
+    let identity = config |> Option.map remoteIdentity |> Option.defaultValue ""
+    let st = if st.Flight.IsSome && identity <> currentIdentity st then abandon st else st
+    let newToken = config |> Option.exists (fun c -> c.Token <> "" && Some c.Token <> (st.Remote |> Option.map (fun r -> r.Token)))
+    let st = { st with Remote = config; Attempted = Set.empty; AuthHalted = st.AuthHalted && not newToken }
+    // T18: records that failed on authentication return to pending once a new token is entered.
+    let st, requeue =
+        if not newToken then st, []
+        else
+            st.Records
+            |> Map.toList
+            |> List.filter (fun ((_, ws), r) -> ws = identity && r.Status = CausaGitHub.SyncFailed && (r.LastError |> Option.exists (fun e -> e.StartsWith("authentication", StringComparison.Ordinal))))
+            |> List.fold
+                (fun (s, fx) ((i, _), r) ->
+                    let s, more = saveRecord i (CausaGitHub.Record.transition CausaGitHub.SyncPending (stamp s) "re-authenticated" "a new access token was entered" r) s
+                    s, fx @ more)
+                (st, [])
     match config with
     | None ->
         let c, st = Ids.correlation st SaveSettings
-        st, [ StorageRemove(c, Storage.settingsKey) ]
+        st, requeue @ [ StorageRemove(c, Storage.settingsKey) ]
     | Some cfg ->
         let st, save = storageSet SaveSettings Storage.settingsKey (settingsDocument cfg) st
         let st, sync = syncNext st
-        st, save @ sync
+        st, requeue @ save @ sync
 
 /// "Check GitHub again": a failed record returns to pending (T18), an unknown one is resolved, then a sync cycle runs.
 let private retrySync (st: AppState) : AppState * Effect list =
@@ -1360,7 +1478,8 @@ let private retrySync (st: AppState) : AppState * Effect list =
         let notice =
             if not st.Online then "Offline: changes stay on this device and are sent when the connection returns."
             elif cfg.Token = "" then "Enter your access token in GitHub settings first; it is kept in memory for this session only."
-            elif sync.IsEmpty && not st.Busy then "Nothing to send to GitHub now."
+            elif st.AuthHalted then "GitHub refused the access token: enter it again in GitHub settings."
+            elif sync.IsEmpty && st.Flight.IsNone then "Nothing to send to GitHub now."
             else "Checking GitHub…"
         { st with Notice = notice }, save @ sync
     | _ -> st, []
@@ -1708,7 +1827,7 @@ let private onEvent (name: string) (key: string option) (value: string option) (
             match recordOf st iid with
             | Some r when r.Status = CausaGitHub.SyncConflicted && r.Remote.IsSome ->
                 let st, fx = adoptConfirmed iid r.Remote.Value (match formatOf st iid with CausaFormat o -> o | LegacyFormat -> None) st
-                { st with Notice = "GitHub's version is now the investigation on this device. Your previous version was kept as a separate conflict copy." }, fx
+                { st with Notice = "Using GitHub's version: this device's version is first kept as a separate conflict copy, then replaced." }, fx
             | _ -> st, []
         | None -> st, []
     | "sync.newRun" ->
@@ -1720,8 +1839,8 @@ let private onEvent (name: string) (key: string option) (value: string option) (
         | None -> st, []
     | "sync.recover" ->
         match st.Remote with
-        | Some cfg when cfg.Token <> "" && st.Loaded && not st.Busy && (schemasOf st).IsSome ->
-            let st, fx = advance None (remoteIdentity cfg) (recoverProgram st (sessionOf cfg st)) st
+        | Some cfg when cfg.Token <> "" && st.Loaded && st.Flight.IsNone && (schemasOf st).IsSome ->
+            let st, fx = startRecover cfg st
             { st with Notice = "Reading run " + cfg.RunId + " from GitHub…" }, fx
         | Some cfg when cfg.Token = "" -> { st with Notice = "Enter your access token first; it is kept in memory for this session only." }, []
         | _ -> { st with Notice = "GitHub is busy or not configured; try again in a moment." }, []
@@ -1859,10 +1978,10 @@ let private onCheckBeforeSave (iid: InvestigationId) (stored: string option) (st
         | Some(Some _) ->
             // Another window wrote a different history: refuse, keep this window's work in memory and as a conflict copy.
             let reason =
-                "Not saved: another window changed this investigation on this device. Your changes are kept in this window and in a separate conflict copy; reload to see the other version."
+                "Not saved: another window changed this investigation on this device. Your changes are kept in this window; a separate conflict copy is being saved."
             let st = { st with Local = st.Local |> Map.add iid (SaveFailed reason); SaveConflicts = st.SaveConflicts |> Map.add iid reason }
-            let c, st = Ids.correlation st SaveConflictCopy
-            st, [ StorageSet(c, Storage.conflictKey iid loaded.State.Version, text) ]
+            let c, st = Ids.correlation st (SaveConflictCopy iid)
+            st, [ StorageSet(c, Storage.conflictKey iid (string loaded.State.Version + "-" + stamp st + "-" + string st.NextCorrelation), text) ]
 
 let private onStorage (op: PendingOp) (result: Result<string option, string>) (st: AppState) : AppState * Effect list =
     match op, result with
@@ -1871,7 +1990,17 @@ let private onStorage (op: PendingOp) (result: Result<string option, string>) (s
     | SaveFileSet(iid, version), Ok _ ->
         { st with Local = st.Local |> Map.add iid SavedLocally; StoredVersion = st.StoredVersion |> Map.add iid version; SaveConflicts = st.SaveConflicts |> Map.remove iid }, []
     | SaveFileSet(iid, _), Error reason -> { st with Local = st.Local |> Map.add iid (SaveFailed reason) }, []
-    | SaveConflictCopy, _ -> st, []
+    | SaveConflictCopy iid, Ok _ ->
+        let reason = "Not saved: another window changed this investigation on this device. Your changes are kept in this window and in a separate conflict copy on this device; reload to see the other version."
+        { st with Local = st.Local |> Map.add iid (SaveFailed reason); SaveConflicts = st.SaveConflicts |> Map.add iid reason }, []
+    | SaveConflictCopy iid, Error why ->
+        let reason = "Not saved: another window changed this investigation on this device, and the conflict copy could not be saved (" + why + "). Your changes exist only in this window: do not close it."
+        { st with Local = st.Local |> Map.add iid (SaveFailed reason); SaveConflicts = st.SaveConflicts |> Map.add iid reason }, []
+    | AdoptRead(iid, c, origin), Ok stored -> onAdoptRead iid c origin stored st
+    | AdoptRead _, Error why -> { st with Notice = "GitHub's version was not used: this device's copy could not be read first (" + why + ")." }, []
+    | AdoptCopy(iid, c, origin, rest), Ok _ -> adoptCopies iid c origin rest st
+    | AdoptCopy _, Error why ->
+        { st with Notice = "GitHub's version was not used: this device's version could not be kept as a conflict copy (" + why + "). Nothing was replaced." }, []
     | LoadInvestigation iid, Ok(Some text) when CausaData.isFileSet text -> finishLoading (adoptFileSet iid text st)
     | LoadSettings, Ok(Some text) ->
         // Settings from before Causa storage have no run: one is chosen now (CAUSA-PROV-02) and saved.
@@ -1887,15 +2016,22 @@ let private onStorage (op: PendingOp) (result: Result<string option, string>) (s
         let st, more = finishLoading { st with Remote = remote }
         st, scrub @ more
     | LoadRecord iid, Ok(Some text) ->
-        match CausaGitHub.Record.decode text with
-        | Ok r ->
+        match CausaGitHub.Record.decodeBook text with
+        | Ok records ->
             // T19/T20: a publish interrupted by the restart is pending, or unknown once its PATCH may have been sent.
-            let recovered = CausaGitHub.Record.recover (stamp st) r
-            let st = { st with Records = st.Records |> Map.add iid recovered }
-            let st, save = if recovered.Status <> r.Status then saveRecord iid recovered st else st, []
+            let recovered = records |> List.map (CausaGitHub.Record.recover (stamp st))
+            let st = recovered |> List.fold (fun s r -> withRecord iid r s) st
+            let st, save =
+                match List.zip records recovered |> List.tryFind (fun (a, b) -> a.Status <> b.Status) with
+                | Some(_, r) -> saveRecord iid r st
+                | None -> st, []
             let st, more = finishLoading st
             st, save @ more
-        | Error e -> finishLoading { st with Notice = "The GitHub sync state of one investigation could not be read (" + e + "); it is left untouched." }
+        | Error e ->
+            finishLoading
+                { st with
+                    RecordUnreadable = st.RecordUnreadable |> Set.add iid
+                    Notice = "The GitHub sync state of one investigation could not be read (" + e + "); it is left untouched and that investigation is not published." }
     | LoadRecord _, (Ok None | Error _) -> finishLoading st
     | SaveRecord _, Error reason -> { st with Notice = "Saving the GitHub sync state on this device failed (" + reason + ")." }, []
     | LoadIndex, Ok(Some text) ->
@@ -2941,12 +3077,13 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
         st, fx, NoHandshake
     | StorageDone(c, result) ->
         match Map.tryFind c st.Pending with
-        | Some(KeepMarker(iid, identity, resume)) ->
+        | Some(KeepMarker(iid, identity, flight, resume)) ->
             let st = { st with Pending = st.Pending |> Map.remove c }
-            if identity <> currentIdentity st then abandon st, [], NoHandshake
+            if st.Flight <> Some flight then st, [], NoHandshake // an abandoned program: its answers are dropped
+            elif identity <> currentIdentity st then abandon st, [], NoHandshake
             else
                 let reply = match result with Ok _ -> CausaGitHub.Answered(200, "", Map.empty) | Error reason -> CausaGitHub.NotSent reason
-                let st, fx = advance iid identity (resume.Resume reply) st
+                let st, fx = advance iid identity flight (resume.Resume reply) st
                 st, fx, NoHandshake
         | Some op ->
             let st, fx = onStorage op result { st with Pending = st.Pending |> Map.remove c }
@@ -2954,11 +3091,12 @@ let private step (message: Inbound) (st: AppState) : AppState * Effect list * Ha
         | None -> st, [], NoHandshake
     | HttpDone(c, outcome) ->
         match Map.tryFind c st.Pending with
-        | Some(RemoteStep(iid, identity, resume)) ->
+        | Some(RemoteStep(iid, identity, flight, resume)) ->
             let st = { st with Pending = st.Pending |> Map.remove c }
-            if identity <> currentIdentity st then abandon st, [], NoHandshake
+            if st.Flight <> Some flight then st, [], NoHandshake // an abandoned program: its answers are dropped
+            elif identity <> currentIdentity st then abandon st, [], NoHandshake
             else
-                let st, fx = advance iid identity (resume.Resume (replyOf outcome)) st
+                let st, fx = advance iid identity flight (resume.Resume (replyOf outcome)) st
                 st, fx, NoHandshake
         | Some LoadDataset ->
             let demo =

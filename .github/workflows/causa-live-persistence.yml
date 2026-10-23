@@ -53,7 +53,11 @@ jobs:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          remote="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          # The token travels in a header, never in a URL.
+          auth="AUTHORIZATION: basic $(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+          echo "::add-mask::$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)"
+          remote="https://github.com/${GITHUB_REPOSITORY}.git"
+          git() { command git -c http.extraheader="$auth" "$@"; }
           if git ls-remote --exit-code --heads "$remote" causa-workspace > /dev/null; then
             echo "causa-workspace exists"
           else

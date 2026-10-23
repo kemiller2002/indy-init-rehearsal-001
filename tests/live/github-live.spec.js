@@ -132,7 +132,8 @@ test("LIVE: working copy, append, reload, recovery on a second device, and a ref
   await expect(page.getByTestId("hypothesis").locator("h3").filter({ hasText: "Live check: cache eviction" })).toBeVisible();
   await confirmed(page);
   const stored = await page.evaluate(() => Object.keys(localStorage).map((k) => k + "=" + localStorage.getItem(k)).join("\n"));
-  expect(stored).not.toContain(token);
+  // Booleans only: the token itself is never an assertion value, so a failure can never print it.
+  expect(stored.includes(token), "the token is stored on the device").toBe(false);
   // The token is memory-only (CAUSA-PROV-36): after the reload this device asks for it again.
   await ready(page, "#/settings");
   await expect(page.getByText("No access token in this session")).toBeVisible();
@@ -180,9 +181,9 @@ test("LIVE: working copy, append, reload, recovery on a second device, and a ref
   expect(conflictCopies).toBeGreaterThan(0);
   note("adopted-remote", { conflictCopies });
 
-  // Every request the app made went to api.github.com only, and the page never showed the token.
-  expect(await page.content()).not.toContain(token);
-  expect(await other.content()).not.toContain(token);
+  // The page never showed the token (the app's requests are checked against api.github.com in the fake-server tests).
+  expect((await page.content()).includes(token), "the token is in page A").toBe(false);
+  expect((await other.content()).includes(token), "the token is in page B").toBe(false);
   expect(errors).toEqual([]);
   evidence.finishedAt = new Date().toISOString();
   evidence.result = "pass";

@@ -74,20 +74,22 @@ let ``a dataset that is not the pinned release is refused as a whole`` () =
     | Error e -> Assert.Equal("CAUSA.FIXTURE_DRIFT", e.Code)
 
 [<Fact>]
-let ``a working copy round-trips through the device format byte for byte`` () =
+let ``every frozen investigation round-trips through the device format byte for byte, all three files`` () =
     let d = dataset ()
-    let v = d.Valid.Head
-    match Store.build d.Schemas v.Loaded.Events with
-    | Error e -> failwith (CausaData.describe e)
-    | Ok(files, _) ->
-        let stored = CausaData.encodeFileSet (Some("demo:" + v.ScenarioKey)) files
-        match CausaData.decodeFileSet stored with
-        | Ok(back, origin) ->
-            Assert.Equal(Some("demo:" + v.ScenarioKey), origin)
-            Assert.Equal<byte[]>(files.Events, back.Events)
-            let original = releaseFiles["fixtures/v1.0.0/investigations/" + Uuid.text v.Loaded.InvestigationId + "/events.ndjson"]
-            Assert.Equal<byte[]>(original, back.Events)
+    Assert.Equal(5, d.Valid.Length)
+    for v in d.Valid do
+        match Store.build d.Schemas v.Loaded.Events with
         | Error e -> failwith (CausaData.describe e)
+        | Ok(files, _) ->
+            let stored = CausaData.encodeFileSet (Some("demo:" + v.ScenarioKey)) files
+            match CausaData.decodeFileSet stored with
+            | Ok(back, origin) ->
+                Assert.Equal(Some("demo:" + v.ScenarioKey), origin)
+                let dir = "fixtures/v1.0.0/investigations/" + Uuid.text v.Loaded.InvestigationId + "/"
+                Assert.Equal<byte[]>(releaseFiles[dir + "events.ndjson"], back.Events)
+                Assert.Equal<byte[]>(releaseFiles[dir + "manifest.json"], back.Manifest)
+                Assert.Equal<byte[]>(releaseFiles[dir + "snapshot.json"], back.Snapshot)
+            | Error e -> failwith (CausaData.describe e)
 
 [<Fact>]
 let ``appending a decided event keeps the frozen history as a byte prefix; a stale version is refused`` () =
