@@ -86,6 +86,9 @@ test("Causa: each frozen investigation opens read-only with its replayed state a
     const actions = await page.locator("main button:visible").allTextContents();
     for (const label of actions) expect(label).toMatch(/^(Copy link.*|Create a working copy|Dismiss)$/);
     await expect(page.getByTestId("outstanding")).toBeVisible();
+    // A frozen original is never saved anywhere, so no save status is shown for it.
+    await expect(page.getByTestId("local-status")).toHaveCount(0);
+    await expect(page.getByTestId("remote-status")).toHaveCount(0);
   }
   expect(errors).toEqual([]);
 });

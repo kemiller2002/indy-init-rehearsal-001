@@ -298,6 +298,7 @@
             <a data-bind-href="reportHref">Open report</a>
             <button type="button" data-event="copy.workspace">Copy link to this investigation</button>
           </p>
+          <template data-if="showPersistence">
           <div class="persistence" aria-label="Where this investigation is saved">
             <p class="persistence__local" data-testid="local-status" data-text="localStatus"></p>
             <p class="persistence__remote" data-testid="remote-status"><span class="ef-status-lozenge" data-bind-data-state="remoteTone" data-text="remoteStatus"></span></p>
@@ -319,6 +320,7 @@
               </details>
             </template>
           </div>
+          </template>
         </header>
 
         <template data-if="hasFocus">
