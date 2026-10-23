@@ -1,6 +1,6 @@
 {
   "base": "https://kevinmmiller.us/indy-init-rehearsal-001/",
-  "checkedAt": "2026-10-23T10:42:14.577Z",
+  "checkedAt": "2026-10-23T11:23:17.510Z",
   "viewports": [
     {
       "name": "desktop",
@@ -65,11 +65,13 @@
       "evidence": 3,
       "contract": "Verified on load against the Causa storage contract v1.0.0: all 17 reader stages, admissibility re-decided by this engine, snapshot equal to the replay. State digest 9ce1ec0eb49c…, events digest a34c241e4eb6….",
       "forms": 0,
+      "saveStatus": 0,
       "titleMatches": true,
       "hypothesesMatch": true,
       "evidenceMatches": true,
       "digestShown": true,
-      "readOnly": true
+      "readOnly": true,
+      "noSaveStatus": true
     },
     {
       "key": "authentication-outage",
@@ -80,11 +82,13 @@
       "evidence": 7,
       "contract": "Verified on load against the Causa storage contract v1.0.0: all 17 reader stages, admissibility re-decided by this engine, snapshot equal to the replay. State digest cd3ea94c8be6…, events digest 8c47a0b8d248….",
       "forms": 0,
+      "saveStatus": 0,
       "titleMatches": true,
       "hypothesesMatch": true,
       "evidenceMatches": true,
       "digestShown": true,
-      "readOnly": true
+      "readOnly": true,
+      "noSaveStatus": true
     },
     {
       "key": "conflicting-metrics",
@@ -95,11 +99,13 @@
       "evidence": 5,
       "contract": "Verified on load against the Causa storage contract v1.0.0: all 17 reader stages, admissibility re-decided by this engine, snapshot equal to the replay. State digest f189ac3bf47f…, events digest deffe3cec616….",
       "forms": 0,
+      "saveStatus": 0,
       "titleMatches": true,
       "hypothesesMatch": true,
       "evidenceMatches": true,
       "digestShown": true,
-      "readOnly": true
+      "readOnly": true,
+      "noSaveStatus": true
     },
     {
       "key": "intermittent-outage",
@@ -110,11 +116,13 @@
       "evidence": 4,
       "contract": "Verified on load against the Causa storage contract v1.0.0: all 17 reader stages, admissibility re-decided by this engine, snapshot equal to the replay. State digest 289c26e5525c…, events digest 90ed91e1dc3d….",
       "forms": 0,
+      "saveStatus": 0,
       "titleMatches": true,
       "hypothesesMatch": true,
       "evidenceMatches": true,
       "digestShown": true,
-      "readOnly": true
+      "readOnly": true,
+      "noSaveStatus": true
     },
     {
       "key": "api-latency",
@@ -125,16 +133,18 @@
       "evidence": 4,
       "contract": "Verified on load against the Causa storage contract v1.0.0: all 17 reader stages, admissibility re-decided by this engine, snapshot equal to the replay. State digest 2ba34140daab…, events digest a85cec5ef9e8….",
       "forms": 0,
+      "saveStatus": 0,
       "titleMatches": true,
       "hypothesesMatch": true,
       "evidenceMatches": true,
       "digestShown": true,
-      "readOnly": true
+      "readOnly": true,
+      "noSaveStatus": true
     }
   ],
   "buildInfo": {
-    "commit": "2d1fb29078aaceb297cef35c50f15168ad0a154d",
-    "builtAt": "2026-10-23T10:33:47.299Z"
+    "commit": "5d5f123a5d82572fd8f9faa9163e837f51e25afa",
+    "builtAt": "2026-10-23T11:11:04.162Z"
   },
   "detailErrors": []
 }
