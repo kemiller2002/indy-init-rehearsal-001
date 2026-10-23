@@ -99,4 +99,40 @@ provider-gate PASS. **This build's provider gate is therefore incomplete.**
 
 ## Live GitHub persistence
 
-LIVE_RESULTS_PLACEHOLDER
+**Result: verified live**, twice, against the real `api.github.com`.
+
+The workflow `.github/workflows/causa-live-persistence.yml` runs on GitHub Actions:
+- The real app is built from the commit and served locally, then driven in Chromium.
+- It publishes with the job's short-lived `GITHUB_TOKEN` (contents: write on this repository only), to the dedicated
+  data branch `causa-workspace`. That branch is an orphan holding only `.gitattributes` `* -text`
+  (CAUSA-PROV-04 §3).
+- Traces, screenshots and videos are off, so the typed token is never recorded.
+- Every claim is checked **independently** by the test process, which reads GitHub's Git Data API by SHA. Each blob's
+  git id is recomputed from its bytes.
+
+| run | commit | result | artifact |
+|---|---|---|---|
+| [39933658628](https://github.com/kemiller2002/indy-init-rehearsal-001/actions/runs/39933658628) | `a0ce5ab` (before the review fixes) | **pass**, 1/1 | `causa-live-persistence` 12493445406 |
+| [39936822179](https://github.com/kemiller2002/indy-init-rehearsal-001/actions/runs/39936822179) | `fe5d347` (review fixes; the code that is deployed) | **pass**, 1/1 | `causa-live-persistence` 12494656190 |
+
+An earlier run, [39932899507](https://github.com/kemiller2002/indy-init-rehearsal-001/actions/runs/39932899507) on
+`4e2251a`, **failed**. Its first five checks passed live. It then failed because the test did not re-enter the
+memory-only token after the reload: the app correctly showed "enter your access token". The test was fixed
+(`a0ce5ab`); the app was not changed.
+
+Steps of run 39936822179 (`fe5d347`), from the run's own evidence file (it contains no token):
+
+| step | evidence |
+|---|---|
+| configure | run `demo-20261023-100923-f80d80`, P = `workspaces/demo/demo-20261023-100923-f80d80/investigations/d588748e-8df9-5f27-859e-5d36d9a2b53d/`, head before `32305dd5` |
+| working copy (CAUSA-PROV-11) | commit `87c113de`, one parent `32305dd5`; exactly 3 blobs `100644`; `events.ndjson` SHA-256 `a85cec5e…` = the frozen `eventsSha256`; message `causa: … v0 -> v34 (34 events), working copy of causa-demo-v1` |
+| append (AC-PROV-02) | commit `fa6d1fe0`, one parent `87c113de`; GitHub's three files equal the device file set byte for byte; the events start with the frozen bytes; `v34 -> v35 (1 events)` |
+| reload | confirmed state survives; the token is not stored on the device and is asked for again |
+| recovery on a second device (fresh storage) | "Recover this run" restores the investigation, verified; its events are byte-identical (19,415 bytes) |
+| concurrent write (CAUSA-PROV-27) | device B appends and is confirmed. Device A, on the older version, appends: **conflict** `CAUSA.VERSION_STALE`, no PATCH from the stale base, GitHub head stays at B's commit `ee86a895`, B's bytes untouched |
+| adopt on request (CAUSA-PROV-29) | A adopts GitHub's version: A's events equal B's, A's previous version is kept as 1 conflict copy, and the status is confirmed |
+| token | not in either page's content and not in device storage (boolean checks only); GitHub Actions masks the secret in logs |
+
+Each live run leaves its commits on `causa-workspace` under its own run id. They are the auditable trail: one commit
+per change, the author `causa-adapter`, and no domain text in commit messages.
+
