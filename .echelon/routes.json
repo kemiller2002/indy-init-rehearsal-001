@@ -31,6 +31,23 @@
     },
     {
       "guards": [],
+      "name": "demo",
+      "params": [
+        {
+          "default": null,
+          "in": "path",
+          "name": "investigation",
+          "required": true,
+          "type": "string",
+          "values": null
+        }
+      ],
+      "pattern": "/demo/{investigation}",
+      "requires": [],
+      "returnTarget": true
+    },
+    {
+      "guards": [],
       "name": "report",
       "params": [
         {

@@ -7,13 +7,16 @@
     <ProjectReference Include="../../src/engine/App.Engine.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="TestData.fs" />
+    <Compile Include="FakeGitHub.fs" />
     <Compile Include="EngineTests.fs" />
     <Compile Include="RouteTests.fs" />
     <Compile Include="DomainTests.fs" />
     <Compile Include="CodecTests.fs" />
-    <Compile Include="SyncTests.fs" />
     <Compile Include="ReportTests.fs" />
     <Compile Include="ShellTests.fs" />
+    <Compile Include="CausaDataTests.fs" />
+    <Compile Include="GitHubProviderTests.fs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />

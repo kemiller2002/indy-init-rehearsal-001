@@ -1,0 +1,48 @@
+{
+  "description": "Byte-identical vendor copy of the frozen Causa storage release. Verified by scripts/verify-causa-vendor.mjs on every build; never edit these files.",
+  "repository": "https://github.com/kemiller2002/causa-data",
+  "tag": "causa-storage-v1.0.0",
+  "tagObject": "fd2991a392e913b741f0ed2bc4daa4bc4be57f6c",
+  "commit": "c947c7e354be80766573a782546c8186336774cc",
+  "schemaBundleSha256": "0a68af8c93190d2e4d6c27beb2f8cb67c3aebdda586d01beb7122b71af179152",
+  "releaseIdentitySha256": "6a7e7802ff2a3ff500ab6065662514a96e09e6c15eb30212ba1377fcc5bf8fc5",
+  "datasetIdentitySha256": "f650a2e509a420872b46177b21f57ef6ebd7625ae4c69dd92198d3ca472c2b86",
+  "requirements": "https://github.com/kemiller2002/Indy-init/tree/main/requirements/causa/data/v1.0.0",
+  "contractLibrary": [
+    {
+      "path": "src/contract/Json.fs",
+      "source": "tools/src/Causa.Contract/Json.fs",
+      "sha256": "76e876e662ba66b7843d366eb3c75a01c0eb39848072b2892a931c2002ea7f46"
+    },
+    {
+      "path": "src/contract/Errors.fs",
+      "source": "tools/src/Causa.Contract/Errors.fs",
+      "sha256": "74ee12c6ce377bc8696030855cf0c522bdbf0fb4a7eb42795d8db6757a749810"
+    },
+    {
+      "path": "src/contract/Wire.fs",
+      "source": "tools/src/Causa.Contract/Wire.fs",
+      "sha256": "7cd3d61e6d03d9d26debb1f3495618a3aea6364c70d842af45f3d524def39f79"
+    },
+    {
+      "path": "src/contract/Events.fs",
+      "source": "tools/src/Causa.Contract/Events.fs",
+      "sha256": "70b03eaa5d2fbb314f07f3d328327c5045553e16f4adf013c03bf80f7b173ce9"
+    },
+    {
+      "path": "src/contract/Projection.fs",
+      "source": "tools/src/Causa.Contract/Projection.fs",
+      "sha256": "e7afb81b78797c524db71dd377f121ece64b5b5b9ae348a2e87c1acfc8b00e4d"
+    },
+    {
+      "path": "src/contract/SchemaCheck.fs",
+      "source": "tools/src/Causa.Contract/SchemaCheck.fs",
+      "sha256": "d1c02da3a5f2e6d3c7c1ef1f68ec6725c85b47fb1fb8bad576e0d1705e1acf4d"
+    },
+    {
+      "path": "src/contract/Store.fs",
+      "source": "tools/src/Causa.Contract/Store.fs",
+      "sha256": "bfe1aa8227940bd72aeaec6314d64df49a2bcce84faedf39b2130d601cfaa85b"
+    }
+  ]
+}

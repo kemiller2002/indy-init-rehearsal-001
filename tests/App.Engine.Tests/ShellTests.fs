@@ -36,6 +36,9 @@ let private httpSuccess (correlation: string) (status: int) (body: string) =
     "{\"kind\":\"EffectResult\",\"result\":{\"kind\":\"HttpResult\",\"correlationId\":\"" + correlation + "\",\"outcome\":{\"kind\":\"Success\",\"status\":"
     + string status + ",\"body\":" + JsonSerializer.Serialize body + "}}}"
 
+let private storageFailure (correlation: string) (reason: string) =
+    "{\"kind\":\"EffectResult\",\"result\":{\"kind\":\"StorageResult\",\"correlationId\":\"" + correlation + "\",\"outcome\":{\"kind\":\"Failure\",\"reason\":\"" + reason + "\"}}}"
+
 let private httpNetworkFailure (correlation: string) =
     "{\"kind\":\"EffectResult\",\"result\":{\"kind\":\"HttpResult\",\"correlationId\":\"" + correlation + "\",\"outcome\":{\"kind\":\"Failure\",\"reason\":\"network\"}}}"
 
@@ -67,10 +70,34 @@ let private answerLoads (st: AppState) (doc: JsonDocument) =
     |> List.filter (fun e -> kindOf e = "Storage" && e.GetProperty("operation").GetString() = "get")
     |> List.fold (fun (s, d) e -> send s (storageResult (e.GetProperty("correlationId").GetString()) None)) (st, doc)
 
+/// Answer the frozen Causa dataset request with the real vendored release.
+let private answerDataset (st: AppState) (doc: JsonDocument) =
+    effects doc
+    |> List.filter (fun e -> kindOf e = "Http" && e.GetProperty("url").GetString().EndsWith("causa-storage-v1.0.0.bundle.json"))
+    |> List.fold (fun (s, d) e -> send s (httpSuccess (e.GetProperty("correlationId").GetString()) 200 TestData.bundleJson.Value)) (st, doc)
+
 let private boot (hash: string) =
     let st, doc = send initial (initialize hash)
     let st, _ = answerLoads st doc
-    st, doc
+    let st, last = answerDataset st doc
+    st, last
+
+/// Perform the investigation storage effects of `doc` (and of every answer they lead to) as the Limen kernel does
+/// against one device: gets read `device`, sets write it. Returns the last state, document and device.
+let rec private settle (device: Map<string, string>) (st: AppState, doc: JsonDocument) : AppState * JsonDocument * Map<string, string> =
+    let isInvestigation (e: JsonElement) = kindOf e = "Storage" && e.GetProperty("key").GetString().StartsWith("rci:inv:")
+    effects doc
+    |> List.filter isInvestigation
+    |> List.fold
+        (fun (s, d, dev) e ->
+            let key = e.GetProperty("key").GetString()
+            let c = e.GetProperty("correlationId").GetString()
+            match e.GetProperty("operation").GetString() with
+            | "set" ->
+                let dev = Map.add key (e.GetProperty("value").GetString()) dev
+                settle dev (send s (storageResult c None))
+            | _ -> settle dev (send s (storageResult c (Map.tryFind key dev))))
+        (st, doc, device)
 
 let private start (st: AppState) =
     let st, _ = send st (event "f.observation" None (Some "Checkout returns 502 since 02:00."))
@@ -99,7 +126,8 @@ let ``Initialize is answered with exactly view, effects, cancellations and an ex
     let caps = [ for c in hs.GetProperty("capabilities").EnumerateArray() -> c.GetProperty("id").GetString(), c.GetProperty("fingerprint").GetString() ]
     Assert.Equal<(string * string) list>([ "limen.lifecycle", lifecycleFingerprint ], caps)
     let fx = effects doc
-    Assert.Equal<string list>([ "Storage"; "Storage"; "Storage"; "Capability" ], fx |> List.map kindOf)
+    Assert.Equal<string list>([ "Storage"; "Storage"; "Http"; "Capability" ], fx |> List.map kindOf)
+    Assert.Equal("./data/causa-storage-v1.0.0.bundle.json", fx[2].GetProperty("url").GetString())
     let subscribe = fx |> List.last
     Assert.Equal("subscribe", subscribe.GetProperty("request").GetProperty("operation").GetString())
     Assert.Equal(0, doc.RootElement.GetProperty("cancellations").GetArrayLength())
@@ -181,7 +209,7 @@ let ``starting navigates to the workspace, preserves the observation and saves l
     let keys = fx |> List.filter (fun e -> kindOf e = "Storage") |> List.map (fun e -> e.GetProperty("key").GetString())
     Assert.Contains("rci:inv:" + Id.text iid, keys)
     Assert.Contains("rci:index", keys)
-    Assert.Equal("Local only — not synced to GitHub", text doc "remoteStatus")
+    Assert.Equal("Local only — not connected to GitHub", text doc "remoteStatus")
 
 [<Fact>]
 let ``hypothesis actions come from the kernel transition table`` () =
@@ -212,89 +240,487 @@ let ``a refused command surfaces its code, rule, message and Aegis fault code`` 
     ignore st
 
 // ---------------------------------------------------------------------------
-// Sync truth (R10.6) and token handling (R9.9, R11.3)
+// Publishing to GitHub (CAUSA-PROV-*) and token handling (R9.9, R11.3), through the real shell, against the fake GitHub
 // ---------------------------------------------------------------------------
 
 let private token = "ghp_SECRETtoken1234567890"
+let private dataBranch = "causa-workspace"
 
-let private configure (st: AppState) =
-    let st, _ = send st (event "f.setOwner" None (Some "kevinmmiller"))
-    let st, _ = send st (event "f.setRepo" None (Some "investigations"))
+let private configureOn (repo: string) (st: AppState) =
+    let st, _ = send st (event "f.setOwner" None (Some "kemiller2002"))
+    let st, _ = send st (event "f.setRepo" None (Some repo))
+    let st, _ = send st (event "f.setBranch" None (Some dataBranch))
     let st, _ = send st (event "f.setToken" None (Some token))
     send st (event "settings.save" None None)
 
+let private configure = configureOn "indy-init-rehearsal-001"
+
 let private httpEffect (doc: JsonDocument) = effects doc |> List.tryFind (fun e -> kindOf e = "Http")
 
-let private writeResponse = """{"content":{"sha":"abc123","path":"x"},"commit":{"sha":"c1"}}"""
+/// One device and one GitHub: everything the shell asks of either is answered from them.
+type private World =
+    { Device: Map<string, string>
+      GitHub: FakeGitHub.Server
+      /// Storage writes to keys this refuses fail, like a full device.
+      RefuseWrite: string -> bool }
+
+let private seededWorld () =
+    let s = FakeGitHub.empty token
+    let s, _ = FakeGitHub.commitFiles dataBranch "operator: data branch" [ ".gitattributes", Text.Encoding.ASCII.GetBytes "* -text\n" ] s
+    { Device = Map.empty; GitHub = s; RefuseWrite = fun _ -> false }
+
+let private requestOf (e: JsonElement) : HttpRequest =
+    { Method = e.GetProperty("method").GetString()
+      Url = e.GetProperty("url").GetString()
+      Headers =
+        match e.TryGetProperty "headers" with
+        | true, h -> [ for p in h.EnumerateObject() -> p.Name, p.Value.GetString() ]
+        | _ -> []
+      Body = match e.TryGetProperty "body" with | true, b -> Some(b.GetString()) | _ -> None }
+
+let private httpReply (correlation: string) (reply: CausaGitHub.Reply) =
+    let outcome =
+        match reply with
+        | CausaGitHub.Answered(status, body, headers) ->
+            let h = headers |> Map.toList |> List.map (fun (k, v) -> JsonSerializer.Serialize k + ":" + JsonSerializer.Serialize v) |> String.concat ","
+            "{\"kind\":\"Success\",\"status\":" + string status + ",\"body\":" + JsonSerializer.Serialize body + ",\"headers\":{" + h + "}}"
+        | CausaGitHub.NotSent r -> "{\"kind\":\"Failure\",\"reason\":" + JsonSerializer.Serialize r + "}"
+        | CausaGitHub.Unanswered r -> "{\"kind\":\"OutcomeUnknown\",\"reason\":" + JsonSerializer.Serialize r + "}"
+    "{\"kind\":\"EffectResult\",\"result\":{\"kind\":\"HttpResult\",\"correlationId\":\"" + correlation + "\",\"outcome\":" + outcome + "}}"
+
+/// Perform every storage and GitHub effect of `doc` (and of every answer they lead to), depth first, like the kernel.
+let rec private pump (world: World) (st: AppState, doc: JsonDocument) : AppState * JsonDocument * World =
+    effects doc
+    |> List.fold
+        (fun (s, d, w) e ->
+            let c = e.GetProperty("correlationId").GetString()
+            match kindOf e with
+            | "Storage" ->
+                let key = e.GetProperty("key").GetString()
+                match e.GetProperty("operation").GetString() with
+                | "set" when w.RefuseWrite key -> pump w (send s (storageFailure c "quota-exceeded"))
+                | "set" -> pump { w with Device = w.Device |> Map.add key (e.GetProperty("value").GetString()) } (send s (storageResult c None))
+                | "remove" -> pump { w with Device = w.Device |> Map.remove key } (send s (storageResult c None))
+                | _ -> pump w (send s (storageResult c (Map.tryFind key w.Device)))
+            | "Http" when e.GetProperty("url").GetString().StartsWith(CausaGitHub.apiBase) ->
+                let gh, reply = FakeGitHub.answer w.GitHub (CausaGitHub.Call(requestOf e))
+                pump { w with GitHub = gh } (send s (httpReply c reply))
+            | _ -> s, d, w)
+        (st, doc, world)
+
+/// Boot against a world: the device's stored values are read back, the dataset is the vendored release.
+let private bootIn (world: World) (hash: string) =
+    let st, doc = send initial (initialize hash)
+    let st, last, world = pump world (st, doc)
+    let st, last = answerDataset st doc
+    pump world (st, last)
+
+let private prefixFor (st: AppState) (iid: InvestigationId) =
+    CausaGitHub.Workspace.prefix { Owner = st.Remote.Value.Owner; Repo = st.Remote.Value.Repository; Branch = st.Remote.Value.Branch; RunId = st.Remote.Value.RunId } (Id.text iid)
+
+let private deviceFiles (world: World) (iid: InvestigationId) =
+    match CausaData.decodeFileSet world.Device["rci:inv:" + Id.text iid] with
+    | Ok(f, _) -> f
+    | Error e -> failwith (CausaData.describe e)
+
+let private recordState (world: World) (iid: InvestigationId) =
+    match CausaGitHub.Record.decodeBook world.Device[CausaGitHub.Record.key (Id.text iid)] |> Result.map List.last with
+    | Ok r -> r.Status
+    | Error e -> failwith e
 
 [<Fact>]
-let ``remote status is synced only after GitHub confirms the write`` () =
-    let st, _ = boot "#/"
-    let st, _ = configure st
+let ``[AC-PROV-01] [R10.6] a new investigation is published as one commit and shown as saved only after the SHA re-read`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, _, world = pump world (configure st)
     let st, doc = start st
-    Assert.Contains("not yet", text doc "remoteStatus")
-    let read = (httpEffect doc).Value
-    Assert.Equal("GET", read.GetProperty("method").GetString())
-    // Nothing stored yet: 404, then the write.
-    let st, doc = send st (httpSuccess (read.GetProperty("correlationId").GetString()) 404 """{"message":"Not Found"}""")
-    let write = (httpEffect doc).Value
-    Assert.Equal("PUT", write.GetProperty("method").GetString())
-    Assert.Contains("not yet", text doc "remoteStatus")
-    // A network failure leaves it pending, never synced.
-    let st, doc = send st (httpNetworkFailure (write.GetProperty("correlationId").GetString()))
-    Assert.Equal("Changes pending upload to GitHub (not yet synced)", text doc "remoteStatus")
-    Assert.Equal(Some Pending, Map.tryFind (currentId st).Value st.Sync)
-    // Offline: a new change stays pending and nothing is sent.
+    // Before any answer: not on GitHub yet, and never "saved".
+    Assert.DoesNotContain("Saved to GitHub", text doc "remoteStatus")
+    let first = (httpEffect doc).Value
+    Assert.Equal("GET", first.GetProperty("method").GetString())
+    Assert.Contains("/git/ref/heads/causa-workspace?nocache=", first.GetProperty("url").GetString())
+    let st, doc, world = pump world (st, doc)
+    Assert.StartsWith("Saved to GitHub (confirmed by re-reading the commit)", text doc "remoteStatus")
+    let iid = (currentId st).Value
+    let p = prefixFor st iid
+    let local = deviceFiles world iid
+    Assert.Equal<byte[]>(local.Events, (FakeGitHub.fileAt world.GitHub dataBranch (p + "events.ndjson")).Value)
+    Assert.Equal<byte[]>(local.Manifest, (FakeGitHub.fileAt world.GitHub dataBranch (p + "manifest.json")).Value)
+    Assert.Equal(CausaGitHub.SyncConfirmed, recordState world iid)
+    Assert.Empty(world.GitHub.Log |> List.filter (fun r -> r.Url.Contains "/contents/"))
+    Assert.Equal(1, world.GitHub.Log |> List.filter (fun r -> r.Method = "PATCH") |> List.length)
+    // A further change is a second commit whose events extend the first byte for byte.
+    let before = local.Events
+    let st, _ = send st (event "f.hypStatement" None (Some "Expired certificate"))
+    let _, doc, world = pump world (send st (event "hyp.add" None None))
+    Assert.StartsWith("Saved to GitHub", text doc "remoteStatus")
+    let after = (FakeGitHub.fileAt world.GitHub dataBranch (p + "events.ndjson")).Value
+    Assert.True(after.Length > before.Length && after.AsSpan().StartsWith(before.AsSpan()))
+    Assert.Equal(2, world.GitHub.Log |> List.filter (fun r -> r.Method = "PATCH") |> List.length)
+
+[<Fact>]
+let ``[AC-PROV-07] [R10.6] a lost PATCH answer is unknown, never saved; resolution by SHA reads confirms it without a second commit`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, _, world = pump world (configure st)
+    let world = { world with GitHub = world.GitHub |> FakeGitHub.withHook (fun r -> r.Method = "PATCH") FakeGitHub.ApplyThenDrop }
+    let st, doc, world = pump world (start st)
+    let iid = (currentId st).Value
+    // The shell resolved the unknown outcome at once, by reading the head and the commit by SHA.
+    Assert.StartsWith("Saved to GitHub (confirmed", text doc "remoteStatus")
+    Assert.Equal(1, world.GitHub.Log |> List.filter (fun r -> r.Method = "PATCH") |> List.length)
+    let r = CausaGitHub.Record.decodeBook world.Device[CausaGitHub.Record.key (Id.text iid)] |> Result.toOption |> Option.get |> List.last
+    Assert.Contains(r.Log, fun e -> e.Status = CausaGitHub.SyncUnknown && e.Cause = "timeout-after-patch")
+    Assert.Equal(CausaGitHub.SyncConfirmed, r.Status)
+
+[<Fact>]
+let ``[R10.6] a network failure and offline work stay pending; back online, the change is published`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, _, world = pump world (configure st)
+    // The first request fails before reaching GitHub.
+    let world = { world with GitHub = world.GitHub |> FakeGitHub.withHook (fun r -> r.Method = "GET" && r.Url.Contains "/git/ref/") (FakeGitHub.Respond(503, "{\"message\":\"Service Unavailable\"}", Map.empty)) }
+    let st, doc, world = pump world (start st)
+    Assert.StartsWith("Not yet on GitHub", text doc "remoteStatus")
+    Assert.Contains("unavailable", text doc "syncDetail")
+    // Offline: a new change stays on this device and nothing is sent.
     let st, _ = send st (connectivity false)
     let st, _ = send st (event "f.hypStatement" None (Some "Expired certificate"))
     let st, doc = send st (event "hyp.add" None None)
-    Assert.True((httpEffect doc).IsNone)
-    Assert.StartsWith("Offline — changes pending", text doc "remoteStatus")
-    // Back online: resend; only Written makes it synced.
-    let st, doc = send st (connectivity true)
-    let again = (httpEffect doc).Value
-    let st, doc = send st (httpSuccess (again.GetProperty("correlationId").GetString()) 404 """{"message":"Not Found"}""")
-    let put = (httpEffect doc).Value
-    let st, doc = send st (httpSuccess (put.GetProperty("correlationId").GetString()) 201 writeResponse)
+    Assert.True((effects doc |> List.filter (fun e -> kindOf e = "Http")).IsEmpty)
+    Assert.Contains("offline", text doc "remoteStatus")
+    let st, doc, world = pump world (st, doc)
+    // Back online: published and confirmed.
+    let _, doc, world = pump world (send st (connectivity true))
+    Assert.StartsWith("Saved to GitHub (confirmed", text doc "remoteStatus")
+    ignore world
+
+[<Fact>]
+let ``[AC-PROV-03 partial] [CAUSA-PROV-29] another writer's append is a conflict: nothing is overwritten, and GitHub's copy is adopted only on request`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, _, world = pump world (configure st)
+    let st, _, world = pump world (start st)
+    let iid = (currentId st).Value
+    let p = prefixFor st iid
+    // Someone else appends to the same investigation on GitHub.
+    let theirs =
+        let schemas = TestData.dataset.Value.Schemas
+        let mine = deviceFiles world iid
+        match Causa.Contract.Store.validate schemas mine with
+        | Ok loaded ->
+            let env =
+                { CommandId = Guid "7b1c2d6e-0000-4000-8000-0000000000c9"; Investigation = iid; ExpectedVersion = Some loaded.State.Version; Actor = Actor.human "other-device"
+                  RequestedAt = DateTimeOffset(2026, 10, 21, 13, 0, 0, TimeSpan.Zero)
+                  Command = RecordObservation(Id.create (Guid "7b1c2d6e-0000-4000-8000-0000000000a9"), "Seen from another device", None) }
+            match Decide.execute (Some loaded.State) env |> Result.mapError (fun _ -> ()) |> Result.bind (fun evs -> Causa.Contract.Store.append schemas loaded loaded.State.Version evs |> Result.mapError ignore) with
+            | Ok(f, _) -> f
+            | Error _ -> failwith "their append"
+        | Error e -> failwith e.Detail
+    let gh, _ = FakeGitHub.commitFiles dataBranch "other device" [ p + "events.ndjson", theirs.Events; p + "manifest.json", theirs.Manifest; p + "snapshot.json", theirs.Snapshot ] world.GitHub
+    let world = { world with GitHub = gh }
+    let patches = world.GitHub.Log |> List.filter (fun r -> r.Method = "PATCH") |> List.length
+    let st, _ = send st (event "f.hypStatement" None (Some "Mine"))
+    let st, doc, world = pump world (send st (event "hyp.add" None None))
+    Assert.StartsWith("Conflict — GitHub has a different version", text doc "remoteStatus")
+    Assert.Contains("CAUSA.VERSION_STALE", text doc "syncDetail")
+    Assert.True((view doc).GetProperty("canAdoptRemote").GetBoolean())
+    Assert.Equal(patches, world.GitHub.Log |> List.filter (fun r -> r.Method = "PATCH") |> List.length)
+    Assert.Equal<byte[]>(theirs.Events, (FakeGitHub.fileAt world.GitHub dataBranch (p + "events.ndjson")).Value)
+    // A further change does not overwrite either.
+    let st, _ = send st (event "f.hypStatement" None (Some "Mine too"))
+    let st, doc, world = pump world (send st (event "hyp.add" None None))
+    Assert.Equal(patches, world.GitHub.Log |> List.filter (fun r -> r.Method = "PATCH") |> List.length)
+    // The person adopts GitHub's version; this device's version is kept as a conflict copy.
+    let mineBefore = deviceFiles world iid
+    let _, doc, world = pump world (send st (event "sync.adopt" None None))
+    Assert.StartsWith("Saved to GitHub (confirmed", text doc "remoteStatus")
+    Assert.Equal<byte[]>(theirs.Events, (deviceFiles world iid).Events)
+    Assert.Contains(world.Device |> Map.toList, fun (k, v) -> k.StartsWith("causa:conflict:" + Id.text iid) && v = CausaData.encodeFileSet None mineBefore)
+
+[<Fact>]
+let ``[AC-PROV-13] [R11.3] [R9.9] the token is never stored on the device and appears only in the Authorization header`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, settingsDoc, world = pump world (configure st)
+    let st, doc, world = pump world (start st)
+    for d in [ settingsDoc; doc ] do Assert.DoesNotContain(token, (view d).GetRawText())
+    for KeyValue(_, v) in world.Device do Assert.DoesNotContain(token, v)
+    for r in world.GitHub.Log do
+        Assert.DoesNotContain(token, r.Url)
+        Assert.DoesNotContain(token, r.Body |> Option.defaultValue "")
+        Assert.Equal(Some("Bearer " + token), r.Headers |> List.tryFind (fun (k, _) -> k = "Authorization") |> Option.map snd)
+        for (k, v) in r.Headers do if k <> "Authorization" then Assert.DoesNotContain(token, v)
+    ignore st
+
+let private bookOn (world: World) (iid: InvestigationId) =
+    match CausaGitHub.Record.decodeBook world.Device[CausaGitHub.Record.key (Id.text iid)] with
+    | Ok records -> records |> List.map (fun r -> CausaGitHub.Workspace.identity r.Workspace, r) |> Map.ofList
+    | Error e -> failwith e
+
+[<Fact>]
+let ``[AC-PROV-13] [CAUSA-PROV-31 §4] a GitHub error that echoes the token is redacted in the view and in the stored record`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, _, world = pump world (configure st)
+    for status in [ 401; 403; 422; 502 ] do
+        let echoed = "{\"message\":\"rejected: Bearer " + token + "\"}"
+        let w = { world with GitHub = world.GitHub |> FakeGitHub.withHook (fun r -> r.Method = "PATCH") (FakeGitHub.Respond(status, echoed, Map.empty)) }
+        let st, doc, w = pump w (start st)
+        Assert.DoesNotContain(token, (view doc).GetRawText())
+        for KeyValue(_, v) in w.Device do Assert.DoesNotContain(token, v)
+        ignore st
+
+[<Fact>]
+let ``[CAUSA-PROV-01] records stay bound to their workspace: another repository or run never overwrites the first one's record`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, _, world = pump world (configure st)
+    let st, doc, world = pump world (start st)
+    let iid = (currentId st).Value
+    let first = remoteIdentity st.Remote.Value
     Assert.StartsWith("Saved to GitHub", text doc "remoteStatus")
-    Assert.Equal(Some Synced, Map.tryFind (currentId st).Value st.Sync)
+    // A change whose publish is still in flight when the repository changes.
+    let st, _ = send st (event "f.hypStatement" None (Some "Expired certificate"))
+    let st, doc = send st (event "hyp.add" None None)
+    let inFlight = (httpEffect doc).Value
+    let st, switched = configureOn "other-repository" st
+    Assert.DoesNotContain("Saved to GitHub", text switched "remoteStatus")
+    // A late answer for the old repository is dropped: nothing changes.
+    let st, late = send st (httpReply (inFlight.GetProperty("correlationId").GetString()) (CausaGitHub.Answered(200, "{}", Map.empty)))
+    Assert.Empty(effects late)
+    Assert.DoesNotContain("Saved to GitHub", text late "remoteStatus")
+    // The new workspace publishes on its own record; the first one's record is still on the device, confirmed.
+    let st, _, world = pump world (st, switched)
+    let book = bookOn world iid
+    Assert.Equal(2, book.Count)
+    // Its confirmed copy is kept; the publish abandoned before its PATCH is pending again (T19), never lost.
+    Assert.True(book[first].Confirmed.IsSome)
+    Assert.Equal(CausaGitHub.SyncPending, book[first].Status)
+    Assert.Equal(CausaGitHub.SyncConfirmed, book[remoteIdentity st.Remote.Value].Status)
+    // A new run adds a third record and keeps both earlier ones.
+    let st, _, world = pump world (send st (event "sync.newRun" None None))
+    Assert.Equal(3, (bookOn world iid).Count)
+    Assert.True((bookOn world iid |> Map.find first).Confirmed.IsSome)
+    // Disconnecting makes everything local only; the records stay on the device, untouched.
+    let _, doc = send st (event "settings.clear" None None)
+    Assert.Equal("Local only — not connected to GitHub", text doc "remoteStatus")
 
 [<Fact>]
-let ``a 409 from GitHub is shown as a conflict and nothing is overwritten`` () =
-    let st, _ = boot "#/"
-    let st, _ = configure st
+let ``[CAUSA-PROV-20 §7] re-entering the token mid-publish never starts a second program`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, _, world = pump world (configure st)
     let st, doc = start st
-    let read = (httpEffect doc).Value
-    let st, doc = send st (httpSuccess (read.GetProperty("correlationId").GetString()) 404 "{}")
-    let write = (httpEffect doc).Value
-    let st, doc = send st (httpSuccess (write.GetProperty("correlationId").GetString()) 409 """{"message":"sha does not match"}""")
-    Assert.StartsWith("Conflict with GitHub", text doc "remoteStatus")
-    Assert.True((httpEffect doc).IsNone)
-    match Map.tryFind (currentId st).Value st.Sync with
-    | Some(Conflicted _) -> ()
-    | other -> failwithf "expected a conflict, got %A" other
+    Assert.True(st.Flight.IsSome)
+    let outstanding (s: AppState) = s.Pending |> Map.filter (fun _ op -> match op with RemoteStep _ | KeepMarker _ -> true | _ -> false) |> Map.count
+    Assert.Equal(1, outstanding st)
+    // Same workspace, token entered again while the first request is still unanswered.
+    let st, _ = send st (event "f.setToken" None (Some token))
+    let st, doc2 = send st (event "settings.save" None None)
+    Assert.Equal(1, outstanding st)
+    Assert.Empty(effects doc2 |> List.filter (fun e -> kindOf e = "Http"))
+    // The first program finishes normally and confirms.
+    let st, doc, world = pump world (st, doc)
+    Assert.StartsWith("Saved to GitHub (confirmed", text doc "remoteStatus")
+    Assert.Equal(1, world.GitHub.Log |> List.filter (fun r -> r.Method = "PATCH") |> List.length)
 
 [<Fact>]
-let ``[R11.3] [R9.9] the token is never stored on the device and never appears in any URL or view text`` () =
-    let st, _ = boot "#/"
-    let st, settingsDoc = configure st
+let ``[CAUSA-PROV-29] adopting GitHub's version replaces nothing when this device's version cannot be kept`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, _, world = pump world (configure st)
+    let st, _, world = pump world (start st)
+    let iid = (currentId st).Value
+    let p = prefixFor st iid
+    let mine = deviceFiles world iid
+    let theirs =
+        let schemas = TestData.dataset.Value.Schemas
+        match Causa.Contract.Store.validate schemas mine with
+        | Ok loaded ->
+            let env =
+                { CommandId = Guid "7b1c2d6e-0000-4000-8000-0000000000d1"; Investigation = iid; ExpectedVersion = Some loaded.State.Version; Actor = Actor.human "other-device"
+                  RequestedAt = DateTimeOffset(2026, 10, 21, 13, 0, 0, TimeSpan.Zero)
+                  Command = RecordObservation(Id.create (Guid "7b1c2d6e-0000-4000-8000-0000000000d2"), "From the other device", None) }
+            match Decide.execute (Some loaded.State) env with
+            | Ok evs -> (match Causa.Contract.Store.append schemas loaded loaded.State.Version evs with Ok(f, _) -> f | Error e -> failwith e.Detail)
+            | Error _ -> failwith "decide"
+        | Error e -> failwith e.Detail
+    let gh, _ = FakeGitHub.commitFiles dataBranch "other device" [ p + "events.ndjson", theirs.Events; p + "manifest.json", theirs.Manifest; p + "snapshot.json", theirs.Snapshot ] world.GitHub
+    let world = { world with GitHub = gh }
+    let st, _ = send st (event "f.hypStatement" None (Some "Mine"))
+    let st, doc, world = pump world (send st (event "hyp.add" None None))
+    Assert.StartsWith("Conflict", text doc "remoteStatus")
+    let before = world.Device["rci:inv:" + Id.text iid]
+    // The device is full: the conflict copy cannot be written, so nothing is replaced.
+    let full = { world with RefuseWrite = fun k -> k.StartsWith "causa:conflict:" }
+    let st, doc, world = pump full (send st (event "sync.adopt" None None))
+    Assert.Contains("Nothing was replaced", text doc "notice")
+    Assert.Equal(before, world.Device["rci:inv:" + Id.text iid])
+    Assert.StartsWith("Conflict", text doc "remoteStatus")
+    // With room again, adopting keeps this device's version as a conflict copy first, then replaces it.
+    let world = { world with RefuseWrite = fun _ -> false }
+    let _, doc, world = pump world (send st (event "sync.adopt" None None))
+    Assert.StartsWith("Saved to GitHub (confirmed", text doc "remoteStatus")
+    Assert.Equal<byte[]>(theirs.Events, (deviceFiles world iid).Events)
+    Assert.Contains(world.Device |> Map.toList, fun (k, v) -> k.StartsWith("causa:conflict:" + Id.text iid) && v = before)
+
+[<Fact>]
+let ``[CAUSA-PROV-08] recovery never writes over a stored investigation this device could not read`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, _, world = pump world (configure st)
+    let st, _, world = pump world (start st)
+    let iid = (currentId st).Value
+    // On a second device the same id is stored but unreadable (listed in the index, bytes damaged).
+    let index = world.Device["rci:index"]
+    let fresh = { world with Device = Map.ofList [ "rci:settings", world.Device["rci:settings"]; "rci:index", index; "rci:inv:" + Id.text iid, "{damaged" ] }
+    let st2, _, fresh = bootIn fresh "#/settings"
+    Assert.True(st2.Unreadable.ContainsKey iid)
+    let st2, _ = send st2 (event "f.setToken" None (Some token))
+    let st2, _, fresh = pump fresh (send st2 (event "settings.save" None None))
+    let _, doc, fresh = pump fresh (send st2 (event "sync.recover" None None))
+    Assert.StartsWith("0 investigation(s) recovered", text doc "notice")
+    Assert.Equal("{damaged", fresh.Device["rci:inv:" + Id.text iid])
+
+[<Fact>]
+let ``[CAUSA-PROV-19] [T18] a refused token halts publishing; entering it again resumes every failed investigation`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    // Two investigations exist before GitHub is configured.
+    let st, _, world = pump world (start st)
+    let a = (currentId st).Value
+    let st, _ = send st ("{\"kind\":\"LocationChanged\",\"location\":{\"origin\":\"x\",\"path\":\"/\",\"query\":\"\",\"hash\":\"#/\"}}")
+    let st, _ = send st (event "f.observation" None (Some "Second one"))
+    let st, _, world = pump world (send st (event "start" None None))
+    let b = (currentId st).Value
+    // GitHub refuses the first token: one 401, then nothing more is sent.
+    let st, _ = send st (event "f.setOwner" None (Some "kemiller2002"))
+    let st, _ = send st (event "f.setRepo" None (Some "indy-init-rehearsal-001"))
+    let st, _ = send st (event "f.setBranch" None (Some dataBranch))
+    let st, _ = send st (event "f.setToken" None (Some "ghp_wrong"))
+    let st, _, world = pump world (send st (event "settings.save" None None))
+    Assert.True(st.AuthHalted)
+    Assert.Equal(1, world.GitHub.Log |> List.length)
+    Assert.Equal(CausaGitHub.SyncFailed, recordState world (if (world.Device.ContainsKey(CausaGitHub.Record.key (Id.text a))) then a else b))
+    // The right token: both are published.
+    let st, _ = send st (event "f.setToken" None (Some token))
+    let st, _, world = pump world (send st (event "settings.save" None None))
+    Assert.False(st.AuthHalted)
+    Assert.Equal(CausaGitHub.SyncConfirmed, recordState world a)
+    Assert.Equal(CausaGitHub.SyncConfirmed, recordState world b)
+
+[<Fact>]
+let ``[AC-PROV-16 partial] [AC-PROV-24] two offline changes survive a reload and are published in order, with the app's own actorId`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, _, world = pump world (configure st)
+    let st, _, world = pump world (start st)
+    let iid = (currentId st).Value
+    let st, _ = send st (connectivity false)
+    let st, _ = send st (event "f.hypStatement" None (Some "First offline"))
+    let st, _, world = pump world (send st (event "hyp.add" None None))
+    let st, _ = send st (event "f.hypStatement" None (Some "Second offline"))
+    let _, _, world = pump world (send st (event "hyp.add" None None))
+    let local = deviceFiles world iid
+    // Reload (the token is entered again), then back online.
+    let st, _, world = bootIn world ("#/i/" + Id.text iid)
+    let st, _ = send st (event "f.setToken" None (Some token))
+    let st, _, world = pump world (send st (event "settings.save" None None))
+    let _, doc, world = pump world (send st (connectivity true))
+    Assert.StartsWith("Saved to GitHub (confirmed", text doc "remoteStatus")
+    let published = (FakeGitHub.fileAt world.GitHub dataBranch (prefixFor st iid + "events.ndjson")).Value
+    Assert.Equal<byte[]>(local.Events, published)
+    let text = Text.Encoding.UTF8.GetString published
+    Assert.True(text.IndexOf("First offline", StringComparison.Ordinal) < text.IndexOf("Second offline", StringComparison.Ordinal))
+    Assert.Contains("\"actorId\":\"local-user\"", text)
+    Assert.DoesNotContain("kemiller2002", text)
+
+[<Fact>]
+let ``[AC-PROV-09] [CAUSA-PROV-26] after a restart a publish whose PATCH may have been sent is unknown, then resolved by SHA reads`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, _, world = pump world (configure st)
+    // The page dies right after the PATCH was applied: the answer never arrives.
+    let world = { world with GitHub = world.GitHub |> FakeGitHub.withHook (fun r -> r.Method = "PATCH") FakeGitHub.ApplyThenDrop }
     let st, doc = start st
-    let read = (httpEffect doc).Value
-    let _, putDoc = send st (httpSuccess (read.GetProperty("correlationId").GetString()) 404 "{}")
-    for d in [ settingsDoc; doc; putDoc ] do
-        Assert.DoesNotContain(token, (view d).GetRawText())
-        for e in effects d do
-            match kindOf e with
-            | "Http" ->
-                Assert.DoesNotContain(token, e.GetProperty("url").GetString())
-                Assert.DoesNotContain(token, (if e.TryGetProperty("body") |> fst then e.GetProperty("body").GetString() else ""))
-            | "Navigation" -> Assert.DoesNotContain(token, e.GetProperty("url").GetString())
-            | "Storage" ->
-                Assert.DoesNotContain(token, e.GetRawText())
-            | _ -> ()
-    // The token travels only in the Authorization header.
-    let put = (httpEffect putDoc).Value
-    Assert.Equal("Bearer " + token, put.GetProperty("headers").GetProperty("Authorization").GetString())
+    let iid = (currentId st).Value
+    // Perform effects in kernel order until the PATCH is about to be sent.
+    let rec untilPatch (world: World) (st: AppState) (queue: JsonElement list) =
+        match queue with
+        | [] -> failwith "no PATCH was sent"
+        | next :: rest when kindOf next = "Http" && next.GetProperty("method").GetString() = "PATCH" -> st, world, next
+        | next :: rest ->
+            let c = next.GetProperty("correlationId").GetString()
+            let world, message =
+                match kindOf next with
+                | "Storage" when next.GetProperty("operation").GetString() = "set" ->
+                    { world with Device = world.Device |> Map.add (next.GetProperty("key").GetString()) (next.GetProperty("value").GetString()) }, storageResult c None
+                | "Storage" -> world, storageResult c (Map.tryFind (next.GetProperty("key").GetString()) world.Device)
+                | _ ->
+                    let gh, reply = FakeGitHub.answer world.GitHub (CausaGitHub.Call(requestOf next))
+                    { world with GitHub = gh }, httpReply c reply
+            let st, doc = send st message
+            untilPatch world st (effects doc @ rest)
+    let _, world, patch = untilPatch world st (effects doc)
+    // The PATCH reaches GitHub, but this page never hears back.
+    let gh, _ = FakeGitHub.answer world.GitHub (CausaGitHub.Call(requestOf patch))
+    let world = { world with GitHub = gh }
+    Assert.Equal(CausaGitHub.SyncSending, recordState world iid)
+    // Restart: the record becomes unknown (T20); without the token nothing is sent and nothing claims success.
+    let st, doc, world = bootIn world ("#/i/" + Id.text iid)
+    Assert.Equal(CausaGitHub.SyncUnknown, recordState world iid)
+    Assert.StartsWith("Outcome unknown", text doc "remoteStatus")
+    // With the token again, resolution reads by SHA and confirms; no second commit.
+    let commits = FakeGitHub.commitCount world.GitHub
+    let st, _ = send st (event "f.setToken" None (Some token))
+    let _, doc, world = pump world (send st (event "settings.save" None None))
+    Assert.StartsWith("Saved to GitHub (confirmed", text doc "remoteStatus")
+    Assert.Equal(commits, FakeGitHub.commitCount world.GitHub)
+    Assert.Equal(CausaGitHub.SyncConfirmed, recordState world iid)
+
+[<Fact>]
+let ``[AC-PROV-15 partial] [CAUSA-PROV-11] a working copy is published first byte for byte as frozen, then its own change as the next commit`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, _, world = pump world (configure st)
+    let demo = TestData.dataset.Value.Valid |> List.find (fun v -> v.ScenarioKey = "api-latency")
+    let iid = Id.create<InvestigationTag> demo.Loaded.InvestigationId
+    let st, _ = send st ("{\"kind\":\"LocationChanged\",\"location\":{\"origin\":\"x\",\"path\":\"/\",\"query\":\"\",\"hash\":\"#/demo/" + Id.text iid + "\"}}")
+    let st, doc, world = pump world (send st (event "workingCopy.create" (Some(Id.text iid)) None))
+    let p = prefixFor st iid
+    let frozen = TestData.releaseFiles["fixtures/v1.0.0/investigations/" + Id.text iid + "/events.ndjson"]
+    Assert.Equal<byte[]>(frozen, (FakeGitHub.fileAt world.GitHub dataBranch (p + "events.ndjson")).Value)
+    let messages = world.GitHub.Log |> List.filter (fun r -> r.Url.EndsWith "/git/commits" && r.Method = "POST") |> List.map (fun r -> r.Body.Value)
+    Assert.Contains("working copy of causa-demo-v1", messages |> List.last)
+    let st, _ = send st ("{\"kind\":\"LocationChanged\",\"location\":{\"origin\":\"x\",\"path\":\"/\",\"query\":\"\",\"hash\":\"#/i/" + Id.text iid + "\"}}")
+    let st, _ = send st (event "f.unkQuestion" None (Some "Did the cache warm up?"))
+    let _, doc, world = pump world (send st (event "unk.add" None None))
+    Assert.StartsWith("Saved to GitHub (confirmed", text doc "remoteStatus")
+    let published = (FakeGitHub.fileAt world.GitHub dataBranch (p + "events.ndjson")).Value
+    Assert.True(published.Length > frozen.Length && published.AsSpan().StartsWith(frozen.AsSpan()))
+    // The frozen original in the bundle is untouched.
+    Assert.Equal<byte[]>(frozen, TestData.releaseFiles["fixtures/v1.0.0/investigations/" + Id.text iid + "/events.ndjson"])
+
+[<Fact>]
+let ``[CAUSA-PROV-08] recovering from GitHub on a fresh device restores the run's investigations, verified`` () =
+    let world = seededWorld ()
+    let st, _, world = bootIn world "#/"
+    let st, _, world = pump world (configure st)
+    let st, _, world = pump world (start st)
+    let iid = (currentId st).Value
+    let runId = st.Remote.Value.RunId
+    // A fresh device: nothing stored but the same settings (the token is entered again).
+    let fresh = { world with Device = Map.ofList [ "rci:settings", world.Device["rci:settings"] ] }
+    let st2, _, fresh = bootIn fresh "#/settings"
+    Assert.Equal(runId, st2.Remote.Value.RunId)
+    let st2, _ = send st2 (event "f.setToken" None (Some token))
+    let st2, _, fresh = pump fresh (send st2 (event "settings.save" None None))
+    let st2, doc, fresh = pump fresh (send st2 (event "sync.recover" None None))
+    Assert.StartsWith("1 investigation(s) recovered", text doc "notice")
+    Assert.True(st2.Investigations.ContainsKey iid)
+    Assert.Equal<byte[]>((deviceFiles world iid).Events, (deviceFiles fresh iid).Events)
+    Assert.Equal(CausaGitHub.SyncConfirmed, recordState fresh iid)
 
 // ---------------------------------------------------------------------------
 // Round 2: addressable entities, share links, reserved parameters
@@ -419,7 +845,7 @@ let private factoryJson =
 [<Fact>]
 let ``[R14.2] [R14.3] the factory view loads factory.json by an Http effect and shows requirements, their slices and work-item states`` () =
     let st, doc = send initial (initialize "#/factory")
-    let get = effects doc |> List.find (fun e -> kindOf e = "Http")
+    let get = effects doc |> List.find (fun e -> kindOf e = "Http" && e.GetProperty("url").GetString() = "./factory.json")
     Assert.Equal("GET", get.GetProperty("method").GetString())
     Assert.Equal("./factory.json", get.GetProperty("url").GetString())
     let st, _ = answerLoads st doc
@@ -555,85 +981,45 @@ let ``[R11.4] evidence containing instructions is stored and shown verbatim and 
     Assert.Contains(injection, shown)
 
 [<Fact>]
-let ``[R15.4] history is append-only: every earlier stored document is a byte-identical prefix of the next`` () =
+let ``[R15.4] history is append-only: every stored Causa file set verifies and its events are a byte prefix of the next`` () =
     let st, _ = boot "#/"
-    let st, doc = start st
+    let st, doc, device = settle Map.empty (start st)
     let iid = (currentId st).Value
-    let stored (d: JsonDocument) =
-        effects d
-        |> List.tryFind (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString() = "rci:inv:" + Id.text iid)
-        |> Option.map (fun e -> e.GetProperty("value").GetString())
+    let key = "rci:inv:" + Id.text iid
     let steps =
         [ event "f.hypStatement" None (Some "Expired certificate"); event "hyp.add" None None
           event "f.evContent" None (Some "openssl shows expiry"); event "f.evSource" None (Some "openssl"); event "ev.add" None None
           event "f.unkQuestion" None (Some "All nodes?"); event "unk.add" None None
           event "f.hypStatement" None (Some "DNS"); event "hyp.add" None None ]
-    let _, documents =
-        steps |> List.fold (fun (s, docs) m -> let s, d = send s m in s, docs @ (stored d |> Option.toList)) (st, stored doc |> Option.toList)
-    Assert.True(documents.Length >= 4)
-    for (earlier, later) in List.pairwise documents do
-        match EventCodec.decode earlier, EventCodec.decode later with
-        | Ok(_, older), Ok(_, newer) ->
-            Assert.True(newer.Length > older.Length)
-            Assert.Equal<Event list>(older, List.take older.Length newer)
-            Assert.Equal(earlier, EventCodec.encode iid (List.take older.Length newer))
-        | _ -> failwith "stored documents must decode"
+    let _, _, _, documents =
+        steps
+        |> List.fold
+            (fun (s, _, dev, docs) m ->
+                let s, d, dev = settle dev (send s m)
+                s, d, dev, docs @ [ dev[key] ])
+            (st, doc, device, [ device[key] ])
+    let schemas = (TestData.dataset.Value).Schemas
+    let files =
+        documents
+        |> List.distinct
+        |> List.map (fun d ->
+            match CausaData.decodeFileSet d |> Result.bind (fun (f, _) -> Causa.Contract.Store.validate schemas f |> Result.map (fun _ -> f)) with
+            | Ok f -> f
+            | Error e -> failwith (CausaData.describe e))
+    Assert.True(files.Length >= 4)
+    for (earlier, later) in List.pairwise files do
+        Assert.True(later.Events.Length > earlier.Events.Length)
+        Assert.True(later.Events.AsSpan().StartsWith(earlier.Events.AsSpan()))
 
 // ---------------------------------------------------------------------------
 // Stop-the-line fixes: remote identity (C2), load-before-write (M6), token (M3)
 // ---------------------------------------------------------------------------
-
-let private syncedInvestigation () =
-    let st, _ = boot "#/"
-    let st, _ = configure st
-    let st, doc = start st
-    let read = (httpEffect doc).Value
-    let st, doc = send st (httpSuccess (read.GetProperty("correlationId").GetString()) 404 "{}")
-    let write = (httpEffect doc).Value
-    let st, doc = send st (httpSuccess (write.GetProperty("correlationId").GetString()) 201 writeResponse)
-    Assert.StartsWith("Saved to GitHub", text doc "remoteStatus")
-    st, write
-
-[<Fact>]
-let ``[R10.6] changing the repository resets every status to pending; nothing is shown as saved without a request`` () =
-    let st, oldWrite = syncedInvestigation ()
-    let iid = (currentId st).Value
-    let st, _ = send st (event "f.setOwner" None (Some "bob"))
-    let st, _ = send st (event "f.setRepo" None (Some "repoB"))
-    let st, doc = send st (event "settings.save" None None)
-    Assert.DoesNotContain("Saved to GitHub", text doc "remoteStatus")
-    Assert.Equal(Some Sending, Map.tryFind iid st.Sync)
-    Assert.True(st.RemoteSha.IsEmpty)
-    // The new repository is read first (no sha carried over from the old one).
-    let read = (httpEffect doc).Value
-    Assert.Equal("GET", read.GetProperty("method").GetString())
-    Assert.Contains("/repos/bob/repoB/", read.GetProperty("url").GetString())
-    // A late result for the old repository is never adopted.
-    let st, doc = send st (httpSuccess (oldWrite.GetProperty("correlationId").GetString()) 201 writeResponse)
-    Assert.DoesNotContain("Saved to GitHub", text doc "remoteStatus")
-    // Disconnecting makes everything local only.
-    let st, doc = send st (event "settings.clear" None None)
-    Assert.Equal("Local only — not synced to GitHub", text doc "remoteStatus")
-    Assert.Equal(Some LocalOnly, Map.tryFind iid st.Sync)
 
 let private storageGets (doc: JsonDocument) =
     effects doc
     |> List.filter (fun e -> kindOf e = "Storage")
     |> List.map (fun e -> e.GetProperty("key").GetString(), e.GetProperty("correlationId").GetString())
     |> Map.ofList
-
-[<Fact>]
-let ``[R10.6] statuses confirmed for another repository are reset when loaded`` () =
-    let iid = Id.create<InvestigationTag> (Guid("0b0e8d7c-1111-4222-8333-944455556666"))
-    let st, doc = send initial (initialize "#/")
-    let gets = storageGets doc
-    let syncDoc = "{\"schema\":\"rci.sync/v1\",\"remote\":\"alice/old@main\",\"investigations\":{\"" + Id.text iid + "\":{\"status\":\"synced\",\"sha\":\"abc\"}}}"
-    let st, _ = send st (storageResult gets["rci:settings"] (Some "{\"owner\":\"bob\",\"repository\":\"new\",\"branch\":\"main\"}"))
-    let st, _ = send st (storageResult gets["rci:sync"] (Some syncDoc))
-    let st, _ = send st (storageResult gets["rci:index"] None)
-    Assert.True(st.Loaded)
-    Assert.NotEqual(Some Synced, Map.tryFind iid st.Sync)
-    Assert.False(st.RemoteSha.ContainsKey iid)
 
 [<Fact>]
 let ``[R11.3] the token is kept in memory only; after a reload it must be entered again and a stored legacy token is erased`` () =
@@ -653,8 +1039,8 @@ let ``[R11.3] the token is kept in memory only; after a reload it must be entere
 
 [<Fact>]
 let ``[R10.7] nothing is created before saved investigations load, and the index is never written from a partial load`` () =
-    let st, doc = send initial (initialize "#/")
-    let gets = storageGets doc
+    let st, initDoc = send initial (initialize "#/")
+    let gets = storageGets initDoc
     let st, _ = send st (event "f.observation" None (Some "Early"))
     let st, doc = send st (event "start" None None)
     Assert.Equal("LOAD.IN_PROGRESS", (first ((view doc).GetProperty("refusals"))).GetProperty("code").GetString())
@@ -676,10 +1062,16 @@ let ``[R10.7] nothing is created before saved investigations load, and the index
             [ { Id = good; Title = "Kept"; Lifecycle = "Draft"; Version = 1L; UpdatedAt = DateTimeOffset.UnixEpoch }
               { Id = bad; Title = "Corrupt one"; Lifecycle = "Draft"; Version = 3L; UpdatedAt = DateTimeOffset.UnixEpoch } ]
     let st, _ = send st (storageResult gets["rci:settings"] None)
-    let st, _ = send st (storageResult gets["rci:sync"] None)
     let st, doc = send st (storageResult gets["rci:index"] (Some index))
     let invGets = storageGets doc
-    let st, _ = send st (storageResult invGets["rci:inv:" + Id.text good] (Some(EventCodec.encode good events)))
+    // No GitHub sync state is stored for either.
+    let st = invGets |> Map.filter (fun k _ -> k.StartsWith "causa:github:") |> Map.fold (fun s _ c -> fst (send s (storageResult c None))) st
+    let stored =
+        match Causa.Contract.Store.build (TestData.dataset.Value).Schemas events with
+        | Ok(files, _) -> CausaData.encodeFileSet None files
+        | Error e -> failwith (CausaData.describe e)
+    let st, _ = answerDataset st initDoc
+    let st, _ = send st (storageResult invGets["rci:inv:" + Id.text good] (Some stored))
     // A change to the loaded one while the other is still loading writes no index.
     let st, _ = send st ("{\"kind\":\"LocationChanged\",\"location\":{\"origin\":\"x\",\"path\":\"/\",\"query\":\"\",\"hash\":\"#/i/" + Id.text good + "\"}}")
     let st, _ = send st (event "f.hypStatement" None (Some "A hypothesis"))
@@ -701,7 +1093,6 @@ let ``[R10.7] an unreadable index is never overwritten`` () =
     let st, doc = send initial (initialize "#/")
     let gets = storageGets doc
     let st, _ = send st (storageResult gets["rci:settings"] None)
-    let st, _ = send st (storageResult gets["rci:sync"] None)
     let st, _ = send st (storageResult gets["rci:index"] (Some "garbage"))
     let _, doc = start st
     Assert.DoesNotContain("rci:index", effects doc |> List.filter (fun e -> kindOf e = "Storage") |> List.map (fun e -> e.GetProperty("key").GetString()))
@@ -725,8 +1116,8 @@ let ``[R8.1] the Confirm action follows the policy gate: a confirmed cause offer
 
 [<Fact>]
 let ``[R10.7] a stored history that fails History.validate is not adopted, stays listed and is left untouched`` () =
-    let st, doc = send initial (initialize "#/")
-    let gets = storageGets doc
+    let st, initDoc = send initial (initialize "#/")
+    let gets = storageGets initDoc
     let forged = Id.create<InvestigationTag> (Guid("0b0e8d7c-1111-4222-8333-944455556666"))
     let started =
         let env =
@@ -742,15 +1133,21 @@ let ``[R10.7] a stored history that fails History.validate is not adopted, stays
     Assert.NotEmpty(History.validate history)
     let index = IndexCodec.encode [ { Id = forged; Title = "Forged"; Lifecycle = "Resolved"; Version = 2L; UpdatedAt = DateTimeOffset.UnixEpoch } ]
     let st, _ = send st (storageResult gets["rci:settings"] None)
-    let st, _ = send st (storageResult gets["rci:sync"] None)
     let st, doc = send st (storageResult gets["rci:index"] (Some index))
     let invGets = storageGets doc
-    let st, doc = send st (storageResult invGets["rci:inv:" + Id.text forged] (Some(EventCodec.encode forged history)))
+    let st = invGets |> Map.filter (fun k _ -> k.StartsWith "causa:github:") |> Map.fold (fun s _ c -> fst (send s (storageResult c None))) st
+    // Hand-forged bytes: well-formed Causa files whose history the engine does not admit.
+    let forgedFiles =
+        match Causa.Contract.Store.buildUnchecked history with
+        | Ok files -> CausaData.encodeFileSet None files
+        | Error e -> failwith (CausaData.describe e)
+    let st, _ = answerDataset st initDoc
+    let st, doc = send st (storageResult invGets["rci:inv:" + Id.text forged] (Some forgedFiles))
     Assert.False(st.Investigations.ContainsKey forged)
     Assert.Contains("HISTORY.INADMISSIBLE_EVENT", st.Unreadable[forged])
     Assert.Empty(effects doc |> List.filter (fun e -> kindOf e = "Storage" && e.GetProperty("operation").GetString() <> "get"))
     let reason = (first ((view doc).GetProperty("unreadable"))).GetProperty("reason").GetString()
-    Assert.Contains("could not be verified", reason)
+    Assert.Contains("failed Causa verification", reason)
     // A new investigation keeps the forged one's index entry.
     let _, doc = start st
     let indexWrite = effects doc |> List.find (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString() = "rci:index")
@@ -766,7 +1163,7 @@ let ``[R14.3] the factory view shows the recorded test counts and build status w
             "\"tests\":{\"commit\":\"fedcba9876543210\",\"tests\":120,\"passed\":118,\"failed\":2,\"tested\":60,\"untested\":15,\"failing\":3},\"buildStatus\":\"failing\"}"
         )
     let st, doc = send initial (initialize "#/factory")
-    let get = effects doc |> List.find (fun e -> kindOf e = "Http")
+    let get = effects doc |> List.find (fun e -> kindOf e = "Http" && e.GetProperty("url").GetString() = "./factory.json")
     let st, _ = answerLoads st doc
     let _, doc = send st (httpSuccess (get.GetProperty("correlationId").GetString()) 200 withTests)
     Assert.Equal("120 tests recorded, 118 passed, 2 failed (run on commit fedcba9). Requirements: 60 tested, 15 untested, 3 failing.", text doc "factoryTests")
@@ -778,9 +1175,13 @@ let ``[R10.6] the local status never claims a save that has not been recorded`` 
     let st, doc = start st
     Assert.Equal("Saving on this device…", text doc "localStatus")
     Assert.Equal(JStr "Not saved yet", (project { st with Local = Map.empty } |> Map.ofList)["localStatus"])
-    let save =
-        effects doc
-        |> List.find (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString().StartsWith("rci:inv:"))
+    // The device copy is read first (lost-update check); reading it is not saving it.
+    let check = effects doc |> List.find (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString().StartsWith("rci:inv:"))
+    Assert.Equal("get", check.GetProperty("operation").GetString())
+    let st, doc = send st (storageResult (check.GetProperty("correlationId").GetString()) None)
+    Assert.Equal("Saving on this device…", text doc "localStatus")
+    let save = effects doc |> List.find (fun e -> kindOf e = "Storage" && e.GetProperty("key").GetString().StartsWith("rci:inv:"))
+    Assert.Equal("set", save.GetProperty("operation").GetString())
     let _, doc = send st (storageResult (save.GetProperty("correlationId").GetString()) None)
     Assert.Equal("Saved on this device", text doc "localStatus")
 

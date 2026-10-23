@@ -15,7 +15,7 @@ test("AC-01 create an investigation from free text; the original observation is 
   await startInvestigation(page, observation, "Empty nightly export");
   await expect(page.getByTestId("observation")).toHaveText(observation, { useInnerText: false });
   await expect(page.getByTestId("local-status")).toHaveText("Saved on this device");
-  await expect(page.getByTestId("remote-status")).toHaveText("Local only — not synced to GitHub");
+  await expect(page.getByTestId("remote-status")).toHaveText("Local only — not connected to GitHub");
   await page.getByRole("link", { name: "Investigations" }).first().click();
   await expect(page.getByRole("link", { name: "Empty nightly export" })).toBeVisible();
 });

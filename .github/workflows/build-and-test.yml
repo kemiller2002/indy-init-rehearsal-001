@@ -133,6 +133,15 @@ jobs:
           npx playwright install webkit
           timeout 300 sudo env "PATH=$PATH" npx playwright install-deps webkit || echo "::warning::WebKit OS dependencies not installed"
 
+      # Firefox desktop (CAUSA-REHEARSAL-INTEGRATION-001): bounded like WebKit; if the install fails the
+      # Firefox project selects no tests and the run says so.
+      - name: Download Firefox (bounded)
+        timeout-minutes: 8
+        continue-on-error: true
+        run: |
+          npx playwright install firefox
+          timeout 300 sudo env "PATH=$PATH" npx playwright install-deps firefox || echo "::warning::Firefox OS dependencies not installed"
+
       - name: Build the deployable site
         env:
           GITHUB_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -142,6 +151,11 @@ jobs:
         env:
           PLAYWRIGHT_JSON_OUTPUT_NAME: verification/playwright.json
         run: npx playwright test --reporter=list,json
+
+      # Every browser project must have executed tests: a project that selects nothing is not a pass.
+      - name: Browser projects executed
+        if: always()
+        run: python3 scripts/browser-project-counts.py verification/playwright.json
 
       # Requirement traceability on this exact commit (EX-INDY-INIT-2026-R001):
       # a requirement counts as Verified only from these CI results.

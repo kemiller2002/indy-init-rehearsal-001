@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <!-- The import map is the only inline script; the build pins it by hash. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' '__IMPORTMAP_HASH__'; connect-src 'self' https://api.github.com; img-src 'self' data:; style-src 'self'; base-uri 'none'; form-action 'none'">
-  <meta name="description" content="Root-Cause Investigator: keep observations, hypotheses and evidence straight until the cause is proven.">
-  <title data-text="pageTitle">Root-Cause Investigator</title>
+  <meta name="description" content="Causa — Root-Cause Investigation: keep observations, hypotheses and evidence straight until the cause is proven.">
+  <title data-text="pageTitle">Causa · Root-Cause Investigation</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./vendor/forma/all.css">
   <link rel="stylesheet" href="./vendor/folio/print.css" media="print">
   <link rel="stylesheet" href="./app.css">
@@ -23,7 +24,7 @@
 
   <header class="app-header" role="banner">
     <div class="app-header__inner">
-      <p class="app-brand"><a href="#/">Root-Cause Investigator</a></p>
+      <p class="app-brand"><a href="#/"><span class="app-brand__name">Causa</span> <span class="app-brand__tagline">Root-Cause Investigation</span></a></p>
       <nav aria-label="Main">
         <ul class="app-nav">
           <li><a href="#/">Investigations</a></li>
@@ -41,7 +42,7 @@
   </div>
 
   <main id="main" tabindex="-1" class="app-main">
-    <p class="app-boot" data-boot data-bind-hidden="booted">Starting the investigator…</p>
+    <p class="app-boot" data-boot data-bind-hidden="booted">Starting Causa…</p>
     <template data-if="isLoading">
       <p class="app-boot" role="status">Loading investigations saved on this device…</p>
     </template>
@@ -73,6 +74,60 @@
     <template data-if="isHome">
       <div class="screen screen--home">
         <h1>Investigations</h1>
+        <section class="ef-section demo" aria-labelledby="demo-title" data-testid="demo-section">
+          <h2 id="demo-title">Demonstration investigations</h2>
+          <p class="muted" data-testid="demo-summary" data-text="demoSummary"></p>
+          <template data-if="demoLoading">
+            <p class="app-boot" role="status" data-testid="demo-loading">Loading and verifying the frozen demonstration data…</p>
+          </template>
+          <template data-if="demoFailed">
+            <div class="ef-alert" data-tone="critical" role="alert" data-testid="demo-failed">
+              <div class="ef-alert__icon" aria-hidden="true">!</div>
+              <div>
+                <h3 class="ef-alert__title">The demonstration data was refused</h3>
+                <p>Nothing from it is shown, because it is not the frozen release this build expects.</p>
+                <p><code data-text="demoFailure"></code></p>
+              </div>
+            </div>
+          </template>
+          <template data-if="demoEmpty">
+            <p class="empty" data-testid="demo-empty">No demonstration investigation passed verification.</p>
+          </template>
+          <template data-if="hasDemoRejected">
+            <div class="ef-alert" data-tone="attention" data-testid="demo-rejected">
+              <div class="ef-alert__icon" aria-hidden="true">!</div>
+              <div>
+                <h3 class="ef-alert__title">Incompatible or corrupted investigations were not loaded</h3>
+                <ul class="plain-list">
+                  <template data-each="demoRejected" data-key="id"><li data-testid="demo-rejection"><strong data-text="key"></strong> — <code data-text="code"></code>: <span data-text="detail"></span></li></template>
+                </ul>
+              </div>
+            </div>
+          </template>
+          <ul class="card-list demo-list">
+            <template data-each="demoInvestigations" data-key="id">
+              <li class="ef-card investigation-card demo-card" data-testid="demo-card">
+                <h3 class="ef-card__title"><a data-bind-href="frozenHref" data-text="title"></a></h3>
+                <p><span class="ef-status-lozenge" data-testid="demo-lifecycle" data-text="lifecycle"></span> <span class="ef-status-lozenge" data-bind-data-tone="verificationTone" data-testid="demo-verification" data-text="verification"></span></p>
+                <p class="demo-card__problem" data-testid="demo-problem" data-text="problem"></p>
+                <dl class="demo-card__counts">
+                  <div><dt>Hypotheses</dt><dd data-testid="demo-hypotheses" data-text="hypotheses"></dd></div>
+                  <div><dt>Open</dt><dd data-text="openHypotheses"></dd></div>
+                  <div><dt>Evidence</dt><dd data-testid="demo-evidence" data-text="evidenceCount"></dd></div>
+                  <div><dt>Contradictions</dt><dd data-testid="demo-contradictions" data-text="contradictions"></dd></div>
+                  <div><dt>Open unknowns</dt><dd data-text="unknowns"></dd></div>
+                </dl>
+                <p class="demo-card__cause"><span class="muted">Cause:</span> <span data-text="cause"></span></p>
+                <p class="muted demo-card__activity"><span>Last activity:</span> <span data-testid="demo-activity" data-text="lastActivity"></span></p>
+                <p class="ef-actions demo-card__actions">
+                  <a class="ef-button" data-bind-href="frozenHref">Open (read-only)</a>
+                  <template data-if="hasWorkingCopy"><a class="ef-button" data-bind-href="href">Open working copy</a></template>
+                  <template data-if="noWorkingCopy"><button type="button" data-event="workingCopy.create">Create working copy</button></template>
+                </p>
+              </li>
+            </template>
+          </ul>
+        </section>
         <section class="ef-surface" aria-labelledby="start-title">
           <h2 id="start-title">Start an investigation</h2>
           <p>Describe what you observed in your own words. It is kept exactly as you write it.</p>
@@ -144,7 +199,8 @@
           </div>
           <div class="ef-field">
             <label class="ef-field__label" for="set-branch">Branch</label>
-            <input id="set-branch" type="text" autocomplete="off" data-event="f.setBranch" data-bind-value="draft_setBranch">
+            <span class="ef-field__description" id="set-branch-help">An existing branch. A dedicated data branch without application code, protected against force pushes, is recommended.</span>
+            <input id="set-branch" type="text" autocomplete="off" aria-describedby="set-branch-help" data-event="f.setBranch" data-bind-value="draft_setBranch">
           </div>
           <div class="ef-field">
             <label class="ef-field__label" for="set-token">Access token</label>
@@ -156,6 +212,16 @@
             <button type="button" data-event="settings.clear">Disconnect GitHub</button>
           </div>
         </form>
+        <template data-if="remoteConfigured">
+          <section class="ef-surface" aria-labelledby="run-title" data-testid="run">
+            <h2 id="run-title">Where working copies are published</h2>
+            <p>Run <code data-testid="run-id" data-text="settingsRunId"></code>. Each investigation is written only under <code data-text="settingsWorkspacePath"></code>, as one commit per change; the frozen demonstration data is never written.</p>
+            <div class="ef-actions">
+              <template data-if="canRecover"><button type="button" data-event="sync.recover">Recover this run from GitHub</button></template>
+              <button type="button" data-event="sync.newRun">Start a new run</button>
+            </div>
+          </section>
+        </template>
         <p><a href="#/">Back to investigations</a></p>
       </div>
     </template>
@@ -203,8 +269,29 @@
     <template data-if="isWorkspace">
       <div class="screen screen--workspace">
         <header class="ws-header">
-          <p class="ef-eyebrow">Investigation</p>
+          <p class="ef-eyebrow"><template data-if="isFrozen"><span>Frozen demonstration · </span></template><template data-if="isWorkingCopy"><span>Working copy · </span></template>Investigation</p>
           <h1 data-text="wsTitle"></h1>
+          <template data-if="readOnly">
+            <div class="ef-alert" data-tone="info" role="note" data-testid="read-only-banner">
+              <div class="ef-alert__icon" aria-hidden="true">i</div>
+              <div>
+                <h2 class="ef-alert__title">Read-only</h2>
+                <p data-text="frozenBanner"></p>
+                <p class="ef-actions">
+                  <template data-if="showCreateCopy"><button type="button" data-event="workingCopy.create" data-testid="create-working-copy">Create a working copy</button></template>
+                  <template data-if="hasWorkingCopy"><a class="ef-button" data-bind-href="workingCopyHref">Open your working copy</a></template>
+                </p>
+              </div>
+            </div>
+          </template>
+          <template data-if="isWorkingCopy"><p class="muted" data-testid="origin" data-text="originText"></p></template>
+          <template data-if="hasFrozenOriginal"><p><a data-bind-href="frozenOriginalHref">View the frozen original (read-only)</a></p></template>
+          <template data-if="hasSaveConflict">
+            <div class="ef-alert" data-tone="attention" role="alert" data-testid="save-conflict">
+              <div class="ef-alert__icon" aria-hidden="true">!</div>
+              <div><h2 class="ef-alert__title">Not saved on this device</h2><p data-text="saveConflict"></p></div>
+            </div>
+          </template>
           <p class="ws-meta">
             <span class="ef-status-lozenge" data-state="unknown" data-text="wsLifecycle"></span>
             <span>Version <span data-text="wsVersion"></span></span>
@@ -214,8 +301,23 @@
           <div class="persistence" aria-label="Where this investigation is saved">
             <p class="persistence__local" data-testid="local-status" data-text="localStatus"></p>
             <p class="persistence__remote" data-testid="remote-status"><span class="ef-status-lozenge" data-bind-data-state="remoteTone" data-text="remoteStatus"></span></p>
-            <template data-if="hasSyncDetail"><p class="muted" data-text="syncDetail"></p></template>
+            <template data-if="hasSyncDetail"><p class="muted" data-testid="sync-detail" data-text="syncDetail"></p></template>
+            <template data-if="hasSyncPath"><p class="muted persistence__path">GitHub path: <code data-text="syncPath"></code></p></template>
             <template data-if="canRetrySync"><p><button type="button" data-event="sync.retry">Check GitHub again</button></p></template>
+            <template data-if="canAdoptRemote">
+              <p class="ef-actions">
+                <button type="button" data-event="sync.adopt">Use GitHub's version (this device's version is kept as a separate conflict copy)</button>
+                <a class="ef-button" href="#/settings">Continue in a new run instead</a>
+              </p>
+            </template>
+            <template data-if="hasSyncLog">
+              <details class="persistence__log">
+                <summary>GitHub sync history</summary>
+                <ol class="plain-list">
+                  <template data-each="syncLog" data-key="id"><li><code data-text="status"></code> <span data-text="at"></span> — <span data-text="cause"></span>: <span data-text="detail"></span></li></template>
+                </ol>
+              </details>
+            </template>
           </div>
         </header>
 
@@ -228,14 +330,30 @@
           </section>
         </template>
         <div class="ws-grid">
-          <section class="ws-panel ws-panel--wide" aria-labelledby="obs-title">
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="ov-title" data-testid="overview">
+            <h2 id="ov-title">Overview</h2>
+            <dl class="overview">
+              <div><dt>Lifecycle</dt><dd data-testid="ov-lifecycle" data-text="wsLifecycle"></dd></div>
+              <div><dt>Hypotheses</dt><dd data-testid="ov-hypotheses" data-text="ovHypotheses"></dd></div>
+              <div><dt>Evidence</dt><dd data-testid="ov-evidence" data-text="ovEvidence"></dd></div>
+              <div><dt>Contradictions</dt><dd data-testid="ov-contradictions" data-text="ovContradictions"></dd></div>
+              <div><dt>Open questions</dt><dd data-text="ovUnknowns"></dd></div>
+              <div><dt>Cause</dt><dd data-testid="ov-cause" data-text="ovCause"></dd></div>
+              <div><dt>Verification</dt><dd data-testid="ov-verification" data-text="ovVerification"></dd></div>
+              <div><dt>Last activity</dt><dd data-text="ovLastActivity"></dd></div>
+            </dl>
+            <p class="muted" data-testid="contract" data-text="contractText"></p>
+          </section>
+
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="obs-title">
             <h2 id="obs-title">What was observed</h2>
             <blockquote class="observation" data-testid="observation" data-text="wsObservation"></blockquote>
             <p class="muted" data-text="wsObservationBy"></p>
           </section>
 
-          <section class="ws-panel ws-panel--wide" aria-labelledby="todo-title" data-testid="outstanding">
-            <h2 id="todo-title">Outstanding work</h2>
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="todo-title" data-testid="outstanding">
+            <h2 id="todo-title">Next permitted actions</h2>
+            <template data-if="readOnly"><p class="muted">Decided by the engine for this exact history. In a working copy, these are the actions it would allow next.</p></template>
             <p class="outstanding-summary" data-text="outstandingSummary"></p>
             <ul class="ef-obligation-list" aria-label="Open obligations">
               <template data-each="outstanding" data-key="id">
@@ -247,8 +365,9 @@
             </ul>
           </section>
 
-          <section class="ws-panel ws-panel--wide" aria-labelledby="hyp-title">
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="hyp-title">
             <h2 id="hyp-title">Possible explanations (hypotheses)</h2>
+            <template data-if="canEdit">
             <form data-event="hyp.add" class="form form--inline">
               <div class="ef-field">
                 <label class="ef-field__label" for="hyp-statement">New hypothesis</label>
@@ -260,6 +379,7 @@
               </div>
               <div class="ef-actions"><button type="submit">Add hypothesis</button></div>
             </form>
+            </template>
 
             <fieldset class="change-box">
               <legend>To change a hypothesis: give the reason and the evidence, then press an action on it</legend>
@@ -308,7 +428,7 @@
             </ol>
           </section>
 
-          <section class="ws-panel" aria-labelledby="ai-title">
+          <section class="ef-surface ws-panel" aria-labelledby="ai-title">
             <h2 id="ai-title">AI suggestions and challenges</h2>
             <div class="challenge" data-testid="challenge">
               <h3>Challenge the leading explanation</h3>
@@ -321,6 +441,7 @@
               </ul>
             </div>
             <p class="muted">There is no live AI model here. Paste a suggestion an assistant gave you; it is recorded as the AI's, and only you can accept it.</p>
+            <template data-if="canEdit">
             <form data-event="ai.add" class="form">
               <div class="ef-field">
                 <label class="ef-field__label" for="ai-text">Add AI-suggested hypothesis</label>
@@ -332,6 +453,7 @@
               </div>
               <div class="ef-actions"><button type="submit">Record AI suggestion</button></div>
             </form>
+            </template>
             <div class="ef-field">
               <label class="ef-field__label" for="ai-reason">Reason for rejecting a suggestion</label>
               <input id="ai-reason" type="text" data-event="f.aiReason" data-bind-value="draft_aiReason">
@@ -353,8 +475,9 @@
             </ul>
           </section>
 
-          <section class="ws-panel" aria-labelledby="ev-title">
+          <section class="ef-surface ws-panel" aria-labelledby="ev-title">
             <h2 id="ev-title">Evidence</h2>
+            <template data-if="canEdit">
             <form data-event="ev.add" class="form">
               <div class="ef-select-field">
                 <label class="ef-field__label" for="ev-kind">Evidence is</label>
@@ -395,6 +518,8 @@
               </div>
               <div class="ef-actions"><button type="submit">Add evidence</button></div>
             </form>
+            </template>
+            <template data-if="canEdit">
             <form data-event="ev.supersede" class="form">
               <div class="ef-select-field">
                 <label class="ef-field__label" for="sup-old">Evidence to replace</label>
@@ -422,6 +547,7 @@
               </div>
               <div class="ef-actions"><button type="submit">Replace evidence</button></div>
             </form>
+            </template>
             <ul class="card-list">
               <template data-each="evidence" data-key="id">
                 <li class="ef-card" data-testid="evidence" data-bind-data-focused="isFocused">
@@ -437,8 +563,9 @@
             </ul>
           </section>
 
-          <section class="ws-panel" aria-labelledby="rel-title">
+          <section class="ef-surface ws-panel" aria-labelledby="rel-title">
             <h2 id="rel-title">Link evidence to a hypothesis</h2>
+            <template data-if="canEdit">
             <form data-event="rel.add" class="form">
               <div class="ef-select-field">
                 <label class="ef-field__label" for="rel-evidence">Evidence to link</label>
@@ -478,12 +605,13 @@
               </div>
               <div class="ef-actions"><button type="submit">Link evidence</button></div>
             </form>
+            </template>
             <ul class="plain-list">
               <template data-each="relationships" data-key="id"><li data-testid="relationship"><span data-text="text"></span> <small class="muted" data-text="rationale"></small></li></template>
             </ul>
           </section>
 
-          <section class="ws-panel" aria-labelledby="con-title">
+          <section class="ef-surface ws-panel" aria-labelledby="con-title">
             <h2 id="con-title">Contradictions</h2>
             <template data-if="hasContradictingLinks">
               <div class="ef-alert" data-tone="attention">
@@ -496,6 +624,7 @@
                 </div>
               </div>
             </template>
+            <template data-if="canEdit">
             <form data-event="con.add" class="form">
               <div class="ef-field">
                 <label class="ef-field__label" for="con-statement">Record a contradiction</label>
@@ -525,6 +654,7 @@
               </div>
               <div class="ef-actions"><button type="submit">Record contradiction</button></div>
             </form>
+            </template>
             <div class="ef-field">
               <label class="ef-field__label" for="con-basis">How a contradiction was explained or accepted</label>
               <input id="con-basis" type="text" data-event="f.conBasis" data-bind-value="draft_conBasis">
@@ -545,8 +675,9 @@
             </ul>
           </section>
 
-          <section class="ws-panel" aria-labelledby="unk-title">
+          <section class="ef-surface ws-panel" aria-labelledby="unk-title">
             <h2 id="unk-title">Open questions (unknowns)</h2>
+            <template data-if="canEdit">
             <form data-event="unk.add" class="form">
               <div class="ef-field">
                 <label class="ef-field__label" for="unk-question">What do we not know yet?</label>
@@ -566,6 +697,7 @@
               </div>
               <div class="ef-actions"><button type="submit">Add open question</button></div>
             </form>
+            </template>
             <div class="ef-field">
               <label class="ef-field__label" for="unk-basis">Answer, or why it is accepted as remaining uncertainty</label>
               <input id="unk-basis" type="text" data-event="f.unkBasis" data-bind-value="draft_unkBasis">
@@ -586,8 +718,9 @@
             </ul>
           </section>
 
-          <section class="ws-panel" aria-labelledby="test-title">
+          <section class="ef-surface ws-panel" aria-labelledby="test-title">
             <h2 id="test-title">Predictions, tests and findings</h2>
+            <template data-if="canEdit">
             <form data-event="pred.add" class="form">
               <div class="ef-select-field">
                 <label class="ef-field__label" for="pred-hypothesis">If this hypothesis is true…</label>
@@ -617,8 +750,10 @@
               </div>
               <div class="ef-actions"><button type="submit">Add prediction</button></div>
             </form>
+            </template>
             <ul class="plain-list"><template data-each="predictions" data-key="id"><li data-testid="prediction" data-bind-data-preferred="isDiscriminating"><template data-if="isDiscriminating"><span class="ef-badge" data-ef-status="success">Preferred: tells hypotheses apart</span></template> <span data-text="text"></span> <small class="muted" data-testid="prediction-timing" data-text="timing"></small></li></template></ul>
 
+            <template data-if="canEdit">
             <form data-event="act.add" class="form">
               <div class="ef-select-field">
                 <label class="ef-field__label" for="act-kind">Kind of check</label>
@@ -649,6 +784,7 @@
               </div>
               <div class="ef-actions"><button type="submit">Plan check</button></div>
             </form>
+            </template>
             <ul class="card-list">
               <template data-each="actions" data-key="id">
                 <li class="ef-card" data-testid="action">
@@ -663,6 +799,7 @@
                 </li>
               </template>
             </ul>
+            <template data-if="canEdit">
             <form data-event="find.add" class="form">
               <div class="ef-select-field">
                 <label class="ef-field__label" for="find-action">Finding from</label>
@@ -684,13 +821,15 @@
               </div>
               <div class="ef-actions"><button type="submit">Record finding</button></div>
             </form>
+            </template>
             <ul class="plain-list">
               <template data-each="findings" data-key="id"><li data-testid="finding"><strong data-text="action"></strong>: <span data-text="result"></span> <small class="muted" data-text="interpretation"></small></li></template>
             </ul>
           </section>
 
-          <section class="ws-panel" aria-labelledby="neg-title">
+          <section class="ef-surface ws-panel" aria-labelledby="neg-title">
             <h2 id="neg-title">Ruled out for good (negative knowledge)</h2>
+            <template data-if="canEdit">
             <form data-event="neg.add" class="form">
               <div class="ef-field">
                 <label class="ef-field__label" for="neg-statement">What is known not to be the cause</label>
@@ -712,13 +851,15 @@
               </div>
               <div class="ef-actions"><button type="submit">Record</button></div>
             </form>
+            </template>
             <ul class="plain-list">
               <template data-each="negative" data-key="id"><li><strong data-text="statement"></strong> (scope: <span data-text="scope"></span>; evidence <span data-text="basis"></span>)</li></template>
             </ul>
           </section>
 
-          <section class="ws-panel ws-panel--wide" aria-labelledby="cause-title">
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="cause-title">
             <h2 id="cause-title">Cause</h2>
+            <template data-if="canEdit">
             <form data-event="cause.add" class="form form--inline">
               <div class="ef-field">
                 <label class="ef-field__label" for="cause-outcome">Problem being explained</label>
@@ -750,6 +891,7 @@
               </div>
               <div class="ef-actions"><button type="submit">Propose cause</button></div>
             </form>
+            </template>
             <ul class="card-list">
               <template data-each="causes" data-key="id">
                 <li class="ef-card" data-testid="cause">
@@ -774,8 +916,9 @@
             </ul>
           </section>
 
-          <section class="ws-panel ws-panel--wide" aria-labelledby="corr-title">
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="corr-title">
             <h2 id="corr-title">Fix and verification</h2>
+            <template data-if="canEdit">
             <form data-event="corr.add" class="form form--inline">
               <div class="ef-select-field">
                 <label class="ef-field__label" for="corr-kind">Kind of fix</label>
@@ -805,6 +948,7 @@
               </div>
               <div class="ef-actions"><button type="submit">Add fix</button></div>
             </form>
+            </template>
             <ul class="card-list">
               <template data-each="corrections" data-key="id">
                 <li class="ef-card" data-testid="correction">
@@ -821,6 +965,7 @@
                 </li>
               </template>
             </ul>
+            <template data-if="canEdit">
             <form data-event="crit.add" class="form form--inline">
               <div class="ef-select-field">
                 <label class="ef-field__label" for="crit-correction">Fix to check</label>
@@ -838,9 +983,11 @@
               </div>
               <div class="ef-actions"><button type="submit">Add success criterion</button></div>
             </form>
+            </template>
             <ul class="plain-list">
               <template data-each="criteria" data-key="id"><li data-testid="criterion" data-bind-data-met="isMet"><strong data-text="label"></strong> (fix <span data-text="correction"></span>): <span data-text="expected"></span> — <span data-text="status"></span></li></template>
             </ul>
+            <template data-if="canEdit">
             <form data-event="ver.add" class="form form--inline">
               <div class="ef-select-field">
                 <label class="ef-field__label" for="ver-criterion">Criterion verified</label>
@@ -876,11 +1023,13 @@
               </div>
               <div class="ef-actions"><button type="submit">Record verification</button></div>
             </form>
+            </template>
             <ul class="plain-list"><template data-each="verifications" data-key="id"><li data-testid="verification" data-text="text"></li></template></ul>
           </section>
 
-          <section class="ws-panel ws-panel--wide" aria-labelledby="concl-title">
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="concl-title">
             <h2 id="concl-title">Conclusion and resolution</h2>
+            <template data-if="canEdit">
             <form data-event="concl.add" class="form form--inline">
               <div class="ef-field">
                 <label class="ef-field__label" for="concl-statement">Conclusion</label>
@@ -915,6 +1064,7 @@
               </div>
               <div class="ef-actions"><button type="submit">Record conclusion</button></div>
             </form>
+            </template>
             <ul class="plain-list">
               <template data-each="conclusions" data-key="id"><li data-testid="conclusion"><strong data-text="statement"></strong> (<span data-text="strength"></span>) — remaining uncertainty: <span data-text="residual"></span></li></template>
             </ul>
@@ -946,7 +1096,7 @@
             </div>
           </section>
 
-          <section class="ws-panel ws-panel--wide" aria-labelledby="hist-title">
+          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="hist-title">
             <h2 id="hist-title">History</h2>
             <ol class="ef-timeline" aria-label="Investigation history, newest first">
               <template data-each="history" data-key="id">
@@ -972,7 +1122,7 @@
           <ef-print-title-page>
             <p class="ef-eyebrow" data-testid="report-kind" data-text="reportKind"></p>
             <h1 data-text="reportTitle"></h1>
-            <p>Version <span data-text="reportVersion"></span> · snapshot <code data-testid="report-digest" data-text="reportDigest"></code></p>
+            <p>Version <span data-text="reportVersion"></span> · snapshot <span class="ef-fault-reference"><code data-testid="report-digest" data-text="reportDigest"></code></span></p>
             <ef-print-callout>
               <p><strong>Observation as reported:</strong> <span data-text="reportObservation"></span></p>
             </ef-print-callout>
@@ -981,7 +1131,7 @@
             <ef-print-section class="report-unresolved" data-testid="report-unresolved">
               <h2>Unresolved work</h2>
               <ul>
-                <template data-each="reportUnresolved" data-key="id"><li><strong data-text="heading"></strong> <small data-text="detail"></small> <code data-text="status"></code></li></template>
+                <template data-each="reportUnresolved" data-key="id"><li><strong data-text="heading"></strong> <small data-text="detail"></small> <span class="ef-fault-reference"><code data-text="status"></code></span></li></template>
               </ul>
             </ef-print-section>
           </template>
@@ -990,7 +1140,7 @@
               <h2>Outstanding work</h2>
               <p data-text="outstandingSummary"></p>
               <ul>
-                <template data-each="outstanding" data-key="id"><li><strong data-text="source"></strong>: <span data-text="message"></span> <code data-text="code"></code></li></template>
+                <template data-each="outstanding" data-key="id"><li><strong data-text="source"></strong>: <span data-text="message"></span> <span class="ef-fault-reference"><code data-text="code"></code></span></li></template>
               </ul>
             </ef-print-section>
           </template>
