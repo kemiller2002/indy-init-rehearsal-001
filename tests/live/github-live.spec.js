@@ -74,6 +74,13 @@ const configure = async (page) => {
   return (await page.getByTestId("run-id").textContent()) ?? "";
 };
 
+const enterToken = async (page) => {
+  const field = page.getByLabel("Access token", { exact: true });
+  await field.fill(token);
+  await field.blur();
+  await page.getByRole("button", { name: "Save settings" }).click();
+};
+
 const addHypothesis = async (page, statement) => {
   const field = page.getByLabel("New hypothesis", { exact: true });
   await field.fill(statement);
@@ -126,7 +133,14 @@ test("LIVE: working copy, append, reload, recovery on a second device, and a ref
   await confirmed(page);
   const stored = await page.evaluate(() => Object.keys(localStorage).map((k) => k + "=" + localStorage.getItem(k)).join("\n"));
   expect(stored).not.toContain(token);
-  note("reload", { confirmedAfterReload: true, tokenStored: false });
+  // The token is memory-only (CAUSA-PROV-36): after the reload this device asks for it again.
+  await ready(page, "#/settings");
+  await expect(page.getByText("No access token in this session")).toBeVisible();
+  await enterToken(page);
+  await expect(page.getByTestId("run-id")).toHaveText(runId);
+  await ready(page, `#/i/${target}`);
+  await confirmed(page);
+  note("reload", { confirmedAfterReload: true, tokenStored: false, tokenAskedAgain: true });
 
   // 4. A second device (fresh storage, same settings) recovers the run from GitHub, verified.
   const settings = await page.evaluate(() => localStorage.getItem("rci:settings"));
@@ -137,10 +151,7 @@ test("LIVE: working copy, append, reload, recovery on a second device, and a ref
   const other = await deviceB.newPage();
   other.on("pageerror", (e) => errors.push(String(e)));
   await ready(other, "#/settings");
-  const tokenField = other.getByLabel("Access token", { exact: true });
-  await tokenField.fill(token);
-  await tokenField.blur();
-  await other.getByRole("button", { name: "Save settings" }).click();
+  await enterToken(other);
   await expect(other.getByTestId("run-id")).toHaveText(runId);
   await other.getByRole("button", { name: "Recover this run from GitHub" }).click();
   await expect(other.locator(".app-notice")).toContainText("1 investigation(s) recovered", { timeout: 120_000 });
