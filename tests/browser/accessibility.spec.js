@@ -25,11 +25,12 @@ test("AC-14 home, workspace and report have no serious or critical axe violation
 
 test("AC-14 an investigation can be created with the keyboard alone", async ({ page }) => {
   await open(page);
-  // Skip link first, then header links, then the form fields.
+  // Skip link first, then header links, the five demonstration cards' links and buttons, then the form fields.
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
+  await expect(page.getByTestId("demo-card")).toHaveCount(5);
   const observation = page.getByLabel("What did you observe?", { exact: true });
-  for (let i = 0; i < 10 && !(await observation.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press("Tab");
+  for (let i = 0; i < 40 && !(await observation.evaluate((el) => el === document.activeElement)); i++) await page.keyboard.press("Tab");
   await expect(observation).toBeFocused();
   await page.keyboard.type("Queue consumers stop after a broker failover.");
   await page.keyboard.press("Tab");

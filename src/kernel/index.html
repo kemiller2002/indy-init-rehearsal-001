@@ -199,7 +199,8 @@
           </div>
           <div class="ef-field">
             <label class="ef-field__label" for="set-branch">Branch</label>
-            <input id="set-branch" type="text" autocomplete="off" data-event="f.setBranch" data-bind-value="draft_setBranch">
+            <span class="ef-field__description" id="set-branch-help">An existing branch. A dedicated data branch without application code, protected against force pushes, is recommended.</span>
+            <input id="set-branch" type="text" autocomplete="off" aria-describedby="set-branch-help" data-event="f.setBranch" data-bind-value="draft_setBranch">
           </div>
           <div class="ef-field">
             <label class="ef-field__label" for="set-token">Access token</label>
@@ -211,6 +212,16 @@
             <button type="button" data-event="settings.clear">Disconnect GitHub</button>
           </div>
         </form>
+        <template data-if="remoteConfigured">
+          <section class="ef-surface" aria-labelledby="run-title" data-testid="run">
+            <h2 id="run-title">Where working copies are published</h2>
+            <p>Run <code data-testid="run-id" data-text="settingsRunId"></code>. Each investigation is written only under <code data-text="settingsWorkspacePath"></code>, as one commit per change; the frozen demonstration data is never written.</p>
+            <div class="ef-actions">
+              <template data-if="canRecover"><button type="button" data-event="sync.recover">Recover this run from GitHub</button></template>
+              <button type="button" data-event="sync.newRun">Start a new run</button>
+            </div>
+          </section>
+        </template>
         <p><a href="#/">Back to investigations</a></p>
       </div>
     </template>
@@ -269,8 +280,23 @@
           <div class="persistence" aria-label="Where this investigation is saved">
             <p class="persistence__local" data-testid="local-status" data-text="localStatus"></p>
             <p class="persistence__remote" data-testid="remote-status"><span class="ef-status-lozenge" data-bind-data-state="remoteTone" data-text="remoteStatus"></span></p>
-            <template data-if="hasSyncDetail"><p class="muted" data-text="syncDetail"></p></template>
+            <template data-if="hasSyncDetail"><p class="muted" data-testid="sync-detail" data-text="syncDetail"></p></template>
+            <template data-if="hasSyncPath"><p class="muted persistence__path">GitHub path: <code data-text="syncPath"></code></p></template>
             <template data-if="canRetrySync"><p><button type="button" data-event="sync.retry">Check GitHub again</button></p></template>
+            <template data-if="canAdoptRemote">
+              <p class="ef-actions">
+                <button type="button" data-event="sync.adopt">Use GitHub's version (this device's version is kept as a separate conflict copy)</button>
+                <a class="ef-button" href="#/settings">Continue in a new run instead</a>
+              </p>
+            </template>
+            <template data-if="hasSyncLog">
+              <details class="persistence__log">
+                <summary>GitHub sync history</summary>
+                <ol class="plain-list">
+                  <template data-each="syncLog" data-key="id"><li><code data-text="status"></code> <span data-text="at"></span> — <span data-text="cause"></span>: <span data-text="detail"></span></li></template>
+                </ol>
+              </details>
+            </template>
           </div>
         </header>
 
