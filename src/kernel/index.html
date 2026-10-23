@@ -972,7 +972,7 @@
           <ef-print-title-page>
             <p class="ef-eyebrow" data-testid="report-kind" data-text="reportKind"></p>
             <h1 data-text="reportTitle"></h1>
-            <p>Version <span data-text="reportVersion"></span> · snapshot <code data-testid="report-digest" data-text="reportDigest"></code></p>
+            <p>Version <span data-text="reportVersion"></span> · snapshot <span class="ef-fault-reference"><code data-testid="report-digest" data-text="reportDigest"></code></span></p>
             <ef-print-callout>
               <p><strong>Observation as reported:</strong> <span data-text="reportObservation"></span></p>
             </ef-print-callout>
@@ -981,7 +981,7 @@
             <ef-print-section class="report-unresolved" data-testid="report-unresolved">
               <h2>Unresolved work</h2>
               <ul>
-                <template data-each="reportUnresolved" data-key="id"><li><strong data-text="heading"></strong> <small data-text="detail"></small> <code data-text="status"></code></li></template>
+                <template data-each="reportUnresolved" data-key="id"><li><strong data-text="heading"></strong> <small data-text="detail"></small> <span class="ef-fault-reference"><code data-text="status"></code></span></li></template>
               </ul>
             </ef-print-section>
           </template>
@@ -990,7 +990,7 @@
               <h2>Outstanding work</h2>
               <p data-text="outstandingSummary"></p>
               <ul>
-                <template data-each="outstanding" data-key="id"><li><strong data-text="source"></strong>: <span data-text="message"></span> <code data-text="code"></code></li></template>
+                <template data-each="outstanding" data-key="id"><li><strong data-text="source"></strong>: <span data-text="message"></span> <span class="ef-fault-reference"><code data-text="code"></code></span></li></template>
               </ul>
             </ef-print-section>
           </template>
