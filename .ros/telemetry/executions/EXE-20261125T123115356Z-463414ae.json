@@ -759,14 +759,30 @@
     },
     {
       "metricId": "agent.interruptions",
-      "status": "unknown",
-      "reason": "runtime capability not reported or mapped",
-      "discoveredAt": "2026-11-25T12:31:15.356Z",
+      "status": "derived",
+      "reason": "normalized measurement recorded",
+      "discoveredAt": "2026-11-25T12:35:38.000Z",
       "source": {
-        "type": "environment",
-        "name": "runtime-identity",
-        "mechanism": "whitelisted-claude-environment"
-      }
+        "type": "calculated",
+        "name": "ros-work-protocol",
+        "mechanism": "blocked-transition"
+      },
+      "lastAssessedAt": "2026-11-25T12:35:38.000Z",
+      "recordedAt": "2026-11-25T12:35:38.000Z",
+      "history": [
+        {
+          "status": "unknown",
+          "reason": "runtime capability not reported or mapped",
+          "source": {
+            "type": "environment",
+            "name": "runtime-identity",
+            "mechanism": "whitelisted-claude-environment"
+          },
+          "discoveredAt": "2026-11-25T12:31:15.356Z",
+          "lastAssessedAt": "2026-11-25T12:31:15.356Z",
+          "recordedAt": "2026-11-25T12:31:15.356Z"
+        }
+      ]
     },
     {
       "metricId": "agent.resumes",
@@ -1608,6 +1624,26 @@
       },
       "collectedAt": "2026-11-25T12:31:15.356Z",
       "schemaVersion": "1.0.0"
+    },
+    {
+      "measurementId": "MEAS-536afdb34b5ba4706303fc6c",
+      "id": "agent.interruptions",
+      "value": 1,
+      "unit": "count",
+      "currency": null,
+      "quality": "derived",
+      "confidence": null,
+      "scope": "execution",
+      "aggregation": "sum",
+      "dimensions": {},
+      "pricing": null,
+      "source": {
+        "type": "calculated",
+        "name": "ros-work-protocol",
+        "mechanism": "blocked-transition"
+      },
+      "collectedAt": "2026-11-25T12:35:38.000Z",
+      "schemaVersion": "1.0.0"
     }
   ],
   "rawTelemetry": [],
@@ -1620,6 +1656,17 @@
         "name": "ros",
         "mechanism": "work-lifecycle"
       }
+    },
+    {
+      "type": "work.blocked",
+      "occurredAt": "2026-11-25T12:35:38.000Z",
+      "reason": "Aegis 2.0.0 packaging defect: nuspec requires FSharp.Core >= 11.0.101, so App.slnx restore fails with NU1605 on the .NET 10 SDK. Waiting for Aegis 2.0.1 (floor 10.1.400) to retarget.",
+      "source": {
+        "type": "ros-clock",
+        "name": "ros",
+        "mechanism": "work-lifecycle"
+      },
+      "eventId": "TEVT-cd576aa2cfe5f29447d98cc1"
     }
   ],
   "repository": {

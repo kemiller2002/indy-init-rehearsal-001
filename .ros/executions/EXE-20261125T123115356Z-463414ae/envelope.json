@@ -50,8 +50,8 @@
   "humanOnlyTransitions": [],
   "parentExecution": null,
   "startedAt": "2026-11-25T12:31:15.748Z",
-  "state": "active",
-  "stateReason": null,
+  "state": "blocked",
+  "stateReason": "Aegis 2.0.0 packaging defect: nuspec requires FSharp.Core >= 11.0.101, so App.slnx restore fails with NU1605 on the .NET 10 SDK. Waiting for Aegis 2.0.1 (floor 10.1.400) to retarget.",
   "origin": {
     "kind": "work-transition",
     "reference": "work.begin"

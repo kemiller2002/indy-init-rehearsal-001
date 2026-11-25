@@ -1,1 +1,2 @@
 {"entry":"transition","transition":"execution.start","state":"active","origin":"work-transition","originReference":"work.begin","actor":"anthropic/claude-code","actorKind":"agent","at":"2026-11-25T12:31:15.767Z"}
+{"entry":"transition","transition":"work.block","state":"blocked","reason":"Aegis 2.0.0 packaging defect: nuspec requires FSharp.Core >= 11.0.101, so App.slnx restore fails with NU1605 on the .NET 10 SDK. Waiting for Aegis 2.0.1 (floor 10.1.400) to retarget.","actor":"anthropic/claude-code","actorKind":"agent","at":"2026-11-25T12:35:39.781Z"}

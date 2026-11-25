@@ -4,7 +4,7 @@
   "repository": "indy-init-rehearsal-001",
   "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-11-25T12:31:14.000Z",
+  "updatedAt": "2026-11-25T12:35:38.000Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -622,13 +622,34 @@
     {
       "id": "WI-0001",
       "type": "task",
-      "state": "active",
-      "semanticState": "active",
+      "state": "blocked",
+      "semanticState": "blocked",
       "evidence": [],
-      "updatedAt": "2026-11-25T12:31:14.000Z",
+      "updatedAt": "2026-11-25T12:35:38.000Z",
       "telemetryExecutionIds": [
         "EXE-20261125T123115356Z-463414ae"
-      ]
+      ],
+      "latestCheckpoint": {
+        "id": "352145ef99f2e4d05ef93a73",
+        "recordedAt": "2026-11-25T12:35:29.000Z",
+        "executionId": "EXE-20261125T123115356Z-463414ae",
+        "repository": "indy-init-rehearsal-001",
+        "branch": "claude/vigila-implementation-jdeps1",
+        "commit": "b4aa71aba5fd2dddf627a6adc6ea521228aecad3",
+        "remote": {
+          "name": "origin",
+          "url": "https://github.com/kemiller2002/indy-init-rehearsal-001"
+        },
+        "remoteBranch": "claude/vigila-implementation-jdeps1",
+        "remoteCommit": "b4aa71aba5fd2dddf627a6adc6ea521228aecad3",
+        "summary": "Aegis pinned to 2.0.0 via conditor upgrade (conditor.json, App.Engine.fsproj, .conditor/lock.json). Build fails on SDK 10 with NU1605 (Aegis 2.0.0 requires FSharp.Core >= 11.0.101); SDK 11 hits pre-existing FS3262.",
+        "nextAction": "Retarget to Aegis 2.0.1 (FSharp.Core floor 10.1.400) with conditor upgrade, rebuild and run dotnet test App.slnx",
+        "verification": {
+          "status": "verified",
+          "mechanism": "git-remote-observation"
+        }
+      },
+      "blockReason": "Aegis 2.0.0 packaging defect: nuspec requires FSharp.Core >= 11.0.101, so App.slnx restore fails with NU1605 on the .NET 10 SDK. Waiting for Aegis 2.0.1 (floor 10.1.400) to retarget."
     }
   ]
 }
