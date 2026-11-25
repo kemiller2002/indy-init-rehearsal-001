@@ -4,7 +4,7 @@
   "repository": "indy-init-rehearsal-001",
   "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-11-25T13:08:30Z",
+  "updatedAt": "2026-11-25T13:09:32Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -664,13 +664,43 @@
     {
       "id": "WI-0002",
       "type": "task",
-      "state": "active",
-      "semanticState": "active",
-      "evidence": [],
-      "updatedAt": "2026-11-25T13:08:30Z",
+      "state": "complete",
+      "semanticState": "complete",
+      "evidence": [
+        {
+          "type": "implementation",
+          "path": "global.json"
+        },
+        {
+          "type": "tests",
+          "path": "tests"
+        }
+      ],
+      "updatedAt": "2026-11-25T13:09:32Z",
       "telemetryExecutionIds": [
         "EXE-20261125T130830974Z-0ea85865"
-      ]
+      ],
+      "latestCheckpoint": {
+        "id": "6d6b57d58c81c6ec176e2c97",
+        "recordedAt": "2026-11-25T13:09:32Z",
+        "executionId": "EXE-20261125T130830974Z-0ea85865",
+        "repository": "indy-init-rehearsal-001",
+        "branch": "claude/vigila-implementation-jdeps1",
+        "commit": "715b5847c90dccacbe50ac11f6378bc695ba814c",
+        "remote": {
+          "name": "origin",
+          "url": "https://github.com/kemiller2002/indy-init-rehearsal-001"
+        },
+        "remoteBranch": "claude/vigila-implementation-jdeps1",
+        "remoteCommit": "715b5847c90dccacbe50ac11f6378bc695ba814c",
+        "summary": "global.json pins SDK 10.0.100 latestFeature; App.slnx builds 0 warnings and 188/188 pass on 10.0.404",
+        "nextAction": "Confirm CI green",
+        "verification": {
+          "status": "verified",
+          "mechanism": "git-remote-observation"
+        }
+      },
+      "completedAt": "2026-11-25T13:09:32Z"
     }
   ]
 }

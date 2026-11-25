@@ -648,10 +648,10 @@
       "description": null,
       "tags": [],
       "priority": "medium",
-      "status": "ready",
+      "status": "complete",
       "attachments": [],
       "createdAt": "2026-11-25T13:08:25.569Z",
-      "updatedAt": "2026-11-25T13:08:30Z",
+      "updatedAt": "2026-11-25T13:09:32Z",
       "createdBy": "unknown",
       "createdByActor": {
         "kind": "agent",
