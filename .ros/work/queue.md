@@ -2,7 +2,7 @@
 
 | ID | Work | Status | Tags | Priority |
 |---|---|---|---|---|
-| CAUSA-REHEARSAL-INTEGRATION-001 | CAUSA-REHEARSAL-INTEGRATION-001 | active |  |  |
+| CAUSA-REHEARSAL-INTEGRATION-001 | CAUSA-REHEARSAL-INTEGRATION-001 | complete |  |  |
 | COND-MISSION-001 | Build indy-init-root-cause-investigator from the Conditor execution contract | complete | conditor, mission | high |
 | ROS-INSTALL-3-16-0 | ROS-INSTALL-3-16-0 | complete |  |  |
 | SLICE-ADVANCED-VIEWS | Slice 17 advanced-views: advanced reasoning views and diagnostics: dependency and causal-set visualizations, uncertainty map, miners, search | ready | indy-init, slice, cut:stretch | low |
@@ -28,3 +28,6 @@
 | SLICE-TIME-TRAVEL | Slice 11 time-travel: semantic diff and what-changed-my-mind explanation | ready | indy-init, slice, cut:cut-last | medium |
 | SLICE-TOOL-ANALYTICS | Slice 18 tool-analytics: governed tool execution gateway, local WASM analytics and the evidence ingestion pipeline | ready | indy-init, slice, cut:stretch | low |
 | SLICE-WORKSPACE | Slice 05 workspace: one complete accessible investigation workspace | complete | indy-init, slice, cut:never-cut | high |
+| WI-0001 | Upgrade Aegis 1.0.0 -> 2.0.0 with Conditor 0.10.27 (echelon-current 1.40.0) | complete |  | medium |
+| WI-0002 | Pin the .NET 10 SDK with global.json so CI does not build with the runner's .NET 11 SDK (FS3262) | complete |  | medium |
+| WI-0003 | Move Aegis 2.0.1 -> 2.0.2 with Conditor 0.10.29 (WebAssembly detached-capture hang fix) | complete |  | medium |

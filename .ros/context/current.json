@@ -4,7 +4,7 @@
   "repository": "indy-init-rehearsal-001",
   "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-10-23T11:24:44.000Z",
+  "updatedAt": "2026-11-25T16:30:12Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -618,6 +618,130 @@
         }
       },
       "completedAt": "2026-10-23T11:24:44.000Z"
+    },
+    {
+      "id": "WI-0001",
+      "type": "task",
+      "state": "complete",
+      "semanticState": "complete",
+      "evidence": [
+        {
+          "type": "implementation",
+          "path": "src/engine/App.Engine.fsproj"
+        },
+        {
+          "type": "tests",
+          "path": ".echelon/foundations.json"
+        }
+      ],
+      "updatedAt": "2026-11-25T13:06:03Z",
+      "telemetryExecutionIds": [
+        "EXE-20261125T123115356Z-463414ae"
+      ],
+      "latestCheckpoint": {
+        "id": "bcc88452c3a7e987e02a1a54",
+        "recordedAt": "2026-11-25T13:06:03Z",
+        "executionId": "EXE-20261125T123115356Z-463414ae",
+        "repository": "indy-init-rehearsal-001",
+        "branch": "claude/vigila-implementation-jdeps1",
+        "commit": "f2c829daedfa5503ff0605d7205a7b8ed2227e57",
+        "remote": {
+          "name": "origin",
+          "url": "https://github.com/kemiller2002/indy-init-rehearsal-001"
+        },
+        "remoteBranch": "claude/vigila-implementation-jdeps1",
+        "remoteCommit": "f2c829daedfa5503ff0605d7205a7b8ed2227e57",
+        "summary": "Aegis 2.0.1 via Conditor 0.10.28; App.slnx builds 0 warnings on SDK 10.0.404; 188/188 tests pass; foundations verify passes",
+        "nextAction": "Merge after review",
+        "verification": {
+          "status": "verified",
+          "mechanism": "git-remote-observation"
+        }
+      },
+      "blockReason": "Aegis 2.0.0 packaging defect: nuspec requires FSharp.Core >= 11.0.101, so App.slnx restore fails with NU1605 on the .NET 10 SDK. Waiting for Aegis 2.0.1 (floor 10.1.400) to retarget.",
+      "completedAt": "2026-11-25T13:06:03Z"
+    },
+    {
+      "id": "WI-0002",
+      "type": "task",
+      "state": "complete",
+      "semanticState": "complete",
+      "evidence": [
+        {
+          "type": "implementation",
+          "path": "global.json"
+        },
+        {
+          "type": "tests",
+          "path": "tests"
+        }
+      ],
+      "updatedAt": "2026-11-25T13:09:32Z",
+      "telemetryExecutionIds": [
+        "EXE-20261125T130830974Z-0ea85865"
+      ],
+      "latestCheckpoint": {
+        "id": "6d6b57d58c81c6ec176e2c97",
+        "recordedAt": "2026-11-25T13:09:32Z",
+        "executionId": "EXE-20261125T130830974Z-0ea85865",
+        "repository": "indy-init-rehearsal-001",
+        "branch": "claude/vigila-implementation-jdeps1",
+        "commit": "715b5847c90dccacbe50ac11f6378bc695ba814c",
+        "remote": {
+          "name": "origin",
+          "url": "https://github.com/kemiller2002/indy-init-rehearsal-001"
+        },
+        "remoteBranch": "claude/vigila-implementation-jdeps1",
+        "remoteCommit": "715b5847c90dccacbe50ac11f6378bc695ba814c",
+        "summary": "global.json pins SDK 10.0.100 latestFeature; App.slnx builds 0 warnings and 188/188 pass on 10.0.404",
+        "nextAction": "Confirm CI green",
+        "verification": {
+          "status": "verified",
+          "mechanism": "git-remote-observation"
+        }
+      },
+      "completedAt": "2026-11-25T13:09:32Z"
+    },
+    {
+      "id": "WI-0003",
+      "type": "task",
+      "state": "complete",
+      "semanticState": "complete",
+      "evidence": [
+        {
+          "type": "implementation",
+          "path": "src/engine/App.Engine.fsproj"
+        },
+        {
+          "type": "tests",
+          "path": ".echelon/foundations.json"
+        }
+      ],
+      "updatedAt": "2026-11-25T16:30:12Z",
+      "telemetryExecutionIds": [
+        "EXE-20261125T162905295Z-bdac97ea"
+      ],
+      "latestCheckpoint": {
+        "id": "bd09abc85310b2756915391e",
+        "recordedAt": "2026-11-25T16:30:12Z",
+        "executionId": "EXE-20261125T162905295Z-bdac97ea",
+        "repository": "indy-init-rehearsal-001",
+        "branch": "claude/vigila-implementation-jdeps1",
+        "commit": "a092bdab2c3e94602c783d6b9f1ddf87fb142047",
+        "remote": {
+          "name": "origin",
+          "url": "https://github.com/kemiller2002/indy-init-rehearsal-001"
+        },
+        "remoteBranch": "claude/vigila-implementation-jdeps1",
+        "remoteCommit": "a092bdab2c3e94602c783d6b9f1ddf87fb142047",
+        "summary": "Aegis 2.0.2 via Conditor 0.10.29; 0 warnings; 188/188; foundations verify passes",
+        "nextAction": "Merge after review",
+        "verification": {
+          "status": "verified",
+          "mechanism": "git-remote-observation"
+        }
+      },
+      "completedAt": "2026-11-25T16:30:12Z"
     }
   ]
 }

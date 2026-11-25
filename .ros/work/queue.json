@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "repository": "indy-init-rehearsal-001",
-  "nextSeq": 1,
+  "nextSeq": 4,
   "items": [
     {
       "id": "COND-MISSION-001",
@@ -620,6 +620,69 @@
       },
       "source": "indy-init",
       "sourceReference": "conditor.json#requirementsImport/additionalSlices/post-hackathon"
+    },
+    {
+      "id": "WI-0001",
+      "title": "Upgrade Aegis 1.0.0 -> 2.0.0 with Conditor 0.10.27 (echelon-current 1.40.0)",
+      "description": null,
+      "tags": [],
+      "priority": "medium",
+      "status": "complete",
+      "attachments": [],
+      "createdAt": "2026-11-25T12:31:09.463Z",
+      "updatedAt": "2026-11-25T13:06:03Z",
+      "createdBy": "unknown",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "anthropic/claude-code",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "manual",
+      "sourceReference": null
+    },
+    {
+      "id": "WI-0002",
+      "title": "Pin the .NET 10 SDK with global.json so CI does not build with the runner's .NET 11 SDK (FS3262)",
+      "description": null,
+      "tags": [],
+      "priority": "medium",
+      "status": "complete",
+      "attachments": [],
+      "createdAt": "2026-11-25T13:08:25.569Z",
+      "updatedAt": "2026-11-25T13:09:32Z",
+      "createdBy": "unknown",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "anthropic/claude-code",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "manual",
+      "sourceReference": null
+    },
+    {
+      "id": "WI-0003",
+      "title": "Move Aegis 2.0.1 -> 2.0.2 with Conditor 0.10.29 (WebAssembly detached-capture hang fix)",
+      "description": null,
+      "tags": [],
+      "priority": "medium",
+      "status": "complete",
+      "attachments": [],
+      "createdAt": "2026-11-25T16:29:03.640Z",
+      "updatedAt": "2026-11-25T16:30:12Z",
+      "createdBy": "unknown",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "anthropic/claude-code",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "manual",
+      "sourceReference": null
     }
   ]
 }
