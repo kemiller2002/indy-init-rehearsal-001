@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "repository": "indy-init-rehearsal-001",
-  "nextSeq": 1,
+  "nextSeq": 2,
   "items": [
     {
       "id": "COND-MISSION-001",
@@ -620,6 +620,27 @@
       },
       "source": "indy-init",
       "sourceReference": "conditor.json#requirementsImport/additionalSlices/post-hackathon"
+    },
+    {
+      "id": "WI-0001",
+      "title": "Upgrade Aegis 1.0.0 -> 2.0.0 with Conditor 0.10.27 (echelon-current 1.40.0)",
+      "description": null,
+      "tags": [],
+      "priority": "medium",
+      "status": "ready",
+      "attachments": [],
+      "createdAt": "2026-11-25T12:31:09.463Z",
+      "updatedAt": "2026-11-25T12:31:13.000Z",
+      "createdBy": "unknown",
+      "createdByActor": {
+        "kind": "agent",
+        "id": "anthropic/claude-code",
+        "provider": "anthropic",
+        "model": "unknown",
+        "runtime": "claude-code"
+      },
+      "source": "manual",
+      "sourceReference": null
     }
   ]
 }
