@@ -1,7 +1,7 @@
 {
   "schemaVersion": 4,
   "project": "indy-init-root-cause-investigator",
-  "manifestSha256": "5e472a005abf88cdbf3934500f4468b364052d23169d9d0eceeee42c31401517",
+  "manifestSha256": "f39713904eb5303a71db1e3048d6e50c6a93f385df5112ca55edb27e4a6b5fbf",
   "manifest": {
     "$schema": "../schemas/conditor.schema.json",
     "schemaVersion": 1,
@@ -21,7 +21,7 @@
       },
       {
         "id": "aegis",
-        "version": "2.0.1"
+        "version": "2.0.2"
       },
       {
         "id": "limen",
@@ -1195,12 +1195,12 @@
     },
     {
       "id": "aegis",
-      "version": "2.0.1",
+      "version": "2.0.2",
       "distribution": "nuget",
       "package": "EchelonFoundry.Aegis.Core",
-      "descriptorSha256": "2c5740ac6477d7c717b97d9aa4222f7f1e529601492867d5dd132356ac69d8cc",
+      "descriptorSha256": "18c978fa55ad77c6c786597cff20b164d3ec473d93c93f5b43e7f90cb79149e3",
       "authority": "embedded-component-descriptor",
-      "sourceReference": "nuget:EchelonFoundry.Aegis.Core@2.0.1"
+      "sourceReference": "nuget:EchelonFoundry.Aegis.Core@2.0.2"
     },
     {
       "id": "limen",
