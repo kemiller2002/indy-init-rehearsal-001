@@ -29,3 +29,4 @@
 | SLICE-TOOL-ANALYTICS | Slice 18 tool-analytics: governed tool execution gateway, local WASM analytics and the evidence ingestion pipeline | ready | indy-init, slice, cut:stretch | low |
 | SLICE-WORKSPACE | Slice 05 workspace: one complete accessible investigation workspace | complete | indy-init, slice, cut:never-cut | high |
 | WI-0001 | Upgrade Aegis 1.0.0 -> 2.0.0 with Conditor 0.10.27 (echelon-current 1.40.0) | complete |  | medium |
+| WI-0002 | Pin the .NET 10 SDK with global.json so CI does not build with the runner's .NET 11 SDK (FS3262) | ready |  | medium |
