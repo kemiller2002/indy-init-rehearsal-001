@@ -31,3 +31,4 @@
 | WI-0001 | Upgrade Aegis 1.0.0 -> 2.0.0 with Conditor 0.10.27 (echelon-current 1.40.0) | complete |  | medium |
 | WI-0002 | Pin the .NET 10 SDK with global.json so CI does not build with the runner's .NET 11 SDK (FS3262) | complete |  | medium |
 | WI-0003 | Move Aegis 2.0.1 -> 2.0.2 with Conditor 0.10.29 (WebAssembly detached-capture hang fix) | complete |  | medium |
+| WI-0004 | Upgrade to echelon-current 1.42.0 (Praxis 3.16.0 -> 3.25.0, Ordo 1.5.0 -> 1.20.0, Limen 0.9.0 -> 0.9.1, Forma -> 1.0.1 with the namespace codemod, Folio 0.3.0 -> 0.4.1) | ready |  | medium |
