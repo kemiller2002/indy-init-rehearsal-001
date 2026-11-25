@@ -4,7 +4,7 @@
   "repository": "indy-init-rehearsal-001",
   "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-11-25T17:54:29.000Z",
+  "updatedAt": "2026-11-25T18:32:22.000Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -746,13 +746,47 @@
     {
       "id": "WI-0004",
       "type": "task",
-      "state": "active",
-      "semanticState": "active",
-      "evidence": [],
-      "updatedAt": "2026-11-25T17:54:29.000Z",
+      "state": "complete",
+      "semanticState": "complete",
+      "evidence": [
+        {
+          "type": "implementation",
+          "path": "conditor.json"
+        },
+        {
+          "type": "implementation",
+          "path": "src/kernel/index.html"
+        },
+        {
+          "type": "tests",
+          "path": "HANDOFF.md"
+        }
+      ],
+      "updatedAt": "2026-11-25T18:32:22.000Z",
       "telemetryExecutionIds": [
         "EXE-20261125T175431092Z-f9ab6c0e"
-      ]
+      ],
+      "latestCheckpoint": {
+        "id": "65a2c9ad0fabb1105522a199",
+        "recordedAt": "2026-11-25T18:32:20.000Z",
+        "executionId": "EXE-20261125T175431092Z-f9ab6c0e",
+        "repository": "indy-init-rehearsal-001",
+        "branch": "claude/vigila-implementation-jdeps1",
+        "commit": "fdeba89e972235473977a40fb245eea6561a966c",
+        "remote": {
+          "name": "origin",
+          "url": "https://github.com/kemiller2002/indy-init-rehearsal-001"
+        },
+        "remoteBranch": "claude/vigila-implementation-jdeps1",
+        "remoteCommit": "fdeba89e972235473977a40fb245eea6561a966c",
+        "summary": "1.42.0 upgrade committed and pushed; dotnet 188/188; Chromium Playwright green locally",
+        "nextAction": "Complete WI-0004, open the draft PR",
+        "verification": {
+          "status": "verified",
+          "mechanism": "git-remote-observation"
+        }
+      },
+      "completedAt": "2026-11-25T18:32:22.000Z"
     }
   ]
 }
