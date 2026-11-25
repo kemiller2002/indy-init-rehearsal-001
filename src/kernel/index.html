@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-forma-brand="echelon">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,6 +9,9 @@
   <title data-text="pageTitle">Causa · Root-Cause Investigation</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./vendor/forma/all.css">
+  <link rel="stylesheet" href="./vendor/echelon-theme/echelon.css">
+  <link rel="stylesheet" href="./vendor/echelon-theme/echelon-fonts.css">
+  <link rel="stylesheet" href="./vendor/echelon-theme/echelon-app.css">
   <link rel="stylesheet" href="./vendor/folio/print.css" media="print">
   <link rel="stylesheet" href="./app.css">
   <script type="importmap">
@@ -20,7 +23,7 @@
   <!-- Every decision below is made by the F# engine (src/engine/Shell.fs);
        this page only binds. Legality comes from the kernel's Transitions and
        Policy, never from this markup. -->
-  <a class="ef-skip-link" href="#main" data-skip>Skip to main content</a>
+  <a class="forma-skip-link" href="#main" data-skip>Skip to main content</a>
 
   <header class="app-header" role="banner">
     <div class="app-header__inner">
@@ -49,11 +52,11 @@
 
     <section class="app-refusals" aria-label="Why that could not be done" role="alert">
       <template data-if="hasRefusals">
-        <div class="ef-fault ef-fault--inline" data-ef-intent="inline" data-ef-severity="warning">
-          <div class="ef-fault__marker" aria-hidden="true">!</div>
-          <div class="ef-fault__body">
-            <p class="ef-fault__severity">Not allowed</p>
-            <p class="ef-fault__title"><strong>That action was refused. Here is why:</strong></p>
+        <div class="forma-fault forma-fault--inline" data-forma-intent="inline" data-forma-severity="warning">
+          <div class="forma-fault__marker" aria-hidden="true">!</div>
+          <div class="forma-fault__body">
+            <p class="forma-fault__severity">Not allowed</p>
+            <p class="forma-fault__title"><strong>That action was refused. Here is why:</strong></p>
             <ul class="refusal-list">
               <template data-each="refusals" data-key="id">
                 <li class="refusal" data-testid="refusal">
@@ -63,7 +66,7 @@
               </template>
             </ul>
           </div>
-          <div class="ef-recovery-actions" role="group" aria-label="Recovery actions">
+          <div class="forma-recovery-actions" role="group" aria-label="Recovery actions">
             <button type="button" data-event="dismissRefusals">Dismiss</button>
           </div>
         </div>
@@ -74,17 +77,17 @@
     <template data-if="isHome">
       <div class="screen screen--home">
         <h1>Investigations</h1>
-        <section class="ef-section demo" aria-labelledby="demo-title" data-testid="demo-section">
+        <section class="forma-section demo" aria-labelledby="demo-title" data-testid="demo-section">
           <h2 id="demo-title">Demonstration investigations</h2>
           <p class="muted" data-testid="demo-summary" data-text="demoSummary"></p>
           <template data-if="demoLoading">
             <p class="app-boot" role="status" data-testid="demo-loading">Loading and verifying the frozen demonstration data…</p>
           </template>
           <template data-if="demoFailed">
-            <div class="ef-alert" data-tone="critical" role="alert" data-testid="demo-failed">
-              <div class="ef-alert__icon" aria-hidden="true">!</div>
+            <div class="forma-alert" data-tone="critical" role="alert" data-testid="demo-failed">
+              <div class="forma-alert__icon" aria-hidden="true">!</div>
               <div>
-                <h3 class="ef-alert__title">The demonstration data was refused</h3>
+                <h3 class="forma-alert__title">The demonstration data was refused</h3>
                 <p>Nothing from it is shown, because it is not the frozen release this build expects.</p>
                 <p><code data-text="demoFailure"></code></p>
               </div>
@@ -94,10 +97,10 @@
             <p class="empty" data-testid="demo-empty">No demonstration investigation passed verification.</p>
           </template>
           <template data-if="hasDemoRejected">
-            <div class="ef-alert" data-tone="attention" data-testid="demo-rejected">
-              <div class="ef-alert__icon" aria-hidden="true">!</div>
+            <div class="forma-alert" data-tone="attention" data-testid="demo-rejected">
+              <div class="forma-alert__icon" aria-hidden="true">!</div>
               <div>
-                <h3 class="ef-alert__title">Incompatible or corrupted investigations were not loaded</h3>
+                <h3 class="forma-alert__title">Incompatible or corrupted investigations were not loaded</h3>
                 <ul class="plain-list">
                   <template data-each="demoRejected" data-key="id"><li data-testid="demo-rejection"><strong data-text="key"></strong> — <code data-text="code"></code>: <span data-text="detail"></span></li></template>
                 </ul>
@@ -106,9 +109,9 @@
           </template>
           <ul class="card-list demo-list">
             <template data-each="demoInvestigations" data-key="id">
-              <li class="ef-card investigation-card demo-card" data-testid="demo-card">
-                <h3 class="ef-card__title"><a data-bind-href="frozenHref" data-text="title"></a></h3>
-                <p><span class="ef-status-lozenge" data-testid="demo-lifecycle" data-text="lifecycle"></span> <span class="ef-status-lozenge" data-bind-data-tone="verificationTone" data-testid="demo-verification" data-text="verification"></span></p>
+              <li class="forma-card investigation-card demo-card" data-testid="demo-card">
+                <h3 class="forma-card__title"><a data-bind-href="frozenHref" data-text="title"></a></h3>
+                <p><span class="forma-status-lozenge" data-testid="demo-lifecycle" data-text="lifecycle"></span> <span class="forma-status-lozenge" data-bind-data-tone="verificationTone" data-testid="demo-verification" data-text="verification"></span></p>
                 <p class="demo-card__problem" data-testid="demo-problem" data-text="problem"></p>
                 <dl class="demo-card__counts">
                   <div><dt>Hypotheses</dt><dd data-testid="demo-hypotheses" data-text="hypotheses"></dd></div>
@@ -119,37 +122,37 @@
                 </dl>
                 <p class="demo-card__cause"><span class="muted">Cause:</span> <span data-text="cause"></span></p>
                 <p class="muted demo-card__activity"><span>Last activity:</span> <span data-testid="demo-activity" data-text="lastActivity"></span></p>
-                <p class="ef-actions demo-card__actions">
-                  <a class="ef-button" data-bind-href="frozenHref">Open (read-only)</a>
-                  <template data-if="hasWorkingCopy"><a class="ef-button" data-bind-href="href">Open working copy</a></template>
+                <p class="forma-actions demo-card__actions">
+                  <a class="forma-button" data-bind-href="frozenHref">Open (read-only)</a>
+                  <template data-if="hasWorkingCopy"><a class="forma-button" data-bind-href="href">Open working copy</a></template>
                   <template data-if="noWorkingCopy"><button type="button" data-event="workingCopy.create">Create working copy</button></template>
                 </p>
               </li>
             </template>
           </ul>
         </section>
-        <section class="ef-surface" aria-labelledby="start-title">
+        <section class="forma-surface" aria-labelledby="start-title">
           <h2 id="start-title">Start an investigation</h2>
           <p>Describe what you observed in your own words. It is kept exactly as you write it.</p>
           <form data-event="start" class="form">
-            <div class="ef-field">
-              <label class="ef-field__label" for="start-observation">What did you observe?</label>
+            <div class="forma-field">
+              <label class="forma-field__label" for="start-observation">What did you observe?</label>
               <textarea id="start-observation" rows="4" required data-event="f.observation" data-bind-value="draft_observation"></textarea>
             </div>
-            <div class="ef-field">
-              <label class="ef-field__label" for="start-title-field">Short title (optional)</label>
+            <div class="forma-field">
+              <label class="forma-field__label" for="start-title-field">Short title (optional)</label>
               <input id="start-title-field" type="text" data-event="f.title" data-bind-value="draft_title">
             </div>
-            <div class="ef-actions"><button type="submit" data-bind-disabled="startDisabled">Start investigation</button></div>
+            <div class="forma-actions"><button type="submit" data-bind-disabled="startDisabled">Start investigation</button></div>
           </form>
         </section>
-        <section aria-labelledby="list-title" class="ef-section">
+        <section aria-labelledby="list-title" class="forma-section">
           <h2 id="list-title">Saved on this device</h2>
           <template data-if="hasUnreadable">
-            <div class="ef-alert" data-tone="attention" data-testid="unreadable">
-              <div class="ef-alert__icon" aria-hidden="true">!</div>
+            <div class="forma-alert" data-tone="attention" data-testid="unreadable">
+              <div class="forma-alert__icon" aria-hidden="true">!</div>
               <div>
-                <h3 class="ef-alert__title">Some saved investigations could not be read</h3>
+                <h3 class="forma-alert__title">Some saved investigations could not be read</h3>
                 <ul class="plain-list">
                   <template data-each="unreadable" data-key="id"><li><strong data-text="title"></strong> — <span data-text="reason"></span></li></template>
                 </ul>
@@ -161,9 +164,9 @@
           </template>
           <ul class="card-list">
             <template data-each="investigations" data-key="id">
-              <li class="ef-card investigation-card">
-                <h3 class="ef-card__title"><a data-bind-href="href" data-text="title"></a></h3>
-                <p><span class="ef-status-lozenge" data-text="status"></span> <span data-text="updated"></span></p>
+              <li class="forma-card investigation-card">
+                <h3 class="forma-card__title"><a data-bind-href="href" data-text="title"></a></h3>
+                <p><span class="forma-status-lozenge" data-text="status"></span> <span data-text="updated"></span></p>
                 <p class="muted" data-text="sync"></p>
                 <p><a data-bind-href="reportHref">Report</a></p>
               </li>
@@ -178,8 +181,8 @@
       <div class="screen screen--missing">
         <h1>Not found</h1>
         <p data-text="missingText"></p>
-        <template data-if="hasMissingBack"><p><a class="ef-button" data-bind-href="missingBackHref">Back to the investigation</a></p></template>
-        <p><a class="ef-button" href="#/">Go to your investigations</a></p>
+        <template data-if="hasMissingBack"><p><a class="forma-button" data-bind-href="missingBackHref">Back to the investigation</a></p></template>
+        <p><a class="forma-button" href="#/">Go to your investigations</a></p>
       </div>
     </template>
 
@@ -188,35 +191,35 @@
       <div class="screen screen--settings">
         <h1>GitHub settings</h1>
         <p data-text="settingsSummary"></p>
-        <form data-event="settings.save" class="form ef-surface">
-          <div class="ef-field">
-            <label class="ef-field__label" for="set-owner">Repository owner</label>
+        <form data-event="settings.save" class="form forma-surface">
+          <div class="forma-field">
+            <label class="forma-field__label" for="set-owner">Repository owner</label>
             <input id="set-owner" type="text" autocomplete="off" data-event="f.setOwner" data-bind-value="draft_setOwner">
           </div>
-          <div class="ef-field">
-            <label class="ef-field__label" for="set-repo">Repository name</label>
+          <div class="forma-field">
+            <label class="forma-field__label" for="set-repo">Repository name</label>
             <input id="set-repo" type="text" autocomplete="off" data-event="f.setRepo" data-bind-value="draft_setRepo">
           </div>
-          <div class="ef-field">
-            <label class="ef-field__label" for="set-branch">Branch</label>
-            <span class="ef-field__description" id="set-branch-help">An existing branch. A dedicated data branch without application code, protected against force pushes, is recommended.</span>
+          <div class="forma-field">
+            <label class="forma-field__label" for="set-branch">Branch</label>
+            <span class="forma-field__description" id="set-branch-help">An existing branch. A dedicated data branch without application code, protected against force pushes, is recommended.</span>
             <input id="set-branch" type="text" autocomplete="off" aria-describedby="set-branch-help" data-event="f.setBranch" data-bind-value="draft_setBranch">
           </div>
-          <div class="ef-field">
-            <label class="ef-field__label" for="set-token">Access token</label>
-            <span class="ef-field__description" id="set-token-help">Kept in memory for this session only: never saved on this device, never shown, never put in links, reports or GitHub files. After a reload you will be asked for it again. Leave empty to keep the token entered earlier in this session.</span>
+          <div class="forma-field">
+            <label class="forma-field__label" for="set-token">Access token</label>
+            <span class="forma-field__description" id="set-token-help">Kept in memory for this session only: never saved on this device, never shown, never put in links, reports or GitHub files. After a reload you will be asked for it again. Leave empty to keep the token entered earlier in this session.</span>
             <input id="set-token" type="password" autocomplete="off" aria-describedby="set-token-help" data-event="f.setToken">
           </div>
-          <div class="ef-actions">
+          <div class="forma-actions">
             <button type="submit">Save settings</button>
             <button type="button" data-event="settings.clear">Disconnect GitHub</button>
           </div>
         </form>
         <template data-if="remoteConfigured">
-          <section class="ef-surface" aria-labelledby="run-title" data-testid="run">
+          <section class="forma-surface" aria-labelledby="run-title" data-testid="run">
             <h2 id="run-title">Where working copies are published</h2>
             <p>Run <code data-testid="run-id" data-text="settingsRunId"></code>. Each investigation is written only under <code data-text="settingsWorkspacePath"></code>, as one commit per change; the frozen demonstration data is never written.</p>
-            <div class="ef-actions">
+            <div class="forma-actions">
               <template data-if="canRecover"><button type="button" data-event="sync.recover">Recover this run from GitHub</button></template>
               <button type="button" data-event="sync.newRun">Start a new run</button>
             </div>
@@ -230,10 +233,10 @@
     <template data-if="isFactory">
       <div class="screen screen--factory">
         <h1>How this app was built</h1>
-        <div class="ef-alert" data-tone="attention">
-          <div class="ef-alert__icon" aria-hidden="true">i</div>
+        <div class="forma-alert" data-tone="attention">
+          <div class="forma-alert__icon" aria-hidden="true">i</div>
           <div>
-            <h2 class="ef-alert__title">Factory state at build time</h2>
+            <h2 class="forma-alert__title">Factory state at build time</h2>
             <p>This is a snapshot taken when the site was built, not a live view. It lists the requirements in scope, the slice of work each belongs to, and the state of each work item.</p>
           </div>
         </div>
@@ -243,13 +246,13 @@
             <p>Experiment <strong data-text="factoryExperiment"></strong> · commit <code data-testid="factory-commit" data-text="factoryCommit"></code></p>
             <p data-testid="factory-build-status" data-text="factoryBuildStatus"></p>
             <p data-testid="factory-tests" data-text="factoryTests"></p>
-            <section class="ef-section" aria-labelledby="slices-title">
+            <section class="forma-section" aria-labelledby="slices-title">
               <h2 id="slices-title">Work items</h2>
               <ul class="plain-list">
                 <template data-each="factoryWorkItems" data-key="id"><li data-testid="factory-work-item"><code data-text="id"></code> <span data-text="title"></span> — <strong data-text="status"></strong></li></template>
               </ul>
             </section>
-            <section class="ef-section" aria-labelledby="reqs-title">
+            <section class="forma-section" aria-labelledby="reqs-title">
               <h2 id="reqs-title">Requirements in scope (<span data-text="factoryRequirementCount"></span>)</h2>
               <div class="table-scroll">
                 <table class="factory-table">
@@ -269,17 +272,17 @@
     <template data-if="isWorkspace">
       <div class="screen screen--workspace">
         <header class="ws-header">
-          <p class="ef-eyebrow"><template data-if="isFrozen"><span>Frozen demonstration · </span></template><template data-if="isWorkingCopy"><span>Working copy · </span></template>Investigation</p>
+          <p class="forma-eyebrow"><template data-if="isFrozen"><span>Frozen demonstration · </span></template><template data-if="isWorkingCopy"><span>Working copy · </span></template>Investigation</p>
           <h1 data-text="wsTitle"></h1>
           <template data-if="readOnly">
-            <div class="ef-alert" data-tone="info" role="note" data-testid="read-only-banner">
-              <div class="ef-alert__icon" aria-hidden="true">i</div>
+            <div class="forma-alert" data-tone="info" role="note" data-testid="read-only-banner">
+              <div class="forma-alert__icon" aria-hidden="true">i</div>
               <div>
-                <h2 class="ef-alert__title">Read-only</h2>
+                <h2 class="forma-alert__title">Read-only</h2>
                 <p data-text="frozenBanner"></p>
-                <p class="ef-actions">
+                <p class="forma-actions">
                   <template data-if="showCreateCopy"><button type="button" data-event="workingCopy.create" data-testid="create-working-copy">Create a working copy</button></template>
-                  <template data-if="hasWorkingCopy"><a class="ef-button" data-bind-href="workingCopyHref">Open your working copy</a></template>
+                  <template data-if="hasWorkingCopy"><a class="forma-button" data-bind-href="workingCopyHref">Open your working copy</a></template>
                 </p>
               </div>
             </div>
@@ -287,13 +290,13 @@
           <template data-if="isWorkingCopy"><p class="muted" data-testid="origin" data-text="originText"></p></template>
           <template data-if="hasFrozenOriginal"><p><a data-bind-href="frozenOriginalHref">View the frozen original (read-only)</a></p></template>
           <template data-if="hasSaveConflict">
-            <div class="ef-alert" data-tone="attention" role="alert" data-testid="save-conflict">
-              <div class="ef-alert__icon" aria-hidden="true">!</div>
-              <div><h2 class="ef-alert__title">Not saved on this device</h2><p data-text="saveConflict"></p></div>
+            <div class="forma-alert" data-tone="attention" role="alert" data-testid="save-conflict">
+              <div class="forma-alert__icon" aria-hidden="true">!</div>
+              <div><h2 class="forma-alert__title">Not saved on this device</h2><p data-text="saveConflict"></p></div>
             </div>
           </template>
           <p class="ws-meta">
-            <span class="ef-status-lozenge" data-state="unknown" data-text="wsLifecycle"></span>
+            <span class="forma-status-lozenge" data-state="unknown" data-text="wsLifecycle"></span>
             <span>Version <span data-text="wsVersion"></span></span>
             <a data-bind-href="reportHref">Open report</a>
             <button type="button" data-event="copy.workspace">Copy link to this investigation</button>
@@ -301,14 +304,14 @@
           <template data-if="showPersistence">
           <div class="persistence" aria-label="Where this investigation is saved">
             <p class="persistence__local" data-testid="local-status" data-text="localStatus"></p>
-            <p class="persistence__remote" data-testid="remote-status"><span class="ef-status-lozenge" data-bind-data-state="remoteTone" data-text="remoteStatus"></span></p>
+            <p class="persistence__remote" data-testid="remote-status"><span class="forma-status-lozenge" data-bind-data-state="remoteTone" data-text="remoteStatus"></span></p>
             <template data-if="hasSyncDetail"><p class="muted" data-testid="sync-detail" data-text="syncDetail"></p></template>
             <template data-if="hasSyncPath"><p class="muted persistence__path">GitHub path: <code data-text="syncPath"></code></p></template>
             <template data-if="canRetrySync"><p><button type="button" data-event="sync.retry">Check GitHub again</button></p></template>
             <template data-if="canAdoptRemote">
-              <p class="ef-actions">
+              <p class="forma-actions">
                 <button type="button" data-event="sync.adopt">Use GitHub's version (this device's version is kept as a separate conflict copy)</button>
-                <a class="ef-button" href="#/settings">Continue in a new run instead</a>
+                <a class="forma-button" href="#/settings">Continue in a new run instead</a>
               </p>
             </template>
             <template data-if="hasSyncLog">
@@ -324,15 +327,15 @@
         </header>
 
         <template data-if="hasFocus">
-          <section class="focus-panel ef-surface" aria-labelledby="focus-title" data-testid="focus">
-            <p class="ef-eyebrow" data-text="focusKind"></p>
+          <section class="focus-panel forma-surface" aria-labelledby="focus-title" data-testid="focus">
+            <p class="forma-eyebrow" data-text="focusKind"></p>
             <h2 id="focus-title"><span data-text="focusLabel"></span> <span data-text="focusText"></span></h2>
             <p data-text="focusState"></p>
             <p><a data-bind-href="workspaceHref">Show the whole investigation</a></p>
           </section>
         </template>
         <div class="ws-grid">
-          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="ov-title" data-testid="overview">
+          <section class="forma-surface ws-panel ws-panel--wide" aria-labelledby="ov-title" data-testid="overview">
             <h2 id="ov-title">Overview</h2>
             <dl class="overview">
               <div><dt>Lifecycle</dt><dd data-testid="ov-lifecycle" data-text="wsLifecycle"></dd></div>
@@ -347,56 +350,56 @@
             <p class="muted" data-testid="contract" data-text="contractText"></p>
           </section>
 
-          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="obs-title">
+          <section class="forma-surface ws-panel ws-panel--wide" aria-labelledby="obs-title">
             <h2 id="obs-title">What was observed</h2>
             <blockquote class="observation" data-testid="observation" data-text="wsObservation"></blockquote>
             <p class="muted" data-text="wsObservationBy"></p>
           </section>
 
-          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="todo-title" data-testid="outstanding">
+          <section class="forma-surface ws-panel ws-panel--wide" aria-labelledby="todo-title" data-testid="outstanding">
             <h2 id="todo-title">Next permitted actions</h2>
             <template data-if="readOnly"><p class="muted">Decided by the engine for this exact history. In a working copy, these are the actions it would allow next.</p></template>
             <p class="outstanding-summary" data-text="outstandingSummary"></p>
-            <ul class="ef-obligation-list" aria-label="Open obligations">
+            <ul class="forma-obligation-list" aria-label="Open obligations">
               <template data-each="outstanding" data-key="id">
-                <li class="ef-obligation" data-ef-severity="warning" data-testid="outstanding-item">
-                  <span class="ef-obligation__status" data-text="source"></span>
+                <li class="forma-obligation" data-forma-severity="warning" data-testid="outstanding-item">
+                  <span class="forma-obligation__status" data-text="source"></span>
                   <div><strong data-text="message"></strong><p class="muted">Code <code data-text="code"></code></p></div>
                 </li>
               </template>
             </ul>
           </section>
 
-          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="hyp-title">
+          <section class="forma-surface ws-panel ws-panel--wide" aria-labelledby="hyp-title">
             <h2 id="hyp-title">Possible explanations (hypotheses)</h2>
             <template data-if="canEdit">
             <form data-event="hyp.add" class="form form--inline">
-              <div class="ef-field">
-                <label class="ef-field__label" for="hyp-statement">New hypothesis</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="hyp-statement">New hypothesis</label>
                 <input id="hyp-statement" type="text" data-event="f.hypStatement" data-bind-value="draft_hypStatement">
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="hyp-mechanism">How it would cause the problem (optional)</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="hyp-mechanism">How it would cause the problem (optional)</label>
                 <input id="hyp-mechanism" type="text" data-event="f.hypMechanism" data-bind-value="draft_hypMechanism">
               </div>
-              <div class="ef-actions"><button type="submit">Add hypothesis</button></div>
+              <div class="forma-actions"><button type="submit">Add hypothesis</button></div>
             </form>
             </template>
 
             <fieldset class="change-box">
               <legend>To change a hypothesis: give the reason and the evidence, then press an action on it</legend>
-              <div class="ef-field">
-                <label class="ef-field__label" for="hyp-reason">Reason for the change</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="hyp-reason">Reason for the change</label>
                 <input id="hyp-reason" type="text" data-event="f.hypReason" data-bind-value="draft_hypReason">
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="hyp-evidence">Evidence that caused it</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="hyp-evidence" data-event="f.hypEvidence" data-bind-value="draft_hypEvidence">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="hyp-evidence">Evidence that caused it</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="hyp-evidence" data-event="f.hypEvidence" data-bind-value="draft_hypEvidence">
                     <option value="">No evidence</option>
                     <template data-each="evidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
             </fieldset>
@@ -404,14 +407,14 @@
             <template data-if="hasHypotheses"><p class="muted">The actions shown on each hypothesis are the ones allowed right now.</p></template>
             <ul class="card-list">
               <template data-each="hypotheses" data-key="id">
-                <li class="ef-card hypothesis" data-testid="hypothesis" data-bind-data-tone="tone" data-bind-data-focused="isFocused">
-                  <h3 class="ef-card__title"><span data-text="label"></span>: <span data-text="statement"></span></h3>
-                  <p><span class="ef-status-lozenge" data-bind-data-state="tone" data-text="state" data-testid="hypothesis-state"></span></p>
+                <li class="forma-card hypothesis" data-testid="hypothesis" data-bind-data-tone="tone" data-bind-data-focused="isFocused">
+                  <h3 class="forma-card__title"><span data-text="label"></span>: <span data-text="statement"></span></h3>
+                  <p><span class="forma-status-lozenge" data-bind-data-state="tone" data-text="state" data-testid="hypothesis-state"></span></p>
                   <template data-if="hasMechanism"><p>Mechanism: <span data-text="mechanism"></span></p></template>
                   <p class="muted">Supported by: <span data-text="supportedBy"></span> · Contradicted by: <span data-text="contradictedBy"></span></p>
                   <p class="posture" data-testid="posture"><strong>Why this standing:</strong> <span data-text="posture"></span></p>
                   <p class="muted" data-text="lastChange"></p>
-                  <div class="ef-cluster actions" role="group" aria-label="Allowed actions">
+                  <div class="forma-cluster actions" role="group" aria-label="Allowed actions">
                     <button type="button" data-event="hyp.MarkPlausible" data-bind-hidden="hideMarkPlausible">Mark plausible</button>
                     <button type="button" data-event="hyp.MarkSupported" data-bind-hidden="hideMarkSupported">Mark supported</button>
                     <button type="button" data-event="hyp.MarkWeakened" data-bind-hidden="hideMarkWeakened">Mark weakened</button>
@@ -430,7 +433,7 @@
             </ol>
           </section>
 
-          <section class="ef-surface ws-panel" aria-labelledby="ai-title">
+          <section class="forma-surface ws-panel" aria-labelledby="ai-title">
             <h2 id="ai-title">AI suggestions and challenges</h2>
             <div class="challenge" data-testid="challenge">
               <h3>Challenge the leading explanation</h3>
@@ -445,29 +448,29 @@
             <p class="muted">There is no live AI model here. Paste a suggestion an assistant gave you; it is recorded as the AI's, and only you can accept it.</p>
             <template data-if="canEdit">
             <form data-event="ai.add" class="form">
-              <div class="ef-field">
-                <label class="ef-field__label" for="ai-text">Add AI-suggested hypothesis</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="ai-text">Add AI-suggested hypothesis</label>
                 <input id="ai-text" type="text" data-event="f.aiText" data-bind-value="draft_aiText">
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="ai-rationale">Why the AI suggested it (optional)</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="ai-rationale">Why the AI suggested it (optional)</label>
                 <input id="ai-rationale" type="text" data-event="f.aiRationale" data-bind-value="draft_aiRationale">
               </div>
-              <div class="ef-actions"><button type="submit">Record AI suggestion</button></div>
+              <div class="forma-actions"><button type="submit">Record AI suggestion</button></div>
             </form>
             </template>
-            <div class="ef-field">
-              <label class="ef-field__label" for="ai-reason">Reason for rejecting a suggestion</label>
+            <div class="forma-field">
+              <label class="forma-field__label" for="ai-reason">Reason for rejecting a suggestion</label>
               <input id="ai-reason" type="text" data-event="f.aiReason" data-bind-value="draft_aiReason">
             </div>
             <ul class="card-list">
               <template data-each="proposals" data-key="id">
-                <li class="ef-card" data-testid="proposal">
-                  <p><span class="ef-badge" data-text="by"></span> <strong data-text="text"></strong></p>
+                <li class="forma-card" data-testid="proposal">
+                  <p><span class="forma-badge" data-text="by"></span> <strong data-text="text"></strong></p>
                   <p class="muted" data-text="rationale"></p>
                   <p><span data-text="state"></span> <span data-text="decision"></span></p>
                   <template data-if="isActive">
-                    <div class="ef-cluster" role="group" aria-label="Your decision">
+                    <div class="forma-cluster" role="group" aria-label="Your decision">
                       <button type="button" data-event="ai.accept" data-text="acceptLabel">Accept</button>
                       <button type="button" data-event="ai.reject">Reject</button>
                     </div>
@@ -477,28 +480,28 @@
             </ul>
           </section>
 
-          <section class="ef-surface ws-panel" aria-labelledby="ev-title">
+          <section class="forma-surface ws-panel" aria-labelledby="ev-title">
             <h2 id="ev-title">Evidence</h2>
             <template data-if="canEdit">
             <form data-event="ev.add" class="form">
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="ev-kind">Evidence is</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="ev-kind" data-event="f.evKind" data-bind-value="draft_evKind">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="ev-kind">Evidence is</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="ev-kind" data-event="f.evKind" data-bind-value="draft_evKind">
                     <option value="text">Text I write or paste</option>
                     <option value="url">A link to a file or page</option>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="ev-content">Evidence (text or link)</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="ev-content">Evidence (text or link)</label>
                 <textarea id="ev-content" rows="3" data-event="f.evContent" data-bind-value="draft_evContent"></textarea>
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="ev-category">Kind of evidence</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="ev-category" data-event="f.evCategory" data-bind-value="draft_evCategory">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="ev-category">Kind of evidence</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="ev-category" data-event="f.evCategory" data-bind-value="draft_evCategory">
                     <option value="DirectObservation">Direct observation</option>
                     <option value="Measurement">Measurement</option>
                     <option value="Log">Log</option>
@@ -507,52 +510,52 @@
                     <option value="Testimony">Testimony</option>
                     <option value="ExternalReference">External reference</option>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="ev-source">Where it came from (source)</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="ev-source">Where it came from (source)</label>
                 <input id="ev-source" type="text" data-event="f.evSource" data-bind-value="draft_evSource">
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="ev-captured">Date captured (optional)</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="ev-captured">Date captured (optional)</label>
                 <input id="ev-captured" type="date" data-event="f.evCaptured" data-bind-value="draft_evCaptured">
               </div>
-              <div class="ef-actions"><button type="submit">Add evidence</button></div>
+              <div class="forma-actions"><button type="submit">Add evidence</button></div>
             </form>
             </template>
             <template data-if="canEdit">
             <form data-event="ev.supersede" class="form">
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="sup-old">Evidence to replace</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="sup-old" data-event="f.supOld" data-bind-value="draft_supOld">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="sup-old">Evidence to replace</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="sup-old" data-event="f.supOld" data-bind-value="draft_supOld">
                     <option value="">Choose evidence</option>
                     <template data-each="evidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="sup-new">Replaced by</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="sup-new" data-event="f.supNew" data-bind-value="draft_supNew">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="sup-new">Replaced by</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="sup-new" data-event="f.supNew" data-bind-value="draft_supNew">
                     <option value="">Choose evidence</option>
                     <template data-each="evidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="sup-reason">Why it is replaced</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="sup-reason">Why it is replaced</label>
                 <input id="sup-reason" type="text" data-event="f.supReason" data-bind-value="draft_supReason">
               </div>
-              <div class="ef-actions"><button type="submit">Replace evidence</button></div>
+              <div class="forma-actions"><button type="submit">Replace evidence</button></div>
             </form>
             </template>
             <ul class="card-list">
               <template data-each="evidence" data-key="id">
-                <li class="ef-card" data-testid="evidence" data-bind-data-focused="isFocused">
+                <li class="forma-card" data-testid="evidence" data-bind-data-focused="isFocused">
                   <p><strong data-text="label"></strong> · <span data-text="category"></span> · <span data-text="checked"></span></p>
                   <template data-if="isText"><p class="evidence-text" data-text="content"></p></template>
                   <template data-if="isUrl"><p><a data-bind-href="url" data-text="content" rel="noopener noreferrer" target="_blank"></a></p></template>
@@ -565,47 +568,47 @@
             </ul>
           </section>
 
-          <section class="ef-surface ws-panel" aria-labelledby="rel-title">
+          <section class="forma-surface ws-panel" aria-labelledby="rel-title">
             <h2 id="rel-title">Link evidence to a hypothesis</h2>
             <template data-if="canEdit">
             <form data-event="rel.add" class="form">
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="rel-evidence">Evidence to link</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="rel-evidence" data-event="f.relEvidence" data-bind-value="draft_relEvidence">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="rel-evidence">Evidence to link</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="rel-evidence" data-event="f.relEvidence" data-bind-value="draft_relEvidence">
                     <option value="">Choose evidence</option>
                     <template data-each="evidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="rel-kind">Relationship</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="rel-kind" data-event="f.relKind" data-bind-value="draft_relKind">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="rel-kind">Relationship</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="rel-kind" data-event="f.relKind" data-bind-value="draft_relKind">
                     <option value="Supports">Supports</option>
                     <option value="Contradicts">Contradicts</option>
                     <option value="Discriminates">Helps tell hypotheses apart</option>
                     <option value="Insufficient">Not enough to judge</option>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="rel-hypothesis">Hypothesis to link</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="rel-hypothesis" data-event="f.relHypothesis" data-bind-value="draft_relHypothesis">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="rel-hypothesis">Hypothesis to link</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="rel-hypothesis" data-event="f.relHypothesis" data-bind-value="draft_relHypothesis">
                     <option value="">Choose hypothesis</option>
                     <template data-each="hypothesisOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="rel-rationale">Why (optional)</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="rel-rationale">Why (optional)</label>
                 <input id="rel-rationale" type="text" data-event="f.relRationale" data-bind-value="draft_relRationale">
               </div>
-              <div class="ef-actions"><button type="submit">Link evidence</button></div>
+              <div class="forma-actions"><button type="submit">Link evidence</button></div>
             </form>
             </template>
             <ul class="plain-list">
@@ -613,13 +616,13 @@
             </ul>
           </section>
 
-          <section class="ef-surface ws-panel" aria-labelledby="con-title">
+          <section class="forma-surface ws-panel" aria-labelledby="con-title">
             <h2 id="con-title">Contradictions</h2>
             <template data-if="hasContradictingLinks">
-              <div class="ef-alert" data-tone="attention">
-                <div class="ef-alert__icon" aria-hidden="true">!</div>
+              <div class="forma-alert" data-tone="attention">
+                <div class="forma-alert__icon" aria-hidden="true">!</div>
                 <div>
-                  <h3 class="ef-alert__title">Evidence conflicts with a hypothesis</h3>
+                  <h3 class="forma-alert__title">Evidence conflicts with a hypothesis</h3>
                   <ul class="plain-list">
                     <template data-each="contradictingLinks" data-key="id"><li data-testid="contradicting-link" data-text="text"></li></template>
                   </ul>
@@ -628,46 +631,46 @@
             </template>
             <template data-if="canEdit">
             <form data-event="con.add" class="form">
-              <div class="ef-field">
-                <label class="ef-field__label" for="con-statement">Record a contradiction</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="con-statement">Record a contradiction</label>
                 <input id="con-statement" type="text" data-event="f.conStatement" data-bind-value="draft_conStatement">
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="con-evidence">Evidence involved</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="con-evidence" data-event="f.conEvidence" data-bind-value="draft_conEvidence">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="con-evidence">Evidence involved</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="con-evidence" data-event="f.conEvidence" data-bind-value="draft_conEvidence">
                     <option value="">None</option>
                     <template data-each="evidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="con-materiality">How much it matters</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="con-materiality" data-event="f.conMateriality" data-bind-value="draft_conMateriality">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="con-materiality">How much it matters</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="con-materiality" data-event="f.conMateriality" data-bind-value="draft_conMateriality">
                     <option value="Material">Important</option>
                     <option value="Blocking">Blocking</option>
                     <option value="NonMaterial">Minor</option>
                     <option value="Informational">For information</option>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-actions"><button type="submit">Record contradiction</button></div>
+              <div class="forma-actions"><button type="submit">Record contradiction</button></div>
             </form>
             </template>
-            <div class="ef-field">
-              <label class="ef-field__label" for="con-basis">How a contradiction was explained or accepted</label>
+            <div class="forma-field">
+              <label class="forma-field__label" for="con-basis">How a contradiction was explained or accepted</label>
               <input id="con-basis" type="text" data-event="f.conBasis" data-bind-value="draft_conBasis">
             </div>
             <ul class="card-list">
               <template data-each="contradictions" data-key="id">
-                <li class="ef-card" data-testid="contradiction">
+                <li class="forma-card" data-testid="contradiction">
                   <p><strong data-text="statement"></strong></p>
                   <p class="muted">Evidence: <span data-text="evidence"></span> · <span data-text="materiality"></span> · <span data-text="state"></span></p>
                   <p class="muted" data-text="basis"></p>
-                  <div class="ef-cluster" role="group" aria-label="Allowed actions">
+                  <div class="forma-cluster" role="group" aria-label="Allowed actions">
                     <button type="button" data-event="con.Triage" data-bind-hidden="hideTriage">Mark reviewed</button>
                     <button type="button" data-event="con.Resolve" data-bind-hidden="hideResolve">Mark explained</button>
                     <button type="button" data-event="con.Accept" data-bind-hidden="hideAccept">Accept as remaining uncertainty</button>
@@ -677,40 +680,40 @@
             </ul>
           </section>
 
-          <section class="ef-surface ws-panel" aria-labelledby="unk-title">
+          <section class="forma-surface ws-panel" aria-labelledby="unk-title">
             <h2 id="unk-title">Open questions (unknowns)</h2>
             <template data-if="canEdit">
             <form data-event="unk.add" class="form">
-              <div class="ef-field">
-                <label class="ef-field__label" for="unk-question">What do we not know yet?</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="unk-question">What do we not know yet?</label>
                 <input id="unk-question" type="text" data-event="f.unkQuestion" data-bind-value="draft_unkQuestion">
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="unk-materiality">How much it matters</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="unk-materiality" data-event="f.unkMateriality" data-bind-value="draft_unkMateriality">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="unk-materiality">How much it matters</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="unk-materiality" data-event="f.unkMateriality" data-bind-value="draft_unkMateriality">
                     <option value="Material">Important</option>
                     <option value="Blocking">Blocking — must be answered first</option>
                     <option value="NonMaterial">Minor</option>
                     <option value="Informational">For information</option>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-actions"><button type="submit">Add open question</button></div>
+              <div class="forma-actions"><button type="submit">Add open question</button></div>
             </form>
             </template>
-            <div class="ef-field">
-              <label class="ef-field__label" for="unk-basis">Answer, or why it is accepted as remaining uncertainty</label>
+            <div class="forma-field">
+              <label class="forma-field__label" for="unk-basis">Answer, or why it is accepted as remaining uncertainty</label>
               <input id="unk-basis" type="text" data-event="f.unkBasis" data-bind-value="draft_unkBasis">
             </div>
             <ul class="card-list">
               <template data-each="unknowns" data-key="id">
-                <li class="ef-card" data-testid="unknown">
+                <li class="forma-card" data-testid="unknown">
                   <p><strong data-text="question"></strong></p>
                   <p class="muted"><span data-text="materiality"></span> · <span data-text="state"></span></p>
                   <p class="muted" data-text="basis"></p>
-                  <div class="ef-cluster" role="group" aria-label="Allowed actions">
+                  <div class="forma-cluster" role="group" aria-label="Allowed actions">
                     <button type="button" data-event="unk.Start" data-bind-hidden="hideStart">Start investigating</button>
                     <button type="button" data-event="unk.Resolve" data-bind-hidden="hideResolve">Mark answered</button>
                     <button type="button" data-event="unk.Accept" data-bind-hidden="hideAccept">Accept as remaining uncertainty</button>
@@ -720,79 +723,79 @@
             </ul>
           </section>
 
-          <section class="ef-surface ws-panel" aria-labelledby="test-title">
+          <section class="forma-surface ws-panel" aria-labelledby="test-title">
             <h2 id="test-title">Predictions, tests and findings</h2>
             <template data-if="canEdit">
             <form data-event="pred.add" class="form">
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="pred-hypothesis">If this hypothesis is true…</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="pred-hypothesis" data-event="f.predHypothesis" data-bind-value="draft_predHypothesis">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="pred-hypothesis">If this hypothesis is true…</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="pred-hypothesis" data-event="f.predHypothesis" data-bind-value="draft_predHypothesis">
                     <option value="">Choose hypothesis</option>
                     <template data-each="hypothesisOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="pred-statement">…we expect to see</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="pred-statement">…we expect to see</label>
                 <input id="pred-statement" type="text" data-event="f.predStatement" data-bind-value="draft_predStatement">
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="pred-strength">How strongly it tests the hypothesis</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="pred-strength" data-event="f.predStrength" data-bind-value="draft_predStrength">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="pred-strength">How strongly it tests the hypothesis</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="pred-strength" data-event="f.predStrength" data-bind-value="draft_predStrength">
                     <option value="DiscriminatingPrediction">Tells hypotheses apart (preferred)</option>
                     <option value="Expected">Expected</option>
                     <option value="Necessary">Must happen</option>
                     <option value="NonDiscriminating">Does not tell apart</option>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-actions"><button type="submit">Add prediction</button></div>
+              <div class="forma-actions"><button type="submit">Add prediction</button></div>
             </form>
             </template>
-            <ul class="plain-list"><template data-each="predictions" data-key="id"><li data-testid="prediction" data-bind-data-preferred="isDiscriminating"><template data-if="isDiscriminating"><span class="ef-badge" data-ef-status="success">Preferred: tells hypotheses apart</span></template> <span data-text="text"></span> <small class="muted" data-testid="prediction-timing" data-text="timing"></small></li></template></ul>
+            <ul class="plain-list"><template data-each="predictions" data-key="id"><li data-testid="prediction" data-bind-data-preferred="isDiscriminating"><template data-if="isDiscriminating"><span class="forma-badge" data-forma-status="success">Preferred: tells hypotheses apart</span></template> <span data-text="text"></span> <small class="muted" data-testid="prediction-timing" data-text="timing"></small></li></template></ul>
 
             <template data-if="canEdit">
             <form data-event="act.add" class="form">
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="act-kind">Kind of check</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="act-kind" data-event="f.actKind" data-bind-value="draft_actKind">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="act-kind">Kind of check</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="act-kind" data-event="f.actKind" data-bind-value="draft_actKind">
                     <option value="Test">Test</option>
                     <option value="Experiment">Experiment</option>
                     <option value="Inspection">Inspection</option>
                     <option value="Query">Query</option>
                     <option value="Comparison">Comparison</option>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="act-purpose">What will be checked</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="act-purpose">What will be checked</label>
                 <input id="act-purpose" type="text" data-event="f.actPurpose" data-bind-value="draft_actPurpose">
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="act-hypothesis">Hypothesis it tests</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="act-hypothesis" data-event="f.actHypothesis" data-bind-value="draft_actHypothesis">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="act-hypothesis">Hypothesis it tests</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="act-hypothesis" data-event="f.actHypothesis" data-bind-value="draft_actHypothesis">
                     <option value="">None</option>
                     <template data-each="hypothesisOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-actions"><button type="submit">Plan check</button></div>
+              <div class="forma-actions"><button type="submit">Plan check</button></div>
             </form>
             </template>
             <ul class="card-list">
               <template data-each="actions" data-key="id">
-                <li class="ef-card" data-testid="action">
+                <li class="forma-card" data-testid="action">
                   <p><strong data-text="label"></strong> · <span data-text="kind"></span>: <span data-text="purpose"></span></p>
                   <p class="muted">Tests <span data-text="targets"></span> · <span data-text="state"></span></p>
-                  <div class="ef-cluster" role="group" aria-label="Allowed actions">
+                  <div class="forma-cluster" role="group" aria-label="Allowed actions">
                     <button type="button" data-event="act.Approve" data-bind-hidden="hideApprove">Approve</button>
                     <button type="button" data-event="act.Start" data-bind-hidden="hideStart">Start</button>
                     <button type="button" data-event="act.Reject" data-bind-hidden="hideReject">Reject</button>
@@ -803,25 +806,25 @@
             </ul>
             <template data-if="canEdit">
             <form data-event="find.add" class="form">
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="find-action">Finding from</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="find-action" data-event="f.findAction" data-bind-value="draft_findAction">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="find-action">Finding from</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="find-action" data-event="f.findAction" data-bind-value="draft_findAction">
                     <option value="">Choose a check</option>
                     <template data-each="actionOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="find-result">What actually happened</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="find-result">What actually happened</label>
                 <input id="find-result" type="text" data-event="f.findResult" data-bind-value="draft_findResult">
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="find-interpretation">What it means (optional)</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="find-interpretation">What it means (optional)</label>
                 <input id="find-interpretation" type="text" data-event="f.findInterpretation" data-bind-value="draft_findInterpretation">
               </div>
-              <div class="ef-actions"><button type="submit">Record finding</button></div>
+              <div class="forma-actions"><button type="submit">Record finding</button></div>
             </form>
             </template>
             <ul class="plain-list">
@@ -829,29 +832,29 @@
             </ul>
           </section>
 
-          <section class="ef-surface ws-panel" aria-labelledby="neg-title">
+          <section class="forma-surface ws-panel" aria-labelledby="neg-title">
             <h2 id="neg-title">Ruled out for good (negative knowledge)</h2>
             <template data-if="canEdit">
             <form data-event="neg.add" class="form">
-              <div class="ef-field">
-                <label class="ef-field__label" for="neg-statement">What is known not to be the cause</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="neg-statement">What is known not to be the cause</label>
                 <input id="neg-statement" type="text" data-event="f.negStatement" data-bind-value="draft_negStatement">
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="neg-scope">Within what scope</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="neg-scope">Within what scope</label>
                 <input id="neg-scope" type="text" data-event="f.negScope" data-bind-value="draft_negScope">
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="neg-evidence">Evidence it rests on</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="neg-evidence" data-event="f.negEvidence" data-bind-value="draft_negEvidence">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="neg-evidence">Evidence it rests on</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="neg-evidence" data-event="f.negEvidence" data-bind-value="draft_negEvidence">
                     <option value="">Choose evidence</option>
                     <template data-each="evidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-actions"><button type="submit">Record</button></div>
+              <div class="forma-actions"><button type="submit">Record</button></div>
             </form>
             </template>
             <ul class="plain-list">
@@ -859,104 +862,104 @@
             </ul>
           </section>
 
-          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="cause-title">
+          <section class="forma-surface ws-panel ws-panel--wide" aria-labelledby="cause-title">
             <h2 id="cause-title">Cause</h2>
             <template data-if="canEdit">
             <form data-event="cause.add" class="form form--inline">
-              <div class="ef-field">
-                <label class="ef-field__label" for="cause-outcome">Problem being explained</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="cause-outcome">Problem being explained</label>
                 <input id="cause-outcome" type="text" data-event="f.causeOutcome" data-bind-value="draft_causeOutcome">
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="cause-root">Root cause</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="cause-root" data-event="f.causeRoot" data-bind-value="draft_causeRoot">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="cause-root">Root cause</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="cause-root" data-event="f.causeRoot" data-bind-value="draft_causeRoot">
                     <option value="">Choose hypothesis</option>
                     <template data-each="hypothesisOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="cause-factor">Contributing factor (optional)</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="cause-factor" data-event="f.causeFactor" data-bind-value="draft_causeFactor">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="cause-factor">Contributing factor (optional)</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="cause-factor" data-event="f.causeFactor" data-bind-value="draft_causeFactor">
                     <option value="">None</option>
                     <template data-each="hypothesisOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="cause-mechanism">How it causes the problem (mechanism)</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="cause-mechanism">How it causes the problem (mechanism)</label>
                 <input id="cause-mechanism" type="text" data-event="f.causeMechanism" data-bind-value="draft_causeMechanism">
               </div>
-              <div class="ef-actions"><button type="submit">Propose cause</button></div>
+              <div class="forma-actions"><button type="submit">Propose cause</button></div>
             </form>
             </template>
             <ul class="card-list">
               <template data-each="causes" data-key="id">
-                <li class="ef-card" data-testid="cause">
-                  <h3 class="ef-card__title"><span data-text="label"></span>: <span data-text="outcome"></span></h3>
-                  <p><span class="ef-status-lozenge" data-text="state"></span></p>
+                <li class="forma-card" data-testid="cause">
+                  <h3 class="forma-card__title"><span data-text="label"></span>: <span data-text="outcome"></span></h3>
+                  <p><span class="forma-status-lozenge" data-text="state"></span></p>
                   <p data-text="members"></p>
                   <p class="muted">Mechanism: <span data-text="mechanism"></span></p>
                   <p data-testid="cause-readiness" data-text="readiness"></p>
-                  <div class="ef-cluster" role="group" aria-label="Allowed actions">
+                  <div class="forma-cluster" role="group" aria-label="Allowed actions">
                     <button type="button" data-event="cause.confirm" data-bind-hidden="hideConfirm">Confirm root cause</button>
                   </div>
                 </li>
               </template>
             </ul>
-            <ul class="ef-obligation-list" aria-label="Why a cause cannot be confirmed yet">
+            <ul class="forma-obligation-list" aria-label="Why a cause cannot be confirmed yet">
               <template data-each="causeBlockers" data-key="id">
-                <li class="ef-obligation" data-ef-severity="blocking" data-testid="cause-blocker">
-                  <span class="ef-obligation__status" data-text="cause"></span>
+                <li class="forma-obligation" data-forma-severity="blocking" data-testid="cause-blocker">
+                  <span class="forma-obligation__status" data-text="cause"></span>
                   <div><strong data-text="message"></strong><p class="muted">Code <code data-text="code"></code> · rule <span data-text="rule"></span></p></div>
                 </li>
               </template>
             </ul>
           </section>
 
-          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="corr-title">
+          <section class="forma-surface ws-panel ws-panel--wide" aria-labelledby="corr-title">
             <h2 id="corr-title">Fix and verification</h2>
             <template data-if="canEdit">
             <form data-event="corr.add" class="form form--inline">
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="corr-kind">Kind of fix</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="corr-kind" data-event="f.corrKind" data-bind-value="draft_corrKind">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="corr-kind">Kind of fix</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="corr-kind" data-event="f.corrKind" data-bind-value="draft_corrKind">
                     <option value="Correction">Root-cause correction</option>
                     <option value="Mitigation">Temporary mitigation</option>
                     <option value="Workaround">Workaround</option>
                     <option value="Prevention">Prevention</option>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="corr-description">What will be done</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="corr-description">What will be done</label>
                 <input id="corr-description" type="text" data-event="f.corrDescription" data-bind-value="draft_corrDescription">
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="corr-cause">Cause it addresses</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="corr-cause" data-event="f.corrCause" data-bind-value="draft_corrCause">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="corr-cause">Cause it addresses</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="corr-cause" data-event="f.corrCause" data-bind-value="draft_corrCause">
                     <option value="">Choose cause</option>
                     <template data-each="causeOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-actions"><button type="submit">Add fix</button></div>
+              <div class="forma-actions"><button type="submit">Add fix</button></div>
             </form>
             </template>
             <ul class="card-list">
               <template data-each="corrections" data-key="id">
-                <li class="ef-card" data-testid="correction">
-                  <p><strong data-text="label"></strong> · <span class="ef-badge" data-text="kind"></span> <span data-text="description"></span></p>
+                <li class="forma-card" data-testid="correction">
+                  <p><strong data-text="label"></strong> · <span class="forma-badge" data-text="kind"></span> <span data-text="description"></span></p>
                   <p class="muted">For cause <span data-text="targets"></span> · <span data-text="state" data-testid="correction-state"></span></p>
-                  <div class="ef-cluster" role="group" aria-label="Allowed actions">
+                  <div class="forma-cluster" role="group" aria-label="Allowed actions">
                     <button type="button" data-event="corr.Approve" data-bind-hidden="hideApprove">Approve</button>
                     <button type="button" data-event="corr.Start" data-bind-hidden="hideStart">Start work</button>
                     <button type="button" data-event="corr.Implemented" data-bind-hidden="hideImplemented">Mark implemented</button>
@@ -969,21 +972,21 @@
             </ul>
             <template data-if="canEdit">
             <form data-event="crit.add" class="form form--inline">
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="crit-correction">Fix to check</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="crit-correction" data-event="f.critCorrection" data-bind-value="draft_critCorrection">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="crit-correction">Fix to check</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="crit-correction" data-event="f.critCorrection" data-bind-value="draft_critCorrection">
                     <option value="">Choose fix</option>
                     <template data-each="correctionOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="crit-expected">Success looks like</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="crit-expected">Success looks like</label>
                 <input id="crit-expected" type="text" data-event="f.critExpected" data-bind-value="draft_critExpected">
               </div>
-              <div class="ef-actions"><button type="submit">Add success criterion</button></div>
+              <div class="forma-actions"><button type="submit">Add success criterion</button></div>
             </form>
             </template>
             <ul class="plain-list">
@@ -991,96 +994,96 @@
             </ul>
             <template data-if="canEdit">
             <form data-event="ver.add" class="form form--inline">
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="ver-criterion">Criterion verified</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="ver-criterion" data-event="f.verCriterion" data-bind-value="draft_verCriterion">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="ver-criterion">Criterion verified</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="ver-criterion" data-event="f.verCriterion" data-bind-value="draft_verCriterion">
                     <option value="">Choose criterion</option>
                     <template data-each="criterionOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="ver-outcome">Result</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="ver-outcome" data-event="f.verOutcome" data-bind-value="draft_verOutcome">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="ver-outcome">Result</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="ver-outcome" data-event="f.verOutcome" data-bind-value="draft_verOutcome">
                     <option value="Satisfied">Criterion met</option>
                     <option value="Failed">Criterion not met</option>
                     <option value="Inconclusive">Inconclusive</option>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="ver-evidence">Verification evidence</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="ver-evidence" data-event="f.verEvidence" data-bind-value="draft_verEvidence" aria-describedby="ver-evidence-note">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="ver-evidence">Verification evidence</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="ver-evidence" data-event="f.verEvidence" data-bind-value="draft_verEvidence" aria-describedby="ver-evidence-note">
                     <option value="">No evidence</option>
                     <template data-each="verEvidenceOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
-                <span class="ef-field__description" id="ver-evidence-note" data-testid="ver-evidence-note" data-text="verEvidenceNote"></span>
+                <span class="forma-field__description" id="ver-evidence-note" data-testid="ver-evidence-note" data-text="verEvidenceNote"></span>
               </div>
-              <div class="ef-actions"><button type="submit">Record verification</button></div>
+              <div class="forma-actions"><button type="submit">Record verification</button></div>
             </form>
             </template>
             <ul class="plain-list"><template data-each="verifications" data-key="id"><li data-testid="verification" data-text="text"></li></template></ul>
           </section>
 
-          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="concl-title">
+          <section class="forma-surface ws-panel ws-panel--wide" aria-labelledby="concl-title">
             <h2 id="concl-title">Conclusion and resolution</h2>
             <template data-if="canEdit">
             <form data-event="concl.add" class="form form--inline">
-              <div class="ef-field">
-                <label class="ef-field__label" for="concl-statement">Conclusion</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="concl-statement">Conclusion</label>
                 <input id="concl-statement" type="text" data-event="f.conclStatement" data-bind-value="draft_conclStatement">
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="concl-strength">How strong</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="concl-strength" data-event="f.conclStrength" data-bind-value="draft_conclStrength">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="concl-strength">How strong</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="concl-strength" data-event="f.conclStrength" data-bind-value="draft_conclStrength">
                     <option value="ConfirmedCause">Confirmed cause</option>
                     <option value="SupportedCause">Supported cause</option>
                     <option value="LeadingExplanation">Leading explanation</option>
                     <option value="PlausibleExplanation">Plausible explanation</option>
                     <option value="AcceptedWithResidualUncertainty">Accepted with remaining uncertainty</option>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-select-field">
-                <label class="ef-field__label" for="concl-cause">Cause concluded</label>
-                <span class="ef-select">
-                  <select class="ef-select__input" id="concl-cause" data-event="f.conclCause" data-bind-value="draft_conclCause">
+              <div class="forma-select-field">
+                <label class="forma-field__label" for="concl-cause">Cause concluded</label>
+                <span class="forma-select">
+                  <select class="forma-select__input" id="concl-cause" data-event="f.conclCause" data-bind-value="draft_conclCause">
                     <option value="">None</option>
                     <template data-each="causeOptions" data-key="id"><option data-bind-value="id" data-text="label"></option></template>
                   </select>
-                  <span class="ef-select__indicator" aria-hidden="true"></span>
+                  <span class="forma-select__indicator" aria-hidden="true"></span>
                 </span>
               </div>
-              <div class="ef-field">
-                <label class="ef-field__label" for="concl-residual">Remaining uncertainty</label>
+              <div class="forma-field">
+                <label class="forma-field__label" for="concl-residual">Remaining uncertainty</label>
                 <input id="concl-residual" type="text" data-event="f.conclResidual" data-bind-value="draft_conclResidual">
               </div>
-              <div class="ef-actions"><button type="submit">Record conclusion</button></div>
+              <div class="forma-actions"><button type="submit">Record conclusion</button></div>
             </form>
             </template>
             <ul class="plain-list">
               <template data-each="conclusions" data-key="id"><li data-testid="conclusion"><strong data-text="statement"></strong> (<span data-text="strength"></span>) — remaining uncertainty: <span data-text="residual"></span></li></template>
             </ul>
-            <div class="ef-obligation-panel resolve-panel" data-testid="resolve-panel">
+            <div class="forma-obligation-panel resolve-panel" data-testid="resolve-panel">
               <p class="resolve-summary" data-text="resolveSummary"></p>
-              <ul class="ef-obligation-list" aria-label="What still needs doing">
+              <ul class="forma-obligation-list" aria-label="What still needs doing">
                 <template data-each="resolutionBlockers" data-key="id">
-                  <li class="ef-obligation" data-ef-severity="blocking" data-testid="resolve-blocker">
-                    <span class="ef-obligation__status">Needed</span>
+                  <li class="forma-obligation" data-forma-severity="blocking" data-testid="resolve-blocker">
+                    <span class="forma-obligation__status">Needed</span>
                     <div><strong data-text="message"></strong><p class="muted">Code <code data-text="code"></code> · rule <span data-text="rule"></span></p></div>
                   </li>
                 </template>
               </ul>
-              <div class="ef-cluster" role="group" aria-label="Investigation status actions">
+              <div class="forma-cluster" role="group" aria-label="Investigation status actions">
                 <button type="button" data-event="life.resolve" data-bind-hidden="lifeHide_resolve">Resolve investigation</button>
                 <button type="button" data-event="life.activate" data-bind-hidden="lifeHide_activate">Mark in progress</button>
                 <button type="button" data-event="life.awaitVerification" data-bind-hidden="lifeHide_awaitVerification">Mark waiting for verification</button>
@@ -1088,8 +1091,8 @@
               </div>
               <template data-if="wsIsClosed">
                 <div class="form">
-                  <div class="ef-field">
-                    <label class="ef-field__label" for="reopen-basis">Why reopen</label>
+                  <div class="forma-field">
+                    <label class="forma-field__label" for="reopen-basis">Why reopen</label>
                     <input id="reopen-basis" type="text" data-event="f.reopenBasis" data-bind-value="draft_reopenBasis">
                   </div>
                   <button type="button" data-event="life.reopen" data-bind-hidden="lifeHide_reopen">Reopen investigation</button>
@@ -1098,14 +1101,14 @@
             </div>
           </section>
 
-          <section class="ef-surface ws-panel ws-panel--wide" aria-labelledby="hist-title">
+          <section class="forma-surface ws-panel ws-panel--wide" aria-labelledby="hist-title">
             <h2 id="hist-title">History</h2>
-            <ol class="ef-timeline" aria-label="Investigation history, newest first">
+            <ol class="forma-timeline" aria-label="Investigation history, newest first">
               <template data-each="history" data-key="id">
-                <li class="ef-timeline__item" data-testid="history-item">
-                  <div class="ef-timeline__marker" aria-hidden="true"></div>
-                  <div class="ef-timeline__content">
-                    <div class="ef-timeline__meta"><span>#<span data-text="sequence"></span></span> <span data-text="at"></span> · <span data-text="actor"></span></div>
+                <li class="forma-timeline__item" data-testid="history-item">
+                  <div class="forma-timeline__marker" aria-hidden="true"></div>
+                  <div class="forma-timeline__content">
+                    <div class="forma-timeline__meta"><span>#<span data-text="sequence"></span></span> <span data-text="at"></span> · <span data-text="actor"></span></div>
                     <p data-text="text"></p>
                   </div>
                 </li>
@@ -1122,9 +1125,9 @@
         <p class="no-print"><a data-bind-href="workspaceHref">Back to the investigation</a> · <button type="button" data-event="copy.report">Copy link to this report</button> · Use your browser's Print or Share → Print to save a PDF.</p>
         <ef-print-document class="report">
           <ef-print-title-page>
-            <p class="ef-eyebrow" data-testid="report-kind" data-text="reportKind"></p>
+            <p class="forma-eyebrow" data-testid="report-kind" data-text="reportKind"></p>
             <h1 data-text="reportTitle"></h1>
-            <p>Version <span data-text="reportVersion"></span> · snapshot <span class="ef-fault-reference"><code data-testid="report-digest" data-text="reportDigest"></code></span></p>
+            <p>Version <span data-text="reportVersion"></span> · snapshot <span class="forma-fault-reference"><code data-testid="report-digest" data-text="reportDigest"></code></span></p>
             <ef-print-callout>
               <p><strong>Observation as reported:</strong> <span data-text="reportObservation"></span></p>
             </ef-print-callout>
@@ -1133,7 +1136,7 @@
             <ef-print-section class="report-unresolved" data-testid="report-unresolved">
               <h2>Unresolved work</h2>
               <ul>
-                <template data-each="reportUnresolved" data-key="id"><li><strong data-text="heading"></strong> <small data-text="detail"></small> <span class="ef-fault-reference"><code data-text="status"></code></span></li></template>
+                <template data-each="reportUnresolved" data-key="id"><li><strong data-text="heading"></strong> <small data-text="detail"></small> <span class="forma-fault-reference"><code data-text="status"></code></span></li></template>
               </ul>
             </ef-print-section>
           </template>
@@ -1142,7 +1145,7 @@
               <h2>Outstanding work</h2>
               <p data-text="outstandingSummary"></p>
               <ul>
-                <template data-each="outstanding" data-key="id"><li><strong data-text="source"></strong>: <span data-text="message"></span> <span class="ef-fault-reference"><code data-text="code"></code></span></li></template>
+                <template data-each="outstanding" data-key="id"><li><strong data-text="source"></strong>: <span data-text="message"></span> <span class="forma-fault-reference"><code data-text="code"></code></span></li></template>
               </ul>
             </ef-print-section>
           </template>

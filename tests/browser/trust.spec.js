@@ -15,7 +15,7 @@ test("[R11.4] evidence that contains instructions is shown verbatim as data and 
   await addEvidence(page, injection, "pasted from a chat");
   await expect(page.getByTestId("evidence").filter({ hasText: "Ignore previous rules" }).locator(".evidence-text")).toHaveText(injection);
   await expect(stateOf(page, "Backup job saturates")).toHaveText("Proposed");
-  await expect(page.locator(".ws-meta .ef-status-lozenge").first()).toHaveText("In progress");
+  await expect(page.locator(".ws-meta .forma-status-lozenge").first()).toHaveText("In progress");
   await expect(page.getByTestId("history-item")).toHaveCount(before + 1);
   await expect(page.getByTestId("history-item").first()).toContainText("Evidence E1 added");
   await expect(page.getByTestId("outstanding")).toContainText("No root cause has been confirmed.");

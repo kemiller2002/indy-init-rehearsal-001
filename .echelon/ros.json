@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "tool": "ros",
   "package": "@echelon-foundry/repository-operating-system",
-  "installedVersion": "3.16.0",
+  "installedVersion": "3.25.0",
   "configurationVersion": 1,
   "profile": "greenfield",
   "managedArtifacts": [
     {
       "path": ".echelon/toolchain.json",
       "ownership": "shared",
-      "sha256": "ff461b0bb925bab73c2fa04ca1b19300b94e6838714604822e8221e87b2f08af"
+      "sha256": "c7bf586033ff625b972da668dda5829a0e91914fcb126e20e67af6d5065dde76"
     },
     {
       "path": ".editorconfig",
@@ -19,7 +19,7 @@
     {
       "path": ".gitattributes",
       "ownership": "user-owned",
-      "sha256": "464be577d0d03d3d71fafe666c093a1d76a5c95a0d8e334b032d434a6f88162c"
+      "sha256": "7d5b00587477d5505cb4afb83308960f5c50930317af89c75e2aac6d3df3170c"
     },
     {
       "path": ".github/copilot-instructions.md",
@@ -34,7 +34,7 @@
     {
       "path": ".gitignore",
       "ownership": "user-owned",
-      "sha256": "762a0d582ad473fa05d0ee19946de05e39ba04bd8a69f472eb235adcd747b4d3"
+      "sha256": "947204a8f9bd065f688f4c6bec7673b67d97473ccd3d9af186e2e96495a46294"
     },
     {
       "path": "AGENTS.md",
@@ -149,12 +149,12 @@
     {
       "path": "docs/development-telemetry.md",
       "ownership": "tool-owned",
-      "sha256": "07fcd90fcd30cd73b38a167fc2736acf84d2071d1993c23354f9ffa3def697df"
+      "sha256": "619e56266fc9f5834d530531ff7e3c4e7b5487404e97bd1a1fbeb1916040c59c"
     },
     {
       "path": "docs/fallback-reconciliation.md",
       "ownership": "tool-owned",
-      "sha256": "df226b502b56d66e9847d2074d954274e66b4eff6a74c3a1f489562c908ed13c"
+      "sha256": "cd8b12aeca89d95397a42e6bd68f75ada96aaf6575deeb2279eb61a6ca00d2a9"
     },
     {
       "path": "docs/ordo-observation.md",
@@ -169,7 +169,7 @@
     {
       "path": "docs/remote-protocol.md",
       "ownership": "tool-owned",
-      "sha256": "5e7906bf3f0a1e1ee672fb5fcdaedfc973017be555285dfe299feee26a801697"
+      "sha256": "504a0ce2ed13eee21307b686f78eb47ac11f2cd984774553e3ea8c1235b7b08d"
     },
     {
       "path": "docs/work-adapter-contract.md",
@@ -179,7 +179,7 @@
     {
       "path": "docs/work-protocol.md",
       "ownership": "tool-owned",
-      "sha256": "40d3f4b244d0ecd3a87e017422ab79b7e26e8a1d552d0dfabf69105b4bda2e7e"
+      "sha256": "ac171a29724c7f1cd6606df031d68602a5d26c206a6f384aa5658b69859eb0d1"
     },
     {
       "path": "framework/REP-SPECIFICATION.md",
@@ -384,7 +384,7 @@
     {
       "path": "schemas/execution-telemetry.schema.json",
       "ownership": "tool-owned",
-      "sha256": "22b08ad49695139177f4eea44aa4ea1aa589fa9b5294b31979ec9caf4aabdbec"
+      "sha256": "cf16dc704b78f87918f7c49513fce9fef64da8e81ea751203a2a56145cf4ba06"
     },
     {
       "path": "schemas/experiment.schema.json",

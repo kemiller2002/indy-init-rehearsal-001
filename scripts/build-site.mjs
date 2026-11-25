@@ -4,6 +4,7 @@
 //   dist/main.js, app.css      composition root and layout
 //   dist/vendor/limen/         Limen kernel (.js only, from node_modules)
 //   dist/vendor/forma/all.css  Forma
+//   dist/vendor/echelon-theme/ Echelon theme (CSS and self-hosted fonts)
 //   dist/vendor/folio/         Folio components + print.css
 //   dist/wasm/_framework/      the .NET WebAssembly engine (dotnet publish)
 //   dist/.nojekyll             Pages must not run Jekyll (it drops _framework)
@@ -68,6 +69,9 @@ copyTree(join(modules, "limen", "dist"), join(dist, "vendor", "limen"), (name) =
 // Forma is consumed by its canonical package name (the foundations verifier looks for it).
 const formaPackage = "@echelon-foundry/design-system";
 cpSync(join(root, "node_modules", formaPackage, "dist", "all.css"), join(dist, "vendor", "forma", "all.css"));
+// The Echelon theme (Forma 1.x brand) loads after Forma: echelon.css, echelon-fonts.css, echelon-app.css.
+// Its fonts resolve relative to echelon-fonts.css, so the whole dist/ is copied and served by the site.
+cpSync(join(modules, "echelon-theme", "dist"), join(dist, "vendor", "echelon-theme"), { recursive: true });
 copyTree(join(modules, "print-components", "src", "components"), join(dist, "vendor", "folio", "components"), (name) => name.endsWith(".js"));
 cpSync(join(modules, "print-components", "src", "styles", "print.css"), join(dist, "vendor", "folio", "print.css"));
 

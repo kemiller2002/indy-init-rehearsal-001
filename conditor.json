@@ -5,11 +5,11 @@
   "components": [
     {
       "id": "praxis",
-      "version": "3.16.0"
+      "version": "3.25.0"
     },
     {
       "id": "ordo",
-      "version": "1.5.0"
+      "version": "1.20.0"
     },
     {
       "id": "percepta",
@@ -21,15 +21,20 @@
     },
     {
       "id": "limen",
-      "version": "0.9.0"
+      "version": "0.9.1"
     },
     {
       "id": "forma",
-      "version": "0.5.0"
+      "version": "1.0.1"
     },
     {
       "id": "folio",
-      "version": "0.3.0"
+      "version": "0.4.1"
+    },
+    {
+      "id": "echelon-theme",
+      "version": "1.1.0",
+      "required": false
     }
   ],
   "requirements": [
@@ -666,49 +671,49 @@
       {
         "scheme": "R",
         "path": "docs/REQUIREMENTS.md",
-        "heading": "^### (R[0-9]+\\.[0-9]+) (.+)$",
+        "heading": "^### (R[0-9]\u002B\\.[0-9]\u002B) (.\u002B)$",
         "expected": 82
       },
       {
         "scheme": "P",
         "path": "docs/PRODUCT-REQUIREMENTS.md",
-        "heading": "^### (P[0-9]+\\.[0-9]+) (.+)$",
+        "heading": "^### (P[0-9]\u002B\\.[0-9]\u002B) (.\u002B)$",
         "expected": 464
       },
       {
         "scheme": "A",
         "path": "docs/INVESTIGATION-ACCEPTANCE-SCENARIOS.md",
-        "heading": "^## (A[0-9]+)\\. (.+)$",
+        "heading": "^## (A[0-9]\u002B)\\. (.\u002B)$",
         "expected": 250
       },
       {
         "scheme": "D",
         "path": "docs/DESIGN-DECISION-BOUNDARIES.md",
-        "heading": "^### (D-[0-9]+) (.+)$",
+        "heading": "^### (D-[0-9]\u002B) (.\u002B)$",
         "expected": 61
       },
       {
         "scheme": "OQ",
         "path": "docs/OPEN-QUESTIONS.md",
-        "heading": "^## (OQ-[0-9]+) (.+)$",
+        "heading": "^## (OQ-[0-9]\u002B) (.\u002B)$",
         "expected": 48
       },
       {
         "scheme": "I",
         "path": "docs/INVESTIGATION-SEMANTICS.md",
-        "heading": "^### (I-[0-9]+) (.+)$",
+        "heading": "^### (I-[0-9]\u002B) (.\u002B)$",
         "expected": 20
       },
       {
         "scheme": "S",
         "path": "docs/SCREEN-CONTRACTS.md",
-        "heading": "^## (S[0-9]+) (.+)$",
+        "heading": "^## (S[0-9]\u002B) (.\u002B)$",
         "expected": 25
       },
       {
         "scheme": "F",
         "path": "docs/SEMANTIC-EVOLUTION.md",
-        "heading": "^### (F[0-9]+)\\. (.+)$",
+        "heading": "^### (F[0-9]\u002B)\\. (.\u002B)$",
         "expected": 10
       }
     ],
@@ -1115,7 +1120,7 @@
         "criteria": [
           "Baseline security from the first commit (DF-CON-2026-A002): no credential, token or provider key is committed, bundled into the client, or written to Praxis state, reports or logs (P35.3, R11.3, K-STOP-11). A CI check fails the build when one appears.",
           "Every page ships a restrictive Content-Security-Policy: no inline script, no eval, and connect-src limited to the GitHub API and the chosen AI provider (P35.9, SECURITY-THREAT-MODEL section 17). A browser test asserts it. GitHub Pages cannot set headers and a meta-tag CSP cannot carry frame-ancestors, so record that gap as a deviation (P40.4).",
-          "Commit package-lock.json so CI installs from the lockfile, and run `npx limen init` (it adopts limen.config.json) so the Limen boundary is verified in CI."
+          "Commit package-lock.json so CI installs from the lockfile, and run \u0060npx limen init\u0060 (it adopts limen.config.json) so the Limen boundary is verified in CI."
         ]
       },
       {
@@ -1147,7 +1152,7 @@
       {
         "slice": "demo-readiness",
         "criteria": [
-          "Deploy to GitHub Pages (RQR-005, D-203; DF-CON-2026-A002): add `npm run build` writing the complete site, including dist/index.html, to dist/, so .github/workflows/deploy-pages.yml publishes it; verify the deployed URL before the final freeze (P26.1).",
+          "Deploy to GitHub Pages (RQR-005, D-203; DF-CON-2026-A002): add \u0060npm run build\u0060 writing the complete site, including dist/index.html, to dist/, so .github/workflows/deploy-pages.yml publishes it; verify the deployed URL before the final freeze (P26.1).",
           "Demo scenario (RQR-008, OQ-042): the DEMO-PLAN order-delivery case. The order never arrived; the system and the carrier both say delivered; the shipping address may have changed after the order. Seed it as ordinary investigation data through normal commands, with at least one falsified hypothesis, one blocking unknown and one contradiction. The product must not special-case it.",
           "Demo health (S25) shows the AI key, persistence and deployment state honestly, and the demo still works without the AI key or the data repository."
         ]
@@ -1159,5 +1164,10 @@
         ]
       }
     ]
+  },
+  "registryAuthority": {
+    "kind": "resolved-release-set",
+    "path": ".conditor/authority/resolved-release-set.json",
+    "sha256": "6be3bc97fbdd314abc4c712c2b1b47c1a18487995d9e1b9db445b4d141a8ee8a"
   }
 }

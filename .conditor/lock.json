@@ -1,7 +1,7 @@
 {
   "schemaVersion": 4,
   "project": "indy-init-root-cause-investigator",
-  "manifestSha256": "f39713904eb5303a71db1e3048d6e50c6a93f385df5112ca55edb27e4a6b5fbf",
+  "manifestSha256": "ac8d40fb54cb71e00895ba3c0966596749f7371d82a2c67f6359cecee210bfb6",
   "manifest": {
     "$schema": "../schemas/conditor.schema.json",
     "schemaVersion": 1,
@@ -9,11 +9,11 @@
     "components": [
       {
         "id": "praxis",
-        "version": "3.16.0"
+        "version": "3.25.0"
       },
       {
         "id": "ordo",
-        "version": "1.5.0"
+        "version": "1.20.0"
       },
       {
         "id": "percepta",
@@ -25,15 +25,20 @@
       },
       {
         "id": "limen",
-        "version": "0.9.0"
+        "version": "0.9.1"
       },
       {
         "id": "forma",
-        "version": "0.5.0"
+        "version": "1.0.1"
       },
       {
         "id": "folio",
-        "version": "0.3.0"
+        "version": "0.4.1"
+      },
+      {
+        "id": "echelon-theme",
+        "version": "1.1.0",
+        "required": false
       }
     ],
     "requirements": [
@@ -1163,26 +1168,31 @@
           ]
         }
       ]
+    },
+    "registryAuthority": {
+      "kind": "resolved-release-set",
+      "path": ".conditor/authority/resolved-release-set.json",
+      "sha256": "6be3bc97fbdd314abc4c712c2b1b47c1a18487995d9e1b9db445b4d141a8ee8a"
     }
   },
   "components": [
     {
       "id": "praxis",
-      "version": "3.16.0",
+      "version": "3.25.0",
       "distribution": "host-tool",
       "package": "praxis",
       "descriptorSha256": "a6a854d426d865133e7d1440e2ca80245dbf425aecdf1aafdb7ffddf5bd4487a",
       "authority": "embedded-component-descriptor",
-      "sourceReference": "host:praxis@3.16.0"
+      "sourceReference": "host:praxis@3.25.0"
     },
     {
       "id": "ordo",
-      "version": "1.5.0",
+      "version": "1.20.0",
       "distribution": "host-tool",
       "package": "ordo",
       "descriptorSha256": "e0c49f0c717fd5afdd14699c77add4a12f68eded63231b80206cbe6a3cb374e5",
       "authority": "embedded-component-descriptor",
-      "sourceReference": "host:ordo@1.5.0"
+      "sourceReference": "host:ordo@1.20.0"
     },
     {
       "id": "percepta",
@@ -1204,30 +1214,39 @@
     },
     {
       "id": "limen",
-      "version": "0.9.0",
+      "version": "0.9.1",
       "distribution": "npm",
       "package": "@echelon-foundry/limen",
       "descriptorSha256": "620f8d3a1342a8b2df5351a229d4f9c48c8f1e80a454a579d278ace48144fd9c",
       "authority": "embedded-component-descriptor",
-      "sourceReference": "npm:@echelon-foundry/limen@0.9.0"
+      "sourceReference": "npm:@echelon-foundry/limen@0.9.1"
     },
     {
       "id": "forma",
-      "version": "0.5.0",
+      "version": "1.0.1",
       "distribution": "npm",
       "package": "@echelon-foundry/design-system",
       "descriptorSha256": "8f57f88e60ee9e5284c60304a91e3c45c967f059c7123cb646e15f74062212bd",
       "authority": "embedded-component-descriptor",
-      "sourceReference": "npm:@echelon-foundry/design-system@0.5.0"
+      "sourceReference": "npm:@echelon-foundry/design-system@1.0.1"
     },
     {
       "id": "folio",
-      "version": "0.3.0",
+      "version": "0.4.1",
       "distribution": "npm",
       "package": "@echelon-foundry/print-components",
       "descriptorSha256": "d56d30819e76bac24b0716238f937ccfc11a29643994a1233a734f5292836085",
       "authority": "embedded-component-descriptor",
-      "sourceReference": "npm:@echelon-foundry/print-components@0.3.0"
+      "sourceReference": "npm:@echelon-foundry/print-components@0.4.1"
+    },
+    {
+      "id": "echelon-theme",
+      "version": "1.1.0",
+      "distribution": "npm",
+      "package": "@echelon-foundry/echelon-theme",
+      "descriptorSha256": "3336ffb25552513f681d560211c9745abd4fbce4e7cd836feb48b1fe3274e24a",
+      "authority": "embedded-component-descriptor",
+      "sourceReference": "npm:@echelon-foundry/echelon-theme@1.1.0"
     }
   ],
   "requirements": [
