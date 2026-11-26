@@ -7,9 +7,10 @@ Bootstrap Indy Init Rehearsal 001 as a greenfield Praxis pilot.
 ## Current state
 
 - Praxis 3.16.0 greenfield profile installed on 2026-10-21; Praxis 3.25.0 since
-  WI-0004 (2026-11-25).
-- echelon-current 1.42.0 since WI-0004 (Conditor 0.10.29 `upgrade --current`):
-  Praxis 3.25.0, Ordo 1.20.0, Limen 0.9.1, Forma 1.0.1, Folio 0.4.1, Aegis
+  WI-0004 (2026-11-25); Praxis 3.26.0 since WI-0005 (2026-11-26).
+- echelon-current 1.43.0 since WI-0005 (Conditor 0.10.30 `upgrade --current`;
+  1.42.0 since WI-0004 with Conditor 0.10.29):
+  Praxis 3.26.0, Ordo 1.20.0, Limen 0.9.1, Forma 1.0.1, Folio 0.4.1, Aegis
   2.0.2, Percepta 0.1.0 and the optional Echelon theme 1.1.0 (loaded after
   Forma `all.css`: `echelon.css`, `echelon-fonts.css`, `echelon-app.css`;
   `scripts/build-site.mjs` copies the theme's `dist/`, fonts included).
