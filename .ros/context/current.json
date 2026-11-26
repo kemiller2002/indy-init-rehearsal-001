@@ -4,7 +4,7 @@
   "repository": "indy-init-rehearsal-001",
   "actor": "anthropic/claude-code",
   "startedAt": "2026-10-21T16:26:38.488Z",
-  "updatedAt": "2026-11-26T00:35:29Z",
+  "updatedAt": "2026-11-26T01:01:14Z",
   "baselineDirtyPaths": [],
   "workItems": [
     {
@@ -791,13 +791,43 @@
     {
       "id": "WI-0005",
       "type": "task",
-      "state": "active",
-      "semanticState": "active",
-      "evidence": [],
-      "updatedAt": "2026-11-26T00:35:29Z",
+      "state": "complete",
+      "semanticState": "complete",
+      "evidence": [
+        {
+          "type": "implementation",
+          "path": ".conditor/lock.json"
+        },
+        {
+          "type": "tests",
+          "path": ".echelon/foundations.json"
+        }
+      ],
+      "updatedAt": "2026-11-26T01:01:14Z",
       "telemetryExecutionIds": [
         "EXE-20261126T003532694Z-9e6d2a13"
-      ]
+      ],
+      "latestCheckpoint": {
+        "id": "6dcb7ea1ac3f8ea695abb1f6",
+        "recordedAt": "2026-11-26T01:01:13Z",
+        "executionId": "EXE-20261126T003532694Z-9e6d2a13",
+        "repository": "indy-init-rehearsal-001",
+        "branch": "claude/vigila-implementation-jdeps1",
+        "commit": "22dd70a71f899a02ad64768cda6a50d24a6baa5f",
+        "remote": {
+          "name": "origin",
+          "url": "https://github.com/kemiller2002/indy-init-rehearsal-001"
+        },
+        "remoteBranch": "claude/vigila-implementation-jdeps1",
+        "remoteCommit": "22dd70a71f899a02ad64768cda6a50d24a6baa5f",
+        "summary": "echelon-current 1.43.0 upgrade committed and pushed; local builds and tests pass",
+        "nextAction": "Complete the work item, open a draft PR and watch CI",
+        "verification": {
+          "status": "verified",
+          "mechanism": "git-remote-observation"
+        }
+      },
+      "completedAt": "2026-11-26T01:01:14Z"
     }
   ]
 }
